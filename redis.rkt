@@ -47,6 +47,10 @@
       (send-cmd "INCR" (list key))
       (get-response))
 
+    (define/public (del key)
+      (send-cmd "DEL" (if (list? key) key (list key)))
+      (get-response))
+    
     (define/public (lpush key value)
       (send-cmd "LPUSH" (if (list? value)
                             (append (list key) value)
@@ -78,3 +82,9 @@
   (check-true (number? (send redis lpush "some-list" "1")))
   (check-true (number? (send redis lpush "some-list" (list "1" "2" "3" "4" "5"))))
   (check-true (list? (send redis lrange "some-list" "0" "-1"))))
+
+(module+ test
+  (check-equal? (send redis del "a-number") 1)
+  (check-equal? (send redis set "a" "hey") "OK")
+  (check-equal? (send redis set "b" "'ello") "OK")
+  (check-equal? (send redis del (list "a" "b")) 2))
