@@ -27,7 +27,7 @@
               (redis-decode resp)))))
     
     (define/private (apply-cmd cmd args)
-      (send (redis-encode-array (append (list cmd) args))))
+      (send (redis-encode-array (append (list cmd) (if (list? args) args (list args))))))
     
     (define/public (ping [msg ""])
       (if (equal? msg "")
@@ -40,15 +40,19 @@
       (get-response))
     
     (define/public (get key)
-      (apply-cmd "GET" (list key))
+      (apply-cmd "GET" key)
       (get-response))
 
     (define/public (incr key)
-      (apply-cmd "INCR" (list key))
+      (apply-cmd "INCR" key)
       (get-response))
-
+    
+    (define/public (decr key)
+      (apply-cmd "DECR" key)
+      (get-response))
+    
     (define/public (del key)
-      (apply-cmd "DEL" (if (list? key) key (list key)))
+      (apply-cmd "DEL" key)
       (get-response))
 
     (define/public (setnx key value)
@@ -57,8 +61,8 @@
     
     (define/public (lpush key value)
       (apply-cmd "LPUSH" (if (list? value)
-                            (append (list key) value)
-                            (list key value)))
+                             (append (list key) value)
+                             (list key value)))
       (get-response))
 
     (define/public (lrange key min max)
@@ -94,5 +98,10 @@
   (check-equal? (send redis del (list "a" "b")) 2))
 
 (module+ test
+  (check-equal? (send redis del "new-key") 1)
   (check-equal? (send redis setnx "new-key" "Hello") 1)
   (check-equal? (send redis setnx "new-key" "World") 0))
+
+(module+ test
+  (check-equal? (send redis set "a-number" "1") "OK")
+  (check-equal? (send redis decr "a-number") 0))
