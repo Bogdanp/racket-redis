@@ -247,6 +247,42 @@
       (apply-cmd "ZSCORE" (list key member))
       (get-response))
 
+    (define/public (zlexcount key min max)
+      (apply-cmd "ZLEXCOUNT" (list key min max))
+      (get-response))
+    
+    (define/public (zrangebylex key min max)
+      (apply-cmd "ZRANGEBYLEX" (list key min max))
+      (get-response))
+
+    (define/public (zinterstore dest keys)
+      (apply-cmd "ZINTERSTORE" (append (list dest) keys))
+      (get-response))
+
+    (define/public (zcount key min max)
+      (apply-cmd "ZCOUNT" (list key min max))
+      (get-response))
+
+    (define/public (zrevrank key member)
+      (apply-cmd "ZREVRANK" (list key member))
+      (get-response))
+    
+    (define/public (zrevrangebyscore key max min)
+      (apply-cmd "ZREVRANGEBYSCORE" (list key max min))
+      (get-response))
+
+     (define/public (zremrangebyrank key start stop)
+      (apply-cmd "ZREMRANGEBYSCORE" (list key start stop))
+      (get-response))
+    
+    (define/public (zremrangebylex key min max)
+      (apply-cmd "ZREMRANGEBYLEX" (list key min max))
+      (get-response))
+    
+    (define/public (zunionstore dest keys)
+      (apply-cmd "ZUNIONSTORE" (append (list dest) keys))
+      (get-response))
+    
     (define/public (hmset key data)
       (apply-cmd "HMSET" (append (list key) data))
       (get-response))
