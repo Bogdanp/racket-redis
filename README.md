@@ -1,6 +1,6 @@
 # rackdis
-Redis bindings for Racket. The documentation still needs to be written, but for now see the `tests.rkt` file to see example
-usage. Currently the entire set of Redis v1 commands are implemented, and various bits of v2 and v3.
+Redis client for Racket. The documentation still needs to be written, but for now see the `tests.rkt` file to see example
+usage. Currently the entire set of Redis v1 commands is implemented, along with various bits of v2 and v3.
 
 Example Usage
 =============
