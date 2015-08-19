@@ -26,39 +26,43 @@
                     (loop (string-append resp s "\n"))))
               (redis-decode resp)))))
     
-    (define/private (send-cmd cmd args)
+    (define/private (apply-cmd cmd args)
       (send (redis-encode-array (append (list cmd) args))))
     
     (define/public (ping [msg ""])
       (if (equal? msg "")
           (send "PING\r\n")
-          (send-cmd "PING" (list msg)))
+          (apply-cmd "PING" (list msg)))
       (get-response))
 
     (define/public (set key value)
-      (send-cmd "SET" (list key value))
+      (apply-cmd "SET" (list key value))
       (get-response))
     
     (define/public (get key)
-      (send-cmd "GET" (list key))
+      (apply-cmd "GET" (list key))
       (get-response))
 
     (define/public (incr key)
-      (send-cmd "INCR" (list key))
+      (apply-cmd "INCR" (list key))
       (get-response))
 
     (define/public (del key)
-      (send-cmd "DEL" (if (list? key) key (list key)))
+      (apply-cmd "DEL" (if (list? key) key (list key)))
+      (get-response))
+
+    (define/public (setnx key value)
+      (apply-cmd "SETNX" (list key value))
       (get-response))
     
     (define/public (lpush key value)
-      (send-cmd "LPUSH" (if (list? value)
+      (apply-cmd "LPUSH" (if (list? value)
                             (append (list key) value)
                             (list key value)))
       (get-response))
 
     (define/public (lrange key min max)
-      (send-cmd "LRANGE" (list key min max))
+      (apply-cmd "LRANGE" (list key min max))
       (get-response))
     
     (define/public (init)
@@ -88,3 +92,7 @@
   (check-equal? (send redis set "a" "hey") "OK")
   (check-equal? (send redis set "b" "'ello") "OK")
   (check-equal? (send redis del (list "a" "b")) 2))
+
+(module+ test
+  (check-equal? (send redis setnx "new-key" "Hello") 1)
+  (check-equal? (send redis setnx "new-key" "World") 0))
