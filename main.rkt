@@ -331,6 +331,18 @@
       (apply-cmd "STRLEN" key)
       (get-response))
 
+    (define/public (bitcount key [start "0"] [end (number->string (string-length key))])
+      (apply-cmd "BITCOUNT" (list key start end))
+      (get-response))
+
+    (define/public (bitop operation destkey key)
+      (apply-cmd "BITOP" (append (list operation destkey) (if (list? key) key (list key))))
+      (get-response))
+
+    (define/public (bitpos key bit [start null] [end null])
+      (apply-cmd "BITPOS" (flatten (list key bit start end)))
+      (get-response))
+    
     (define/public (getrange key start end)
       (apply-cmd "GETRANGE" (list key start end))
       (get-response))
