@@ -46,6 +46,10 @@
     (define/public (incr key)
       (apply-cmd "INCR" key)
       (get-response))
+
+    (define/public (incrby key value)
+      (apply-cmd "INCRBY" (list key value))
+      (get-response))
     
     (define/public (decr key)
       (apply-cmd "DECR" key)
@@ -104,4 +108,5 @@
 
 (module+ test
   (check-equal? (send redis set "a-number" "1") "OK")
-  (check-equal? (send redis decr "a-number") 0))
+  (check-equal? (send redis decr "a-number") 0)
+  (check-equal? (send redis incrby "a-number" "5") 5))
