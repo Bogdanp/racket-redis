@@ -236,9 +236,10 @@
   (define (group-bulk-strings parts)
     (let loop ([ps parts] [result null])
       (if (null? ps) result
-          (if (string-prefixed? (first ps) #\$)
+          (if (and (not (equal? (first ps) "")) (string-prefixed? (first ps) #\$))
               (loop (rest (rest ps)) (append result (list (string-append (first ps) "\r\n" (second ps) "\r\n"))))
-              (loop (rest ps) (append result (list (first ps))))))))
+              (loop (rest ps) (if (equal? "" (first ps)) result
+                                  (append result (list (first ps)))))))))
   
   (define (build-sub-array parts size)
     (let* ([tmp-elts (add-between (take (rest parts) size) "\r\n")]
