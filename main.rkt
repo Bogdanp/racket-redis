@@ -287,6 +287,18 @@
       (apply-cmd "HLEN" key)
       (get-response))
 
+    (define/public (concat key value)
+      (apply-cmd "APPEND" (list key value))
+      (get-response))
+    
+    (define/public (strlen key)
+      (apply-cmd "STRLEN" key)
+      (get-response))
+
+    (define/public (getrange key start end)
+      (apply-cmd "GETRANGE" (list key start end))
+      (get-response))
+    
     (define/public (type key)
       (apply-cmd "TYPE" key)
       (get-response))
@@ -386,7 +398,7 @@
     (define/public (slaveof host port)
       (apply-cmd "SLAVEOF" (list host port))
       (get-response))
-    
+
     (define/public (init)
       (define-values (i o) (tcp-connect ip port))
       (set! in i)
