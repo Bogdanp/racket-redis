@@ -3,7 +3,7 @@ Redis bindings for Racket.
 
 Example Usage
 =============
-Create a redis object: `(define redis (new-redis%))`
+Create a redis object: `(define redis (new redis%))`
 
 Initialize it: `(send redis init)`
 
