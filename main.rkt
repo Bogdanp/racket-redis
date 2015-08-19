@@ -259,12 +259,12 @@
       (apply-cmd "HDEL" (append (list key) fields))
       (get-response))
     
-    (define/public (hmsetnx key field value)
-      (apply-cmd "HMSETNX" (list key field value))
+    (define/public (hsetnx key field value)
+      (apply-cmd "HSETNX" (list key field value))
       (get-response))
     
     (define/public (hget key field)
-      (apply-cmd "HGET" key field)
+      (apply-cmd "HGET" (list key field))
       (get-response))
 
     (define/public (hgetall key)
@@ -379,6 +379,10 @@
       (apply-cmd "MONITOR")
       (get-response))
 
+    (define/public (object subcommand [args null])
+      (apply-cmd "OBJECT" (append (list subcommand) args))
+      (get-response))
+    
     (define/public (slaveof host port)
       (apply-cmd "SLAVEOF" (list host port))
       (get-response))
