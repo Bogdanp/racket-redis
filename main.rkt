@@ -108,6 +108,7 @@
                              (append (list key) value)
                              (list key value)))
       (get-response))
+
     (define/public (rpush key value)
       (apply-cmd "RPUSH" (if (list? value)
                              (append (list key) value)
@@ -241,7 +242,47 @@
     (define/public (zscore key element)
       (apply-cmd "ZSCORE" (list key element))
       (get-response))
+
+    (define/public (hmset key data)
+      (apply-cmd "HMSET" (append (list key) data))
+      (get-response))
+
+    (define/public (hvals key)
+      (apply-cmd "HVALS" key)
+      (get-response))
+
+    (define/public (hdel key fields)
+      (apply-cmd "HDEL" (append (list key) fields))
+      (get-response))
     
+    (define/public (hmsetnx key field value)
+      (apply-cmd "HMSETNX" (list key field value))
+      (get-response))
+    
+    (define/public (hget key field)
+      (apply-cmd "HGET" key field)
+      (get-response))
+
+    (define/public (hgetall key)
+      (apply-cmd "HGETALL" key)
+      (get-response))
+
+    (define/public (hincrby key field increment)
+      (apply-cmd "HINCRBY" (list key field increment))
+      (get-response))
+
+    (define/public (hexists key field)
+      (apply-cmd "HEXISTS" (list key field))
+      (get-response))
+
+    (define/public (hkeys key)
+      (apply-cmd "HKEYS" key)
+      (get-response))
+
+    (define/public (hlen key)
+      (apply-cmd "HLEN" key)
+      (get-response))
+
     (define/public (type key)
       (apply-cmd "TYPE" key)
       (get-response))
