@@ -8,7 +8,7 @@
 (define redis%
   (class
       object%
-    (init-field [ip "127.0.0.1"] [port 6379])
+    (init-field [ip "127.0.0.1"] [port 6379] [timeout 1])
     (field [out null] [in null])
     (super-new)
     
@@ -18,7 +18,7 @@
     
     (define/private (get-response)
       (let loop ([resp ""])
-        (let ([p (sync/timeout 1 in)])
+        (let ([p (sync/timeout timeout in)])
           (if (input-port? p)
               (let ([s (read-line p)])
                 (if (eof-object? s)
@@ -28,6 +28,8 @@
     
     (define/private (apply-cmd cmd args)
       (send (redis-encode-array (append (list cmd) (if (list? args) args (list args))))))
+
+    (define/public (set-timeout t) (set! timeout t))
     
     (define/public (ping [msg ""])
       (if (equal? msg "")
@@ -53,6 +55,10 @@
     
     (define/public (decr key)
       (apply-cmd "DECR" key)
+      (get-response))
+
+    (define/public (decrby key value)
+      (apply-cmd "DECRBY" (list key value))
       (get-response))
     
     (define/public (del key)
@@ -80,6 +86,7 @@
 
 (module+ test
   (define redis (new redis%))
+  (send redis set-timeout 0.01) ;this is ok for local testing, probably not for the net though
   (send redis init)
   (check-equal? (send redis ping) "PONG" )
   (check-equal? (send redis ping "yo watup")
@@ -109,4 +116,5 @@
 (module+ test
   (check-equal? (send redis set "a-number" "1") "OK")
   (check-equal? (send redis decr "a-number") 0)
-  (check-equal? (send redis incrby "a-number" "5") 5))
+  (check-equal? (send redis incrby "a-number" "5") 5)
+  (check-equal? (send redis decrby "a-number" "5") 0))
