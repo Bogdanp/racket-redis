@@ -1,7 +1,7 @@
 #lang racket
 (require "main.rkt" rackunit)
 (define redis (new redis%))
-(send redis set-timeout 0.01) ;this is ok for local testing, probably not for the net though
+(send redis set-timeout 0.3) ;this is ok for local testing, probably not for the net though
 (send redis init)
 
 (check-equal? (send redis config-resetstat) "OK")
@@ -44,5 +44,13 @@
 (check-equal? (send redis incrby "a-number" "5") 5)
 (check-equal? (send redis decrby "a-number" "5") 0)
 
-
+(check-equal? (send redis hmset "blah" '("a-number" "1")) "OK")
+(check-equal? (send redis hsetnx "blah" "a-number" "2") 0)
+(check-equal? (send redis hget "blah" "a-number") "1")
+(check-equal? (send redis hgetall "blah") (list "a-number" "1"))
+(check-equal? (send redis hexists "blah" "a-number") 1)
+(check-equal? (send redis hexists "blah" "another-number") 0)
+(check-equal? (send redis hincrby "blah" "a-number" "2") 3)
+(check-equal? (send redis type "blah") "hash")
+(check-equal? (send redis hlen "blah") 1)
 (check-equal? (send redis quit) "OK")
