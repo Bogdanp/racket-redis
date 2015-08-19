@@ -52,6 +52,13 @@
     (define/public (quit)
       (apply-cmd "QUIT")
       (get-response))
+
+    (define/public (exists keys)
+      (apply-cmd "EXISTS" keys)
+      (let ([r (get-response)])
+        (if (number? r)
+            (= 1 r)
+            #f)))
     
     (define/public (set key value)
       (apply-cmd "SET" (list key value))
@@ -122,6 +129,8 @@
 
 (module+ test
   (check-equal? (send redis set "a-number" "1") "OK")
+  (check-true (send redis exists "a-number"))
+  (check-false (send redis exists "some crap"))
   (check-equal? (send redis get "a-number") "1")
   (check-equal? (send redis incr "a-number") 2)
   (check-equal? (send redis getset "a-number" "4") "2")
@@ -131,6 +140,7 @@
   (check-equal? (send redis set "key1" "fksd") "OK")
   (check-equal? (send redis set "key2" "fdadsf") "OK")
   (check-equal? (send redis set "key3" "bdafg") "OK")
+ ; (check-true (send redis exists (list "key1" "key2" "key3")))
   (check-equal? (send redis mget (list "key1" "key2" "key3"))
                 (list "fksd" "fdadsf" "bdafg")))
 
