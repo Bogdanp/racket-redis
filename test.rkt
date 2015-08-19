@@ -38,6 +38,9 @@
 (check-true (list? (member (send redis del "new-key") (list 0 1))))
 (check-equal? (send redis setnx "new-key" "Hello") 1)
 (check-equal? (send redis setnx "new-key" "World") 0)
+(check-equal? (send redis strlen "new-key") 5)
+(check-equal? (send redis concat "new-key" " world") 11)
+(check-equal? (send redis get "new-key") "Hello world")
 
 (check-equal? (send redis set "a-number" "1") "OK")
 (check-equal? (send redis decr "a-number") 0)
@@ -53,4 +56,5 @@
 (check-equal? (send redis hincrby "blah" "a-number" "2") 3)
 (check-equal? (send redis type "blah") "hash")
 (check-equal? (send redis hlen "blah") 1)
+
 (check-equal? (send redis quit) "OK")
