@@ -20,9 +20,9 @@
           (if (input-port? p)
               (let ([s (read-line p)])
                 (if (eof-object? s)
-                    (redis-decode resp)
+                    (when (not (equal? resp "")) (redis-decode resp))
                     (loop (string-append resp s "\n"))))
-              (redis-decode resp)))))
+              (when (not (equal? resp "")) (redis-decode resp))))))
     
     (define/private (apply-cmd cmd [args null])
       (if (null? args)
