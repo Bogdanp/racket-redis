@@ -239,8 +239,8 @@
       (apply-cmd "ZCARD" key)
       (get-response))
 
-    (define/public (zscore key element)
-      (apply-cmd "ZSCORE" (list key element))
+    (define/public (zscore key member)
+      (apply-cmd "ZSCORE" (list key member))
       (get-response))
 
     (define/public (hmset key data)
@@ -301,6 +301,22 @@
 
     (define/public (renamex oldkey newkey)
       (apply-cmd "RENAMEX" (list oldkey newkey))
+      (get-response))
+
+    (define/public (config-get parameter)
+      (apply-cmd "CONFIG GET" parameter)
+      (get-response))
+
+    (define/public (config-set parameter value)
+      (apply-cmd "CONFIG SET" (list parameter value))
+      (get-response))
+
+    (define/public (config-rewrite)
+      (apply-cmd "CONFIG REWRITE")
+      (get-response))
+
+    (define/public (config-resetstat)
+      (apply-cmd "CONFIG RESETSTAT")
       (get-response))
 
     (define/public (dbsize)

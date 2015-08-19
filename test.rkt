@@ -4,6 +4,7 @@
 (send redis set-timeout 0.01) ;this is ok for local testing, probably not for the net though
 (send redis init)
 
+(check-equal? (send redis config-resetstat) "OK")
 (check-equal? (send redis ping) "PONG" )
 (check-equal? (send redis ping "yo watup") "yo watup")
 (check-equal? (send redis echo "HEYY") "HEYY")
@@ -42,5 +43,6 @@
 (check-equal? (send redis decr "a-number") 0)
 (check-equal? (send redis incrby "a-number" "5") 5)
 (check-equal? (send redis decrby "a-number" "5") 0)
+
 
 (check-equal? (send redis quit) "OK")
