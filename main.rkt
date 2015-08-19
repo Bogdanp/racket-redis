@@ -399,6 +399,26 @@
       (apply-cmd "SLAVEOF" (list host port))
       (get-response))
 
+    (define/public (subscribe channel)
+      (apply-cmd "SUBSCRIBE" channel)
+      (get-response))
+
+    (define/public (publish channel msg)
+      (apply-cmd "PUBLISH" (list channel msg))
+      (get-response))
+
+    (define/public (unsubscribe channel)
+      (apply-cmd "UNSUBSCRIBE" channel)
+      (get-response))
+
+    (define/public (psubscribe pattern)
+      (apply-cmd "PSUBSCRIBE" pattern)
+      (get-response))
+
+    (define/public (punsubscribe pattern)
+      (apply-cmd "PUNSUBSCRIBE" pattern)
+      (get-response))
+    
     (define/public (init)
       (define-values (i o) (tcp-connect ip port))
       (set! in i)
