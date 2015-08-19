@@ -22,21 +22,37 @@
           (if (input-port? p)
               (let ([s (read-line p)])
                 (if (eof-object? s)
-                    (redis-decode (string-append resp "\n"))
+                    (redis-decode resp)
                     (loop (string-append resp s "\n"))))
               (redis-decode resp)))))
     
-    (define/private (apply-cmd cmd args)
-      (send (redis-encode-array (append (list cmd) (if (list? args) args (list args))))))
+    (define/private (apply-cmd cmd [args null])
+      (if (null? args)
+          (send (string-append cmd "\r\n"))
+          (send (redis-encode-array (append (list cmd) (if (list? args) args (list args)))))))
 
     (define/public (set-timeout t) (set! timeout t))
     
-    (define/public (ping [msg ""])
-      (if (equal? msg "")
-          (send "PING\r\n")
-          (apply-cmd "PING" (list msg)))
+    (define/public (ping [msg null])
+      (apply-cmd "PING" msg)
       (get-response))
 
+    (define/public (auth password)
+      (apply-cmd "AUTH" password)
+      (get-response))
+    
+    (define/public (echo msg)
+      (apply-cmd "ECHO" msg)
+      (get-response))
+
+    (define/public (select index)
+      (apply-cmd "SELECT" index)
+      (get-response))
+    
+    (define/public (quit)
+      (apply-cmd "QUIT")
+      (get-response))
+    
     (define/public (set key value)
       (apply-cmd "SET" (list key value))
       (get-response))
@@ -95,10 +111,14 @@
 (module+ test
   (define redis (new redis%))
   (send redis set-timeout 0.01) ;this is ok for local testing, probably not for the net though
-  (send redis init)
+  (send redis init))
+
+(module+ test
   (check-equal? (send redis ping) "PONG" )
-  (check-equal? (send redis ping "yo watup")
-                "yo watup"))
+  (check-equal? (send redis ping "yo watup") "yo watup")
+  (check-equal? (send redis echo "HEYY") "HEYY")
+  (check-equal? (send redis select "1") "OK"))
+ ; (check-equal? (send redis auth "password") "OK"))
 
 (module+ test
   (check-equal? (send redis set "a-number" "1") "OK")
@@ -126,7 +146,7 @@
   (check-equal? (send redis del (list "a" "b")) 2))
 
 (module+ test
-  (check-equal? (send redis del "new-key") 1)
+  (check-true (list? (member (send redis del "new-key") (list 0 1))))
   (check-equal? (send redis setnx "new-key" "Hello") 1)
   (check-equal? (send redis setnx "new-key" "World") 0))
 
@@ -135,3 +155,6 @@
   (check-equal? (send redis decr "a-number") 0)
   (check-equal? (send redis incrby "a-number" "5") 5)
   (check-equal? (send redis decrby "a-number" "5") 0))
+
+(module+ test
+  (check-equal? (send redis quit) "OK"))
