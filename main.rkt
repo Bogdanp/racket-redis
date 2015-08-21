@@ -211,12 +211,12 @@
       (apply-cmd "SMEMBERS" key)
       (get-response))
 
-    (define/public (zadd key score member)
-      (apply-cmd "ZADD" (list key score member))
+    (define/public (zadd key data)
+      (apply-cmd "ZADD" (append (list key) data))
       (get-response))
 
     (define/public (zrem key member)
-      (apply-cmd "ZREM" (list key member))
+      (apply-cmd "ZREM" (append (list key) (if (list? member) member (list member))))
       (get-response))
 
     (define/public (zincrby key incr member)
@@ -341,6 +341,14 @@
 
     (define/public (bitpos key bit [start null] [end null])
       (apply-cmd "BITPOS" (flatten (list key bit start end)))
+      (get-response))
+
+    (define/public (watch key)
+      (apply-cmd "WATCH" key)
+      (get-response))
+
+    (define/public (unwatch)
+      (apply-cmd "UNWATCH")
       (get-response))
     
     (define/public (getrange key start end)
