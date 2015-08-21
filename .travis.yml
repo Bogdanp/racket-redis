@@ -7,7 +7,8 @@ language: c
 # somewhere like ~/racket that doesn't require sudo.)
 #
 # sudo: false
-
+services:
+  - redis-server
 env:
   global:
     # Supply a global RACKET_DIR environment variable. This is where
@@ -47,7 +48,9 @@ before_script:
 # `raco pkg install --deps search-auto <<name>>` to install any required
 # packages without it getting stuck on a confirmation prompt.
 script:
- - raco test .
+ - raco test resp.rkt
+ - raco test main.rkt
+ - raco test test.rkt
 
 # NOTE: If your repo is a Racket package with an info.rkt that
 # includes some `deps`, the following is more elegant:
