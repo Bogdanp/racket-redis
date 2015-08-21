@@ -57,4 +57,20 @@
 (check-equal? (send redis type "blah") "hash")
 (check-equal? (send redis hlen "blah") 1)
 
+(check-equal? (send redis watch "blah") "OK")
+(check-equal? (send redis unwatch) "OK")
+
+(check-equal? (send redis bitcount "a-number") 2)
+(check-equal? (send redis bitop "AND" "a-number" "a-number") 1)
+(check-equal? (send redis bitpos "a-number" "1") 2)
+(check-equal? (send redis getrange "a-number" "0" "1") "0")
+
+(check-equal? (send redis zadd "zset" (list "1" "one")) 1)
+(check-equal? (send redis zadd "zset" (list "1" "uno")) 1)
+(check-equal? (send redis zadd "zset" (list "2" "two" "3" "three")) 2)
+
+(check-equal? (send redis zrem "zset" "one") 1)
+(check-equal? (send redis zrem "zset" "uno") 1)
+(check-equal? (send redis zrem "zset" (list "two" "three")) 2)
+
 (check-equal? (send redis quit) "OK")
