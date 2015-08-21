@@ -45,7 +45,6 @@ before_script:
 # `raco pkg install --deps search-auto <<name>>` to install any required
 # packages without it getting stuck on a confirmation prompt.
 script:
- - /usr/racket/bin/raco make main.rkt
  - /usr/racket/bin/raco test .
 
 # NOTE: If your repo is a Racket package with an info.rkt that
