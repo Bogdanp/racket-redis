@@ -26,9 +26,11 @@ env:
     # - RACKET_VERSION=5.3.4
     # - RACKET_VERSION=5.3.5
     # - RACKET_VERSION=5.92
-    - RACKET_VERSION=6.0
-    - RACKET_VERSION=6.1
-    - RACKET_VERSION=6.1.1
+    #- RACKET_VERSION=6.0
+    #- RACKET_VERSION=6.1
+    #- RACKET_VERSION=6.1.1
+    #- RACKET_VERSION=HEAD
+    - RACKET_VERSION=6.2
     - RACKET_VERSION=HEAD
 
 before_install:
@@ -45,7 +47,7 @@ before_script:
 # `raco pkg install --deps search-auto <<name>>` to install any required
 # packages without it getting stuck on a confirmation prompt.
 script:
- - /usr/bin/raco test .
+ - raco test .
 
 # NOTE: If your repo is a Racket package with an info.rkt that
 # includes some `deps`, the following is more elegant:
