@@ -172,7 +172,7 @@
       (get-response))
 
     (define/public (smove srckey destkey member)
-      (apply-cmd "SREM" (list srckey destkey member))
+      (apply-cmd "SMOVE" (list srckey destkey member))
       (get-response))
 
     (define/public (scard key)
