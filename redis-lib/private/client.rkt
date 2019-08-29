@@ -31,7 +31,7 @@
   (->* ()
        (#:host non-empty-string?
         #:port (integer-in 0 65535)
-        #:timeout (and/c real? positive?)
+        #:timeout (and/c rational? positive?)
         #:db (integer-in 0 16))
        redis?)
 
@@ -549,7 +549,7 @@
                     dest)))
 
 ;; SELECT db
-(define-simple-command/ok (select! [db (integer-in 0 15) #:converter number->string]))
+(define-simple-command/ok (select! [db (integer-in 0 16) #:converter number->string]))
 
 ;; SET key value [EX seconds | PX milliseconds] [NX|XX]
 (define/contract/provide (redis-set! client key value
@@ -629,11 +629,19 @@
     (check-true (redis-set! client "a" "1"))
     (check-equal? (redis-count client) 1))
 
-  (test "DECR, DECRBY and DECRBYFLOAT"
+  (test "DECR and DECRBY"
     (check-equal? (redis-decr! client "a") -1)
     (check-equal? (redis-decr! client "a") -2)
     (check-equal? (redis-decr! client "a" 3) -5)
-    (check-equal? (redis-type client "a") 'string))
+    (check-equal? (redis-type client "a") 'string)
+
+    (check-true (redis-set! client "a" "1.5"))
+    (check-exn
+     (lambda (e)
+       (and (exn:fail:redis? e)
+            (check-equal? (exn-message e) "value is not an integer or out of range")))
+     (lambda _
+       (redis-decr! client "a"))))
 
   (test "DEL"
     (check-equal? (redis-remove! client "a") 0)
