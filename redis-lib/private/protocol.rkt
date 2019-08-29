@@ -12,6 +12,7 @@
   [redis-null (parameter/c any/c)]
   [redis-null? (-> any/c boolean?)]
   [redis-result? (-> any/c boolean?)]
+  [maybe-redis-value/c (-> any/c boolean?)]
   [redis-encode (-> redis-value/c void?)]
   [redis-decode (-> redis-result? maybe-redis-value/c)]))
 
