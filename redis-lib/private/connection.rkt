@@ -26,18 +26,13 @@
         (flush-output)))
 
     (define/private (get-response)
-      (let loop ([resp ""])
-        (let ([p (sync/timeout timeout in)])
-          (if (input-port? p)
-              (let ([s (read-line p)])
-                (if (eof-object? s)
-                    (if (not (equal? resp ""))
-                        (redis-decode resp)
-                        "ERR timed out")
-                    (loop (string-append resp s "\n"))))
-              (if (not (equal? resp ""))
-                  (redis-decode resp)
-                  "ERR timed out")))))
+      (define response-chan (make-channel))
+      (thread
+       (lambda _
+         (channel-put response-chan (redis-read in))))
+
+      ;; TODO: raise an exn here.
+      (sync/timeout timeout response-chan))
 
     (define/public (emit cmd . args)
       (if (null? args)
@@ -45,7 +40,7 @@
                   (display cmd)
                   (display "\r\n")))
           (send (lambda _
-                  (redis-encode (cons cmd args)))))
+                  (redis-write (cons cmd args)))))
 
       (get-response))
 

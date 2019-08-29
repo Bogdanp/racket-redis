@@ -1,8 +1,10 @@
 #lang racket/base
 
 (require racket/contract
+         racket/format
          racket/function
          racket/list
+         racket/match
          racket/port
          racket/sequence
          racket/string)
@@ -11,19 +13,15 @@
  (contract-out
   [redis-null (parameter/c any/c)]
   [redis-null? (-> any/c boolean?)]
-  [redis-result? (-> any/c boolean?)]
   [maybe-redis-value/c (-> any/c boolean?)]
-  [redis-encode (-> redis-value/c void?)]
-  [redis-decode (-> redis-result? maybe-redis-value/c)]))
+  [redis-write (-> redis-value/c void?)]
+  [redis-read (->* () (input-port?) maybe-redis-value/c)]))
 
 (module+ test
   (require rackunit))
 
 
 ;; common ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(define NULL-BULK-STRING
-  "$-1\r\n")
 
 (define redis-null
   (make-parameter 'null))
@@ -35,249 +33,149 @@
   (make-flat-contract
    #:name 'redis-value/c
    #:first-order (lambda (v)
-                   ((or/c string? exact-integer? (listof redis-value/c)) v))))
+                   ((or/c bytes? string? exact-integer? (listof redis-value/c)) v))))
 
 (define maybe-redis-value/c
   (or/c redis-value/c redis-null?))
 
 
-;; encode ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; write ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (redis-encode v)
+(define (redis-write v)
   (cond
-    [(string? v)
-     (redis-encode-bulk-string v)]
+    [(string? v)  (redis-write-bulk-string (string->bytes/utf-8 v))]
+    [(bytes? v)   (redis-write-bulk-string v)]
+    [(integer? v) (redis-write-integer v)]
+    [(list? v)    (redis-write-array v)]))
 
-    [(bytes? v)
-     (redis-encode-bulk-string v)]
-
-    [(exact-integer? v)
-     (redis-encode-integer v)]
-
-    [(list? v)
-     (redis-encode-array v)]))
-
-(define (redis-encode-bulk-string bs-or-s)
-  (define s
-    (if (bytes? bs-or-s)
-        (bytes->string/utf-8 bs-or-s)
-        bs-or-s))
-
+(define (redis-write-bulk-string s)
   (display "$")
-  (display (string-length s))
+  (display (bytes-length s))
   (display "\r\n")
   (display s)
   (display "\r\n"))
 
-(define (redis-encode-simple-string s)
+(define (redis-write-simple-string s)
   (display "+")
   (display s)
   (display "\r\n"))
 
-(define (redis-encode-integer n)
+(define (redis-write-integer n)
   (display ":")
   (display n)
   (display "\r\n"))
 
-(define (redis-encode-array l)
+(define (redis-write-array l)
   (display "*")
   (display (length l))
   (display "\r\n")
-  (for-each redis-encode l))
+  (for-each redis-write l))
 
 (module+ test
-  (define (redis-encode/string v)
+  (define (redis-write/string v)
     (with-output-to-string
       (lambda _
-        (redis-encode v))))
+        (redis-write v))))
 
-  (define (redis-encode-simple/string v)
+  (define (redis-write-simple/string v)
     (with-output-to-string
       (lambda _
-        (redis-encode-simple-string v))))
+        (redis-write-simple-string v))))
 
-  (check-equal? (redis-encode/string "")                    "$0\r\n\r\n")
-  (check-equal? (redis-encode/string "OK")                  "$2\r\nOK\r\n")
-  (check-equal? (redis-encode/string "foobar")              "$6\r\nfoobar\r\n")
-  (check-equal? (redis-encode/string "hello\n")             "$6\r\nhello\n\r\n")
-  (check-equal? (redis-encode/string #"")                   "$0\r\n\r\n")
-  (check-equal? (redis-encode/string #"OK")                 "$2\r\nOK\r\n")
-  (check-equal? (redis-encode/string #"foobar")             "$6\r\nfoobar\r\n")
-  (check-equal? (redis-encode/string #"hello\n")            "$6\r\nhello\n\r\n")
+  (check-equal? (redis-write/string "")         "$0\r\n\r\n")
+  (check-equal? (redis-write/string "OK")       "$2\r\nOK\r\n")
+  (check-equal? (redis-write/string "foobar")   "$6\r\nfoobar\r\n")
+  (check-equal? (redis-write/string "hello\n")  "$6\r\nhello\n\r\n")
+  (check-equal? (redis-write/string #"")        "$0\r\n\r\n")
+  (check-equal? (redis-write/string #"OK")      "$2\r\nOK\r\n")
+  (check-equal? (redis-write/string #"foobar")  "$6\r\nfoobar\r\n")
+  (check-equal? (redis-write/string #"hello\n") "$6\r\nhello\n\r\n")
 
-  (check-equal? (redis-encode/string 0)    ":0\r\n")
-  (check-equal? (redis-encode/string 1)    ":1\r\n")
-  (check-equal? (redis-encode/string 1024) ":1024\r\n")
+  (check-equal? (redis-write/string 0)    ":0\r\n")
+  (check-equal? (redis-write/string 1)    ":1\r\n")
+  (check-equal? (redis-write/string 1024) ":1024\r\n")
 
-  (check-equal? (redis-encode/string (list #"foo" #"bar")) "*2\r\n$3\r\nfoo\r\n$3\r\nbar\r\n"))
+  (check-equal? (redis-write/string (list #"foo" #"bar")) "*2\r\n$3\r\nfoo\r\n$3\r\nbar\r\n"))
 
 
-;; decode ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; read ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-; String Char -> Boolean
-; returns true if the given string is prefixed with the given character
-(define (string-prefixed? s c)
-  (eq? c (string-ref s 0)))
+(define (redis-read [in (current-input-port)])
+  (case (peek-char in)
+    [(#\+) (redis-read-simple-string in)]
+    [(#\$) (redis-read-bulk-string in)]
+    [(#\:) (redis-read-integer in)]
+    [(#\*) (redis-read-array in)]
+    [(#\-) (redis-read-error in)]
+    [else  (raise-argument-error 'redis-read "a valid response from Redis" in)]))
 
-(module+ test
-  (check-true (string-prefixed? "abc" #\a)))
+(define simple-string-re      #rx"^\\+([^\r]*)\r\n")
+(define bulk-string-prefix-re #rx"^\\$([^\r]+)\r\n")
+(define integer-re            #rx"^\\:(\\-?(0|[1-9][0-9]*))\r\n")
+(define array-re              #rx"^\\*(\\-?(0|[1-9][0-9]*))\r\n")
+(define error-re              #rx"^\\-(.+)\r\n")
 
-; Any -> Boolean
-(define (redis-encoded? v)
-  (or (redis-simple-string? v)
-      (redis-bulk-string? v)
-      (redis-integer? v)
-      (redis-array? v)))
+(define (redis-read-simple-string in)
+  (match (regexp-match simple-string-re in)
+    [(list _ s) (bytes->string/utf-8 s)]
+    [#f (raise-argument-error 'redis-read-simple-string "a valid simple string response from Redis" in)]))
 
-(define (redis-result? v)
-  (or (redis-encoded? v)
-      (redis-error? v)))
+(define (redis-read-bulk-string in)
+  (match (regexp-match bulk-string-prefix-re in)
+    [(list _ #"-1")
+     (redis-null)]
 
-; String -> Boolean
-(define (redis-simple-string? s)
-  (string-prefixed? s #\+))
+    [(list _ n:str)
+     (begin0 (read-bytes (string->number (bytes->string/utf-8 n:str)) in)
+       (read-bytes 2 in))]
 
-(module+ test
-  (check-true (redis-simple-string? (redis-encode-simple/string "abc"))))
+    [#f (raise-argument-error 'redis-read-bulk-string "a valid bulk string response from Redis" in)]))
 
-; String -> Boolean
-(define (redis-error? s)
-  (string-prefixed? s #\-))
+(define (redis-read-integer in)
+  (match (regexp-match integer-re in)
+    [(list _ n:str _)
+     (string->number (bytes->string/utf-8 n:str))]
 
-(module+ test
-  (check-true (redis-error? "-abc\r\n")))
+    [#f (raise-argument-error 'redis-read-integer "a valid integer response from Redis" in)]))
 
-; String -> Boolean
-(define (redis-integer? s)
-  (string-prefixed? s #\:))
+(define (redis-read-array in)
+  (match (regexp-match array-re in)
+    [(list _ n:str _)
+     (for/list ([_ (in-range (string->number (bytes->string/utf-8 n:str)))])
+       (redis-read in))]
 
-(module+ test
-  (check-true (redis-integer? (redis-encode/string 2))))
+    [#f (raise-argument-error 'redis-read-array "a valid array response from Redis" in)]))
 
-; String -> Boolean
-(define (redis-bulk-string? s)
-  (string-prefixed? s #\$))
-
-(module+ test
-  (check-true (redis-bulk-string? NULL-BULK-STRING))
-  (check-true (redis-bulk-string? (redis-encode/string #"WHAT A TEST"))))
-
-; String -> Boolean
-(define (redis-array? a)
-  (string-prefixed? a #\*))
-
-(module+ test
-  (check-true (redis-array? (redis-encode/string (list 2)))))
-
-; String -> String
-(define (redis-decode-simple-string s)
-  (unless (redis-simple-string? s)
-    (raise-argument-error 'redis-decode-simple-string "redis-simple-string?" s))
-  (string-trim (string-trim s "\r\n" #:left? #f) "+" #:right? #f))
+(define (redis-read-error in)
+  (match (regexp-match error-re in)
+    [(list _ err) (bytes->string/utf-8 err)]
+    [#f (raise-argument-error 'redis-read-error "a valid error response from Redis" in)]))
 
 (module+ test
-  (let ([s "hello"])
-    (check-equal? (redis-decode-simple-string
-                   (redis-encode-simple/string s))
-                  s)))
+  (check-equal? (redis-read (open-input-string "+\r\n")) "")
+  (check-equal? (redis-read (open-input-string "+OK\r\n")) "OK")
+  (check-exn
+   exn:fail:contract?
+   (lambda _
+     (redis-read (open-input-string ""))))
 
-; String -> String
-(define (redis-decode-error e)
-  (unless (redis-error? e)
-    (raise-argument-error 'redis-decode-error "redis-error?" e))
-  (string-trim (string-trim e "\r\n" #:left? #f) "-" #:right? #f))
+  (check-equal? (redis-read (open-input-string "$-1\r\n\r\n")) (redis-null))
+  (check-equal? (redis-read (open-input-string "$0\r\n\r\n")) #"")
+  (check-equal? (redis-read (open-input-string "$5\r\nhello\r\n")) #"hello")
 
-(module+ test
-  (let ([e "FATAL ERROR: Core Trumped"])
-    (check-equal? (redis-decode-error
-                   "-FATAL ERROR: Core Trumped\r\n")
-                  e)))
-
-; String -> Integer
-(define (redis-decode-integer i)
-  (unless (redis-integer? i)
-    (raise-argument-error 'redis-integer "redis-integer?" i))
-  (string->number (string-trim (string-trim i "\r\n" #:left? #f) ":" #:right? #f)))
-
-(module+ test
-  (let ([i 1729])
-    (check-equal? (redis-decode-integer
-                   (redis-encode/string i))
-                  i)))
-
-; String -> String
-(define (redis-decode-bulk-string bs)
-  (unless (redis-bulk-string? bs)
-    (raise-argument-error 'redis-decode-bulk-string "redis-bulk-string?" bs))
-  (second (string-split
-           (string-trim (string-trim bs "\r\n" #:left? #f) "+" #:right? #f)
-           "\r\n")))
-
-(module+ test
-  (let ([bs "Hello, Redis!"])
-    (check-equal? (redis-decode-bulk-string
-                   (redis-encode/string (string->bytes/utf-8 bs)))
-                  bs)))
-
-; String -> Any
-(define (redis-decode v)
-  (cond
-    [(redis-simple-string? v)
-     (redis-decode-simple-string v)]
-
-    [(redis-bulk-string? v)
-     (redis-decode-bulk-string v)]
-
-    [(redis-integer? v)
-     (redis-decode-integer v)]
-
-    [(redis-array? v)
-     (redis-decode-array v)]
-
-    [(redis-error? v)
-     (redis-decode-error v)]
-
-    [else
-     (raise-argument-error 'redis-decode "redis-result?" v)]))
-
-; List -> String
-(define (redis-decode-array a)
-  (define (group-bulk-strings parts)
-    (let loop ([ps parts] [result null])
-      (if (null? ps) result
-          (if (and (not (equal? (first ps) "")) (string-prefixed? (first ps) #\$))
-              (loop (rest (rest ps)) (append result (list (string-append (first ps) "\r\n" (second ps) "\r\n"))))
-              (loop (rest ps) (if (equal? "" (first ps)) result
-                                  (append result (list (first ps)))))))))
-
-  (define (build-sub-array parts size)
-    (let* ([tmp-elts (add-between (take (rest parts) size) "\r\n")]
-           [tmp (string-append "*" (number->string size) "\r\n" (foldr string-append "" tmp-elts))])
-      (redis-decode-array tmp)))
-
-  (let* ([parts  (group-bulk-strings (string-split a "\r\n"))]
-         [num-elts (string->number (string-trim (first parts) "*" #:right? #f))])
-    (let build-result ([ps (rest parts)] [result null])
-      (if (null? ps) result
-          (if (string-prefixed? (first ps) #\*)
-              (let* ([n (string->number (string-trim (first ps) "*" #:right? #f))])
-                (build-result (drop (rest ps) n) (append result (list (build-sub-array ps n)))))
-              (build-result (rest ps) (append result (list (redis-decode (first ps))))))))))
-
-(module+ test
-  (check-equal? (redis-decode-array
-                 "*2\r\n$3\r\nfoo\r\n$3\r\nbar\r\n")
-                (list "foo" "bar"))
-  (check-equal? (redis-decode-array
-                 "*2\r\n*3\r\n:1\r\n:2\r\n:3\r\n*2\r\n+Foo\r\n-Bar\r\n")
-                (list (list 1 2 3) (list "Foo" "Bar"))))
+  (check-equal? (redis-read (open-input-string ":0\r\n")) 0)
+  (check-equal? (redis-read (open-input-string ":1024\r\n")) 1024)
+  (check-equal? (redis-read (open-input-string ":-1024\r\n")) -1024)
+  (check-exn
+   exn:fail:contract?
+   (lambda _
+     (redis-read (open-input-string ":01\r\n"))))
 
 
-;; the help ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  (check-equal? (redis-read (open-input-string "*2\r\n$3\r\nfoo\r\n$3\r\nbar\r\n"))
+                (list #"foo" #"bar"))
 
-(define (string-has-char? s c)
-  (sequence-ormap (curry char=? c) (in-string s)))
+  (check-equal? (redis-read (open-input-string "*2\r\n*3\r\n:1\r\n:2\r\n:3\r\n*2\r\n+Foo\r\n-Bar\r\n"))
+                (list (list 1 2 3) (list "Foo" "Bar")))
 
-(module+ test
-  (check-true (string-has-char? "cba" #\a))
-  (check-false (string-has-char? "akn" #\f)))
+  (check-equal? (redis-read (open-input-string "-ERR Fatal\r\n")) "ERR Fatal"))
