@@ -275,9 +275,6 @@
 ;; TODO: HSETNX
 ;; TODO: HSTRLEN
 ;; TODO: HVALS
-;; TODO: INCR
-;; TODO: INCRBY
-;; TODO: INCRBYFLOAT
 ;; TODO: INFO
 ;; TODO: KEYS
 ;; TODO: LASTSAVE
@@ -314,11 +311,8 @@
 ;; TODO: PUBLISH
 ;; TODO: PUBSUB
 ;; TODO: PUNSUBSCRIBE
-;; TODO: RANDOMKEY
 ;; TODO: READONLY
 ;; TODO: READWRITE
-;; TODO: RENAME
-;; TODO: RENAMENX
 ;; TODO: REPLICAOF
 ;; TODO: RESTORE
 ;; TODO: ROLE
@@ -460,11 +454,8 @@
   (bytes->string/utf-8 res))
 
 ;; EXISTS key [key ...]
-(define-simple-command (has-key? [key string?])
-  #:command-name "EXISTS"
-  #:result-contract boolean?
-  #:result-name res
-  (equal? res (list 1)))
+(define-simple-command/1 (has-key? [key string?])
+  #:command-name "EXISTS")
 
 (define-variadic-command (count-keys . [key string?])
   #:command-name "EXISTS"
@@ -480,6 +471,23 @@
 (define-simple-command (ref [key string?])
   #:command-name "GET"
   #:result-contract maybe-redis-value/c)
+
+;; INCR key
+;; INCRBY key increment
+;; INCRBYFLOAT key increment
+(define/contract/provide (redis-incr! client key [n 1])
+  (->* (redis? string?)
+       ((or/c exact-integer? rational?))
+       (or/c string? exact-integer?))
+  (define res
+    (apply redis-emit! client (cond
+                                [(= n 1)            (list "INCR" key)]
+                                [(exact-integer? n) (list "INCRBY" key (number->string n))]
+                                [else               (list "INCRBYFLOAT" key (number->string n))])))
+
+  (if (bytes? res)
+      (bytes->string/utf-8 res)
+      res))
 
 ;; PERSIST key
 (define-simple-command/1 (persist! [key string?]))
@@ -512,6 +520,22 @@
   (send-request! client "QUIT")
   (redis-disconnect! client))
 
+;; RANDOMKEY
+(define-simple-command (random-key))
+
+;; RENAME{,NX} key newkey
+(define/contract/provide (redis-rename! client src dest
+                                        #:unless-exists? [unless-exists? #f])
+  (->* (redis? string? string?)
+       (#:unless-exists? boolean?)
+       boolean?)
+  (ok? (redis-emit! client
+                    (if unless-exists?
+                        "RENAMENX"
+                        "RENAME")
+                    src
+                    dest)))
+
 ;; SELECT db
 (define-simple-command/ok (select! [db (integer-in 0 15) #:converter number->string]))
 
@@ -540,6 +564,12 @@
 ;; TOUCH key [key ...]
 (define-variadic-command (touch! [key0 string?] . [key string?])
   #:result-contract exact-nonnegative-integer?)
+
+;; TYPE key
+(define-simple-command (type [key string?])
+  #:result-contract (or/c 'none 'string 'list 'set 'zset 'hash 'stream)
+  #:result-name res
+  (string->symbol res))
 
 
 (module+ test
@@ -605,6 +635,13 @@
     (check-false (redis-set! client "b" "2" #:when-exists? #t))
     (check-false (redis-has-key? client "b")))
 
+  (test "INCR, INCRBY and INCRBYFLOAT"
+    (check-equal? (redis-incr! client "a") 1)
+    (check-equal? (redis-incr! client "a") 2)
+    (check-equal? (redis-incr! client "a" 3) 5)
+    (check-equal? (redis-incr! client "a" 1.5) "6.5")
+    (check-equal? (redis-type client "a") 'string))
+
   (test "PERSIST, PEXPIRE and PTTL"
     (check-false (redis-expire-in! client "a" 200))
     (check-equal? (redis-ttl client "a") 'missing)
@@ -614,6 +651,14 @@
     (check-true (> (redis-ttl client "a") 5))
     (check-true (redis-persist! client "a"))
     (check-equal? (redis-ttl client "a") 'persisted))
+
+  (test "RENAME"
+    (check-true (redis-set! client "a" "1"))
+    (check-true (redis-set! client "b" "2"))
+    (check-true (redis-rename! client "a" "c"))
+    (check-false (redis-has-key? client "a"))
+    (check-false (redis-rename! client "c" "b" #:unless-exists? #t))
+    (check-true (redis-has-key? client "c")))
 
   (test "TOUCH"
     (check-equal? (redis-touch! client "a") 0)
