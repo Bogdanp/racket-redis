@@ -305,7 +305,6 @@
 ;; TODO: MSETNX
 ;; TODO: MULTI
 ;; TODO: OBJECT
-;; TODO: PEXPIREAT
 ;; TODO: PFADD
 ;; TODO: PFCOUNT
 ;; TODO: PFMERGE
@@ -362,7 +361,6 @@
 ;; TODO: SWAPDB
 ;; TODO: SYNC
 ;; TODO: TIME
-;; TODO: TOUCH
 ;; TODO: TYPE
 ;; TODO: UNLINK
 ;; TODO: UNSUBSCRIBE
@@ -490,6 +488,10 @@
 (define-simple-command/1 (expire-in! [key string?] [ms exact-nonnegative-integer? #:converter number->string])
   #:command-name "PEXPIRE")
 
+;; PEXPIREAT key milliseconds-timestamp
+(define-simple-command/1 (expire-at! [key string?] [ms exact-nonnegative-integer? #:converter number->string])
+  #:command-name "PEXPIREAT")
+
 ;; PTTL key
 (define-simple-command (ttl [key string?])
   #:command-name "PTTL"
@@ -534,6 +536,10 @@
                                  (if when-exists?
                                      (list "XX")
                                      (list))))))))
+
+;; TOUCH key [key ...]
+(define-variadic-command (touch! [key0 string?] . [key string?])
+  #:result-contract exact-nonnegative-integer?)
 
 
 (module+ test
@@ -608,5 +614,12 @@
     (check-true (> (redis-ttl client "a") 5))
     (check-true (redis-persist! client "a"))
     (check-equal? (redis-ttl client "a") 'persisted))
+
+  (test "TOUCH"
+    (check-equal? (redis-touch! client "a") 0)
+    (check-equal? (redis-touch! client "a" "b") 0)
+    (check-true (redis-set! client "a" "1"))
+    (check-true (redis-set! client "b" "2"))
+    (check-equal? (redis-touch! client "a" "b" "c") 2))
 
   (check-equal? (redis-quit! client) (void)))
