@@ -3,6 +3,7 @@
 (require racket/class
          racket/list
          racket/tcp
+         "error.rkt"
          "protocol.rkt")
 
 (provide
@@ -31,8 +32,11 @@
        (lambda _
          (channel-put response-chan (redis-read in))))
 
-      ;; TODO: raise an exn here.
-      (sync/timeout timeout response-chan))
+      (or
+       (sync/timeout timeout response-chan)
+       (raise (exn:fail:redis:timeout
+               "timed out while waiting for response from Redis"
+               (current-continuation-marks)) )))
 
     (define/public (emit cmd . args)
       (if (null? args)

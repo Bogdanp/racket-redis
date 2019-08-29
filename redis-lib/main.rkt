@@ -5,4 +5,6 @@
     (require e0 e ...)
     (provide (all-from-out e0 e ...))))
 
-(reprovide "private/client.rkt")
+(reprovide
+ "private/client.rkt"
+ "private/error.rkt")

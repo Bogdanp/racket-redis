@@ -9,6 +9,7 @@
          racket/math
          racket/string
          "connection.rkt"
+         "error.rkt"
          "protocol.rkt")
 
 
@@ -18,7 +19,7 @@
  make-redis
  redis?)
 
-(struct redis (connection))
+(struct redis (connection mutex))
 
 (define/contract (make-redis #:host [host "127.0.0.1"]
                              #:port [port 6379]
@@ -39,13 +40,16 @@
          [db db]))
 
   (send conn connect)
-  (redis conn))
+  (redis conn (make-semaphore 1)))
 
 
 ;; commands ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (redis-emit r command . args)
-  (send/apply (redis-connection r) emit command args))
+  ;; TODO: connection pooling.
+  (call-with-semaphore (redis-mutex r)
+    (lambda _
+      (send/apply (redis-connection r) emit command args))))
 
 (begin-for-syntax
   (define (stx->command stx)
@@ -118,7 +122,13 @@
 (define-simple-command (ping)
   #:result-contract string?)
 
-(define-simple-command (auth [password string?])
+(define-simple-command/ok (flush-all!)
+  #:command-name "FLUSHALL")
+
+(define-simple-command/ok (flush-db!)
+  #:command-name "FLUSHDB")
+
+(define-simple-command (auth! [password string?])
   #:result-contract string?)
 
 (define-simple-command (echo [message string?])
@@ -126,8 +136,11 @@
   #:result-name res
   (bytes->string/utf-8 res))
 
-(define-simple-command/ok (select [db (integer-in 0 15) #:converter number->string]))
-(define-simple-command/ok (quit))
+(define-simple-command/ok (select! [db (integer-in 0 15) #:converter number->string])
+  #:command-name "SELECT")
+
+(define-simple-command/ok (quit!)
+  #:command-name "QUIT")
 
 (define-simple-command (has-key? [key string?])
   #:command-name "EXISTS"
@@ -135,14 +148,14 @@
   #:result-name res
   (equal? res (list 1)))
 
-(define-variadic-command (has-keys . [key string?])
+(define-variadic-command (count-keys . [key string?])
   #:command-name "EXISTS"
   #:result-contract exact-nonnegative-integer?)
 
-(define/contract/provide (redis-set client key value
-                                    #:expires-in [expires-in #f]
-                                    #:unless-exists? [unless-exists? #f]
-                                    #:when-exists? [when-exists? #f])
+(define/contract/provide (redis-set! client key value
+                                     #:expires-in [expires-in #f]
+                                     #:unless-exists? [unless-exists? #f]
+                                     #:when-exists? [when-exists? #f])
   (->* (redis? string? string?)
        (#:expires-in (or/c false/c exact-positive-integer?)
         #:unless-exists? boolean?
@@ -170,19 +183,27 @@
   (define client
     (make-redis #:timeout 0.1))
 
-  (check-true (redis-select client 0))
+  (check-true (redis-select! client 0))
+  (check-true (redis-flush-all! client))
 
   (check-equal? (redis-ping client) "PONG")
-  ;;(check-equal? (redis-auth client "hunter2") "ERR Client sent AUTH, but no password is set") ;; TODO: raise exn
+  #;(check-equal? (redis-auth! client "hunter2") "ERR Client sent AUTH, but no password is set") ;; TODO: raise exn
   (check-equal? (redis-echo client "hello") "hello")
 
   (check-false (redis-has-key? client "a"))
-  (check-true (redis-set client "a" "1"))
-  (check-false (redis-set client "b" "2" #:when-exists? #t))
+  (check-true (redis-set! client "a" "1"))
+  (check-false (redis-set! client "b" "2" #:when-exists? #t))
+  (check-false (redis-set! client "a" "2" #:unless-exists? #t))
 
   (check-equal? (redis-get client "a") #"1")
   (check-equal? (redis-get client "b") (redis-null))
 
-  (check-equal? (redis-has-keys client "a" "b") 1)
+  (check-true (redis-set! client "a" "2" #:when-exists? #t))
+  (check-equal? (redis-get client "a") #"2")
 
-  (check-true (redis-quit client)))
+  (check-equal? (redis-count-keys client "a" "b") 1)
+
+  (check-true (redis-set! client "b" "2" #:unless-exists? #t))
+  (check-equal? (redis-get client "b") #"2")
+
+  (check-true (redis-quit! client)))
