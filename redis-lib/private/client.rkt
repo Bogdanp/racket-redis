@@ -110,17 +110,40 @@
 
            (provide fn-name))))))
 
-(define (ok? v)
-  (equal? v "OK"))
-
 (define-syntax-rule (define-simple-command/ok e0 e ...)
   (define-simple-command e0 e ...
     #:result-contract boolean?
     #:result-name res
     (ok? res)))
 
-(define-simple-command (ping)
+(define (ok? v)
+  (equal? v "OK"))
+
+(define-simple-command (append! [key string?] [value string?])
+  #:command-name "APPEND"
+  #:result-contract exact-nonnegative-integer?)
+
+(define/contract/provide (redis-bitcount client key
+                                         #:start [start 0]
+                                         #:end [end -1])
+  (->* (redis? string?)
+       (#:start exact-integer?
+        #:end exact-integer?)
+       exact-nonnegative-integer?)
+  (redis-emit client "BITCOUNT" key (number->string start) (number->string end)))
+
+(define-simple-command (auth! [password string?])
+  #:command-name "AUTH"
   #:result-contract string?)
+
+(define-variadic-command (count-keys . [key string?])
+  #:command-name "EXISTS"
+  #:result-contract exact-nonnegative-integer?)
+
+(define-simple-command (echo [message string?])
+  #:result-contract string?
+  #:result-name res
+  (bytes->string/utf-8 res))
 
 (define-simple-command/ok (flush-all!)
   #:command-name "FLUSHALL")
@@ -128,19 +151,8 @@
 (define-simple-command/ok (flush-db!)
   #:command-name "FLUSHDB")
 
-(define-simple-command (auth! [password string?])
-  #:result-contract string?)
-
-(define-simple-command (echo [message string?])
-  #:result-contract string?
-  #:result-name res
-  (bytes->string/utf-8 res))
-
-(define-simple-command/ok (select! [db (integer-in 0 15) #:converter number->string])
-  #:command-name "SELECT")
-
-(define-simple-command/ok (quit!)
-  #:command-name "QUIT")
+(define-simple-command (get [key string?])
+  #:result-contract maybe-redis-value/c)
 
 (define-simple-command (has-key? [key string?])
   #:command-name "EXISTS"
@@ -148,9 +160,14 @@
   #:result-name res
   (equal? res (list 1)))
 
-(define-variadic-command (count-keys . [key string?])
-  #:command-name "EXISTS"
-  #:result-contract exact-nonnegative-integer?)
+(define-simple-command (ping)
+  #:result-contract string?)
+
+(define-simple-command/ok (quit!)
+  #:command-name "QUIT")
+
+(define-simple-command/ok (select! [db (integer-in 0 15) #:converter number->string])
+  #:command-name "SELECT")
 
 (define/contract/provide (redis-set! client key value
                                      #:expires-in [expires-in #f]
@@ -174,8 +191,6 @@
                                  (list "XX")
                                  (list)))))))
 
-(define-simple-command (get [key string?])
-  #:result-contract maybe-redis-value/c)
 
 (module+ test
   (require rackunit)
@@ -183,27 +198,41 @@
   (define client
     (make-redis #:timeout 0.1))
 
+  (define-syntax-rule (test message e0 e ...)
+    (test-case message
+      (redis-flush-all! client)
+      e0 e ...))
+
   (check-true (redis-select! client 0))
   (check-true (redis-flush-all! client))
 
-  (check-equal? (redis-ping client) "PONG")
-  #;(check-equal? (redis-auth! client "hunter2") "ERR Client sent AUTH, but no password is set") ;; TODO: raise exn
   (check-equal? (redis-echo client "hello") "hello")
+  (check-equal? (redis-ping client) "PONG")
 
-  (check-false (redis-has-key? client "a"))
-  (check-true (redis-set! client "a" "1"))
-  (check-false (redis-set! client "b" "2" #:when-exists? #t))
-  (check-false (redis-set! client "a" "2" #:unless-exists? #t))
+  (test "auth"
+    (check-exn
+     (lambda (e)
+       (and (exn:fail:redis? e)
+            (check-equal? (exn-message e) "Client sent AUTH, but no password is set")))
+     (lambda _
+       (redis-auth! client "hunter2"))))
 
-  (check-equal? (redis-get client "a") #"1")
-  (check-equal? (redis-get client "b") (redis-null))
+  (test "append"
+    (check-equal? (redis-append! client "a" "hello") 5)
+    (check-equal? (redis-append! client "a" "world!") 11))
 
-  (check-true (redis-set! client "a" "2" #:when-exists? #t))
-  (check-equal? (redis-get client "a") #"2")
+  (test "bitcount"
+    (check-equal? (redis-bitcount client "a") 0)
+    (check-true (redis-set! client "a" "hello"))
+    (check-equal? (redis-bitcount client "a") 21))
 
-  (check-equal? (redis-count-keys client "a" "b") 1)
-
-  (check-true (redis-set! client "b" "2" #:unless-exists? #t))
-  (check-equal? (redis-get client "b") #"2")
+  (test "get and set"
+    (check-false (redis-has-key? client "a"))
+    (check-true (redis-set! client "a" "1"))
+    (check-equal? (redis-get client "a") #"1")
+    (check-false (redis-set! client "a" "2" #:unless-exists? #t))
+    (check-equal? (redis-get client "a") #"1")
+    (check-false (redis-set! client "b" "2" #:when-exists? #t))
+    (check-false (redis-has-key? client "b")))
 
   (check-true (redis-quit! client)))

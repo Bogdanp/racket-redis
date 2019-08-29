@@ -1,7 +1,9 @@
 #lang racket/base
 
 (require racket/class
-         racket/list
+         racket/function
+         racket/match
+         racket/string
          racket/tcp
          "error.rkt"
          "protocol.rkt")
@@ -22,9 +24,8 @@
     (super-new)
 
     (define/private (send proc)
-      (parameterize ([current-output-port out])
-        (proc)
-        (flush-output)))
+      (proc out)
+      (flush-output out))
 
     (define/private (get-response)
       (define response-chan (make-channel))
@@ -32,19 +33,31 @@
        (lambda _
          (channel-put response-chan (redis-read in))))
 
-      (or
-       (sync/timeout timeout response-chan)
-       (raise (exn:fail:redis:timeout
-               "timed out while waiting for response from Redis"
-               (current-continuation-marks)) )))
+      (match (sync/timeout timeout response-chan)
+        [#f
+         (raise (exn:fail:redis:timeout
+                 "timed out while waiting for response from Redis"
+                 (current-continuation-marks)))]
+
+        [(cons 'err message)
+         (cond
+           [(string-prefix? message "ERR")
+            (raise (exn:fail:redis (substring message 4) (current-continuation-marks)))]
+
+           [(string-prefix? message "WRONGTYPE")
+            (raise (exn:fail:redis (substring message 10) (current-continuation-marks)))]
+
+           [else
+            (raise (exn:fail:redis message (current-continuation-marks)))])]
+
+        [response response]))
 
     (define/public (emit cmd . args)
       (if (null? args)
-          (send (lambda _
-                  (display cmd)
-                  (display "\r\n")))
-          (send (lambda _
-                  (redis-write (cons cmd args)))))
+          (send (lambda (out)
+                  (display cmd out)
+                  (display "\r\n" out)))
+          (send (curry redis-write (cons cmd args))))
 
       (get-response))
 
@@ -70,4 +83,10 @@
   (send redis connect)
 
   (check-equal? (send redis emit "PING") "PONG")
-  (check-equal? (send redis emit "SET" "a-number" "1") "OK"))
+  (check-equal? (send redis emit "SET" "a-number" "1") "OK")
+  (check-exn
+   (lambda (e)
+     (and (exn:fail:redis? e)
+          (check-equal? (exn-message e) "Protocol error: expected '$', got ':'")))
+   (lambda _
+     (send redis emit "BITCOUNT" "a" 1 2))))

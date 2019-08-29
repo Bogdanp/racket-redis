@@ -1,21 +1,17 @@
 #lang racket/base
 
 (require racket/contract
-         racket/format
          racket/function
-         racket/list
          racket/match
-         racket/port
-         racket/sequence
-         racket/string)
+         racket/port)
 
 (provide
  (contract-out
   [redis-null (parameter/c any/c)]
   [redis-null? (-> any/c boolean?)]
   [maybe-redis-value/c (-> any/c boolean?)]
-  [redis-write (-> redis-value/c void?)]
-  [redis-read (->* () (input-port?) maybe-redis-value/c)]))
+  [redis-write (->* (redis-value/c) (output-port?) void?)]
+  [redis-read (->* () (input-port?) (or/c maybe-redis-value/c (cons/c 'err string?)))]))
 
 (module+ test
   (require rackunit))
@@ -41,41 +37,40 @@
 
 ;; write ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (redis-write v)
+(define (redis-write v [out (current-output-port)])
   (cond
-    [(string? v)  (redis-write-bulk-string (string->bytes/utf-8 v))]
-    [(bytes? v)   (redis-write-bulk-string v)]
-    [(integer? v) (redis-write-integer v)]
-    [(list? v)    (redis-write-array v)]))
+    [(string? v)  (redis-write-bulk-string (string->bytes/utf-8 v) out)]
+    [(bytes? v)   (redis-write-bulk-string v out)]
+    [(integer? v) (redis-write-integer v out)]
+    [(list? v)    (redis-write-array v out)]))
 
-(define (redis-write-bulk-string s)
-  (display "$")
-  (display (bytes-length s))
-  (display "\r\n")
-  (display s)
-  (display "\r\n"))
+(define (redis-write-bulk-string s out)
+  (display "$" out)
+  (display (bytes-length s) out)
+  (display "\r\n" out)
+  (display s out)
+  (display "\r\n" out))
 
-(define (redis-write-simple-string s)
-  (display "+")
-  (display s)
-  (display "\r\n"))
+(define (redis-write-simple-string s out)
+  (display "+" out)
+  (display s out)
+  (display "\r\n" out))
 
-(define (redis-write-integer n)
-  (display ":")
-  (display n)
-  (display "\r\n"))
+(define (redis-write-integer n out)
+  (display ":" out)
+  (display n out)
+  (display "\r\n" out))
 
-(define (redis-write-array l)
-  (display "*")
-  (display (length l))
-  (display "\r\n")
-  (for-each redis-write l))
+(define (redis-write-array l out)
+  (display "*" out)
+  (display (length l) out)
+  (display "\r\n" out)
+  (for-each (curryr redis-write out) l))
 
 (module+ test
   (define (redis-write/string v)
-    (with-output-to-string
-      (lambda _
-        (redis-write v))))
+    (call-with-output-string
+      (curry redis-write v)))
 
   (define (redis-write-simple/string v)
     (with-output-to-string
@@ -113,7 +108,7 @@
 (define bulk-string-prefix-re #rx"^\\$([^\r]+)\r\n")
 (define integer-re            #rx"^\\:(\\-?(0|[1-9][0-9]*))\r\n")
 (define array-re              #rx"^\\*(\\-?(0|[1-9][0-9]*))\r\n")
-(define error-re              #rx"^\\-(.+)\r\n")
+(define error-re              #rx"^\\-([^\r]*)\r\n")
 
 (define (redis-read-simple-string in)
   (match (regexp-match simple-string-re in)
@@ -148,7 +143,7 @@
 
 (define (redis-read-error in)
   (match (regexp-match error-re in)
-    [(list _ err) (bytes->string/utf-8 err)]
+    [(list _ err) (cons 'err (bytes->string/utf-8 err))]
     [#f (raise-argument-error 'redis-read-error "a valid error response from Redis" in)]))
 
 (module+ test
@@ -176,6 +171,6 @@
                 (list #"foo" #"bar"))
 
   (check-equal? (redis-read (open-input-string "*2\r\n*3\r\n:1\r\n:2\r\n:3\r\n*2\r\n+Foo\r\n-Bar\r\n"))
-                (list (list 1 2 3) (list "Foo" "Bar")))
+                (list (list 1 2 3) (list "Foo" (cons 'err "Bar"))))
 
-  (check-equal? (redis-read (open-input-string "-ERR Fatal\r\n")) "ERR Fatal"))
+  (check-equal? (redis-read (open-input-string "-ERR Fatal\r\n")) (cons 'err "ERR Fatal")))
