@@ -193,6 +193,12 @@
 (define (ok? v)
   (equal? v "OK"))
 
+(define-syntax-rule (define-simple-command/1 e0 e ...)
+  (define-simple-command e0 e ...
+    #:result-contract boolean?
+    #:result-name res
+    (= res 1)))
+
 
 ;; commands ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -242,12 +248,9 @@
 ;; TODO: DECRBY
 ;; TODO: DISCARD
 ;; TODO: DUMP
-;; TODO: ECHO
 ;; TODO: EVAL
 ;; TODO: EVALSHA
 ;; TODO: EXEC
-;; TODO: EXPIRE
-;; TODO: EXPIREAT
 ;; TODO: GEOADD
 ;; TODO: GEODIST
 ;; TODO: GEOHASH
@@ -302,8 +305,6 @@
 ;; TODO: MSETNX
 ;; TODO: MULTI
 ;; TODO: OBJECT
-;; TODO: PERSIST
-;; TODO: PEXPIRE
 ;; TODO: PEXPIREAT
 ;; TODO: PFADD
 ;; TODO: PFCOUNT
@@ -311,7 +312,6 @@
 ;; TODO: PING
 ;; TODO: PSETEX
 ;; TODO: PSUBSCRIBE
-;; TODO: PTTL
 ;; TODO: PUBLISH
 ;; TODO: PUBSUB
 ;; TODO: PUNSUBSCRIBE
@@ -363,7 +363,6 @@
 ;; TODO: SYNC
 ;; TODO: TIME
 ;; TODO: TOUCH
-;; TODO: TTL
 ;; TODO: TYPE
 ;; TODO: UNLINK
 ;; TODO: UNSUBSCRIBE
@@ -456,6 +455,12 @@
   #:command-name "DEL"
   #:result-contract exact-nonnegative-integer?)
 
+;; ECHO message
+(define-simple-command (echo [message string?])
+  #:result-contract string?
+  #:result-name res
+  (bytes->string/utf-8 res))
+
 ;; EXISTS key [key ...]
 (define-simple-command (has-key? [key string?])
   #:command-name "EXISTS"
@@ -467,12 +472,6 @@
   #:command-name "EXISTS"
   #:result-contract exact-nonnegative-integer?)
 
-;; ECHO message
-(define-simple-command (echo [message string?])
-  #:result-contract string?
-  #:result-name res
-  (bytes->string/utf-8 res))
-
 ;; FLUSHALL
 (define-simple-command/ok (flush-all!))
 
@@ -483,6 +482,23 @@
 (define-simple-command (ref [key string?])
   #:command-name "GET"
   #:result-contract maybe-redis-value/c)
+
+;; PERSIST key
+(define-simple-command/1 (persist! [key string?]))
+
+;; PEXPIRE key milliseconds
+(define-simple-command/1 (expire-in! [key string?] [ms exact-nonnegative-integer? #:converter number->string])
+  #:command-name "PEXPIRE")
+
+;; PTTL key
+(define-simple-command (ttl [key string?])
+  #:command-name "PTTL"
+  #:result-contract (or/c 'missing 'persisted exact-nonnegative-integer?)
+  #:result-name res
+  (case res
+    [(-2) 'missing]
+    [(-1) 'persisted]
+    [else res]))
 
 ;; PING
 (define-simple-command (ping)
@@ -582,5 +598,15 @@
     (check-equal? (redis-ref client "a") #"1")
     (check-false (redis-set! client "b" "2" #:when-exists? #t))
     (check-false (redis-has-key? client "b")))
+
+  (test "PERSIST, PEXPIRE and PTTL"
+    (check-false (redis-expire-in! client "a" 200))
+    (check-equal? (redis-ttl client "a") 'missing)
+    (check-true (redis-set! client "a" "1"))
+    (check-equal? (redis-ttl client "a") 'persisted)
+    (check-true (redis-expire-in! client "a" 20))
+    (check-true (> (redis-ttl client "a") 5))
+    (check-true (redis-persist! client "a"))
+    (check-equal? (redis-ttl client "a") 'persisted))
 
   (check-equal? (redis-quit! client) (void)))
