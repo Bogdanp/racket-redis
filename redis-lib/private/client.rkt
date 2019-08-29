@@ -3,25 +3,27 @@
 (require (for-syntax racket/base
                      racket/syntax
                      syntax/parse)
-         racket/class
          racket/contract
          racket/list
-         racket/math
+         racket/match
          racket/string
-         "connection.rkt"
+         racket/tcp
          "error.rkt"
          "protocol.rkt")
-
 
 ;; client ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (provide
  make-redis
- redis?)
+ redis?
+ redis-connected?
+ redis-connect!
+ redis-disconnect!)
 
-(struct redis (connection mutex))
+(struct redis (host port timeout in out mutex response-ch response-reader)
+  #:mutable)
 
-(define/contract (make-redis #:connection-name [connection-name "racket-redis"]
+(define/contract (make-redis #:client-name [client-name "racket-redis"]
                              #:host [host "127.0.0.1"]
                              #:port [port 6379]
                              #:timeout [timeout 5]
@@ -33,29 +35,92 @@
         #:db (integer-in 0 16))
        redis?)
 
-  (define conn
-    (new redis%
-         [host host]
-         [port port]
-         [timeout timeout]
-         [db db]))
-
-  (send conn connect)
-
-  (define client
-    (redis conn (make-semaphore 1)))
-
+  (define mutex (make-semaphore 1))
+  (define client (redis host port timeout #f #f mutex #f #f))
   (begin0 client
-    (redis-set-client-name! client connection-name)))
+    (redis-connect! client)
+    (redis-select! client db)
+    (redis-set-client-name! client client-name)))
 
+(define/contract (redis-connected? client)
+  (-> redis? boolean?)
+  (and (redis-in client)
+       (redis-out client)
+       (redis-response-reader client)
+       (not (port-closed? (redis-in client)))
+       (not (port-closed? (redis-out client)))
+       (not (thread-dead? (redis-response-reader client)))))
 
-;; commands ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(define/contract (redis-connect! client)
+  (-> redis? void?)
+  (when (redis-connected? client)
+    (redis-disconnect! client))
 
-(define (redis-emit! r command . args)
-  ;; TODO: connection pooling.
-  (call-with-semaphore (redis-mutex r)
+  (call-with-redis client
     (lambda _
-      (send/apply (redis-connection r) emit command args))))
+      (define-values (in out)
+        (tcp-connect (redis-host client)
+                     (redis-port client)))
+
+      (set-redis-in! client in)
+      (set-redis-out! client out)
+
+      (define response-ch (make-channel))
+      (define response-reader
+        (thread (make-response-reader in response-ch)))
+
+      (set-redis-response-ch! client response-ch)
+      (set-redis-response-reader! client response-reader))))
+
+(define/contract (redis-disconnect! client)
+  (-> redis? void?)
+  (call-with-redis client
+    (lambda _
+      (kill-thread (redis-response-reader client))
+      (tcp-abandon-port (redis-in client))
+      (tcp-abandon-port (redis-out client)))))
+
+(define ((make-response-reader in ->out))
+  (let loop ()
+    (channel-put ->out (redis-read in))
+    (loop)))
+
+(define (send-request! client cmd [args null])
+  (parameterize ([current-output-port (redis-out client)])
+    (redis-write (cons cmd args))
+    (flush-output)))
+
+(define (take-response! client)
+  (match (sync/timeout (redis-timeout client)
+                       (redis-response-ch client))
+    [#f
+     (raise (exn:fail:redis:timeout
+             "timed out while waiting for response from Redis"
+             (current-continuation-marks)))]
+
+    [(cons 'err message)
+     (cond
+       [(string-prefix? message "ERR")
+        (raise (exn:fail:redis (substring message 4) (current-continuation-marks)))]
+
+       [(string-prefix? message "WRONGTYPE")
+        (raise (exn:fail:redis (substring message 10) (current-continuation-marks)))]
+
+       [else
+        (raise (exn:fail:redis message (current-continuation-marks)))])]
+
+    [response response]))
+
+(define (call-with-redis client proc)
+  (call-with-semaphore (redis-mutex client)
+    (lambda _
+      (proc client))))
+
+(define (redis-emit! client command . args)
+  (call-with-redis client
+    (lambda _
+      (send-request! client command args)
+      (take-response! client))))
 
 (begin-for-syntax
   (define non-alpha-re #rx"[^a-z]+")
@@ -126,6 +191,9 @@
 
 (define (ok? v)
   (equal? v "OK"))
+
+
+;; commands ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; TODO: BITFIELD
 ;; TODO: BITOP
@@ -407,7 +475,10 @@
   #:result-contract string?)
 
 ;; QUIT
-(define-simple-command/ok (quit!))
+(define/contract/provide (redis-quit! client)
+  (-> redis? void?)
+  (send-request! client "QUIT")
+  (redis-disconnect! client))
 
 ;; SELECT db
 (define-simple-command/ok (select! [db (integer-in 0 15) #:converter number->string]))
@@ -483,4 +554,4 @@
     (check-false (redis-set! client "b" "2" #:when-exists? #t))
     (check-false (redis-has-key? client "b")))
 
-  (check-true (redis-quit! client)))
+  (check-equal? (redis-quit! client) (void)))
