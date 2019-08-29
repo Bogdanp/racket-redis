@@ -7,4 +7,5 @@
 
 (reprovide
  "private/client.rkt"
- "private/error.rkt")
+ "private/error.rkt"
+ "private/script.rkt")

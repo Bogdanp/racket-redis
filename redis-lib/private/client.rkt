@@ -4,6 +4,7 @@
                      racket/syntax
                      syntax/parse)
          racket/contract
+         racket/function
          racket/list
          racket/match
          racket/string
@@ -269,6 +270,26 @@
   #:result-name res
   (bytes->string/utf-8 res))
 
+;; EVAL script numkeys [key ...] [arg ...]
+(define/contract/provide (redis-eval! client script
+                                      #:keys [keys null]
+                                      #:args [args null])
+  (->* (redis? string?)
+       (#:keys (listof string?)
+        #:args (listof string?))
+       maybe-redis-value/c)
+  (apply redis-emit! client "EVAL" script (number->string (length keys)) (append keys args)))
+
+;; EVALSHA sha1 numkeys [key ...] [arg ...]
+(define/contract/provide (redis-eval-sha! client script-sha1
+                                          #:keys [keys null]
+                                          #:args [args null])
+  (->* (redis? string?)
+       (#:keys (listof string?)
+        #:args (listof string?))
+       maybe-redis-value/c)
+  (apply redis-emit! client "EVALSHA" script-sha1 (number->string (length keys)) (append keys args)))
+
 ;; EXISTS key [key ...]
 (define-simple-command/1 (has-key? [key string?])
   #:command-name "EXISTS")
@@ -354,6 +375,27 @@
                         "RENAME")
                     src
                     dest)))
+
+;; SCRIPT EXISTS sha1 [sha1 ...]
+(define/contract/provide (redis-scripts-exist? client . shas)
+  (-> redis? string? ... (listof boolean?))
+  (for/list ([one-or-zero (in-list (apply redis-emit! client "SCRIPT" "EXISTS" shas))])
+    (= 1 one-or-zero)))
+
+;; SCRIPT FLUSH
+(define/contract/provide (redis-flush-all-scripts! client)
+  (-> redis? boolean?)
+  (ok? (redis-emit! client "SCRIPT" "FLUSH")))
+
+;; SCRIPT KILL
+(define/contract/provide (redis-kill-current-script! client)
+  (-> redis? boolean?)
+  (ok? (redis-emit! client "SCRIPT" "KILL")))
+
+;; SCRIPT LOAD
+(define/contract/provide (redis-load-script! client script)
+  (-> redis? string? string?)
+  (bytes->string/utf-8 (redis-emit! client "SCRIPT" "LOAD" script)))
 
 ;; SELECT db
 (define-simple-command/ok (select! [db (integer-in 0 16) #:converter number->string]))
@@ -458,6 +500,13 @@
     (check-true (redis-set! client "a" "1"))
     (check-true (redis-set! client "b" "2"))
     (check-equal? (redis-remove! client "a" "b") 2))
+
+  (test "EVAL"
+    (check-equal? (redis-eval! client "return 1") 1)
+    (check-equal? (redis-eval! client "return {KEYS[1], ARGV[1], ARGV[2]}"
+                               #:keys '("a")
+                               #:args '("b" "c"))
+                  '(#"a" #"b" #"c")))
 
   (test "{M,}GET and SET"
     (check-false (redis-has-key? client "a"))

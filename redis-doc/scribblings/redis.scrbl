@@ -63,6 +63,24 @@ Each client represents a single TCP connection to the Redis server.
   @racket[(redis-null)].
 }
 
+
+@subsection[#:tag "scripts"]{Scripts}
+
+@defthing[redis-script/c (->* (redis?)
+                              (#:keys (listof string?)
+                               #:args (listof string?))
+                              maybe-redis-value/c)]{
+  The contract for Lua-backed Redis scripts.
+}
+
+@defproc[(make-redis-script [client redis?]
+                            [lua-script string?]) redis-script/c]{
+
+  Returns a function that will execute @racket[lua-script] via
+  @exec{EVALSHA} every time it's called.
+}
+
+
 @subsection[#:tag "commands"]{Supported Commands}
 
 @defcmd[(append! [key string?] [value string?]) exact-nonnegative-integer?]{
@@ -110,6 +128,21 @@ Each client represents a single TCP connection to the Redis server.
   Decrements @racket[key] by @racket[n].  If @racket[n] is @racket[1],
   then an @racket{DECR} is issued.  Otherwise, an @racket{DECRBY} is
   issued.
+}
+
+@defcmd[(eval! [lua-script string?]
+               [#:keys keys (listof string?) null]
+               [#:args args (listof string?) null]) maybe-redis-value/c]{
+
+  Evaluate the @racket[lua-script] on the fly within the database.
+}
+
+@defcmd[(evalsha! [script-sha1 string?]
+                  [#:keys keys (listof string?) null]
+                  [#:args args (listof string?) null]) maybe-redis-value/c]{
+
+  Evaluate the Lua script represented by the given
+  @racket[script-sha1] on the fly within the database.
 }
 
 @defcmd[(remove! [key string?] ...+) exact-nonnegative-integer?]{

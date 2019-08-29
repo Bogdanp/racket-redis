@@ -65,8 +65,6 @@ The commands below are yet to be implemented:
 * [ ]  DEBUG SEGFAULT
 * [ ]  DISCARD
 * [ ]  DUMP
-* [ ]  EVAL
-* [ ]  EVALSHA
 * [ ]  EXEC
 * [ ]  GEOADD
 * [ ]  GEODIST
@@ -140,11 +138,6 @@ The commands below are yet to be implemented:
 * [ ]  SAVE
 * [ ]  SCAN
 * [ ]  SCARD
-* [ ]  SCRIPT DEBUG
-* [ ]  SCRIPT EXISTS
-* [ ]  SCRIPT FLUSH
-* [ ]  SCRIPT KILL
-* [ ]  SCRIPT LOAD
 * [ ]  SDIFF
 * [ ]  SDIFFSTORE
 * [ ]  SETBIT
