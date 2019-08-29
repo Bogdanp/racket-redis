@@ -142,6 +142,11 @@
 
 (define-syntax (define/contract/provide stx)
   (syntax-parse stx
+    ([_ (name:id arg ... . vararg) ctr:expr e ...+]
+     #'(begin
+         (define/contract (name arg ... . vararg) ctr e ...)
+         (provide name)))
+
     ([_ (name:id arg ...) ctr:expr e ...+]
      #'(begin
          (define/contract (name arg ...) ctr e ...)
@@ -171,18 +176,15 @@
         (~optional (~seq #:result-name res-name:id) #:defaults ([res-name #'res]))
         (~optional (~seq e:expr ...+) #:defaults ([(e 1) (list #'res)]))]
      (with-syntax ([fn-name (format-id #'name "redis-~a" #'name)])
-       #'(begin
-           (define/contract (fn-name client arg.name ... . vararg.name)
-             (->* (redis? arg.contract ...)
-                  #:rest (listof vararg.contract)
-                  res-contract)
+       #'(define/contract/provide (fn-name client arg.name ... . vararg.name)
+           (->* (redis? arg.contract ...)
+                #:rest (listof vararg.contract)
+                res-contract)
 
-             (define res-name
-               (apply redis-emit! client command-name arg.e ... vararg.e))
+           (define res-name
+             (apply redis-emit! client command-name arg.e ... vararg.e))
 
-             e ...)
-
-           (provide fn-name))))))
+           e ...)))))
 
 (define-syntax-rule (define-simple-command/ok e0 e ...)
   (define-simple-command e0 e ...
@@ -292,7 +294,6 @@
 ;; TODO: MEMORY PURGE
 ;; TODO: MEMORY STATS
 ;; TODO: MEMORY USAGE
-;; TODO: MGET
 ;; TODO: MIGRATE
 ;; TODO: MONITOR
 ;; TODO: MOVE
@@ -476,9 +477,12 @@
 (define-simple-command/ok (flush-db!))
 
 ;; GET key
-(define-simple-command (ref [key string?])
-  #:command-name "GET"
-  #:result-contract maybe-redis-value/c)
+;; MGET key [key ...]
+(define/contract/provide (redis-ref client key . keys)
+  (-> redis? string? string? ... maybe-redis-value/c)
+  (if (null? keys)
+      (redis-emit! client "GET" key)
+      (apply redis-emit! client "MGET" key keys)))
 
 ;; INCR key
 ;; INCRBY key increment
@@ -640,14 +644,17 @@
     (check-true (redis-set! client "b" "2"))
     (check-equal? (redis-remove! client "a" "b") 2))
 
-  (test "GET and SET"
+  (test "{M,}GET and SET"
     (check-false (redis-has-key? client "a"))
     (check-true (redis-set! client "a" "1"))
     (check-equal? (redis-ref client "a") #"1")
     (check-false (redis-set! client "a" "2" #:unless-exists? #t))
     (check-equal? (redis-ref client "a") #"1")
     (check-false (redis-set! client "b" "2" #:when-exists? #t))
-    (check-false (redis-has-key? client "b")))
+    (check-false (redis-has-key? client "b"))
+    (check-true (redis-set! client "b" "2" #:unless-exists? #t))
+    (check-true (redis-has-key? client "b"))
+    (check-equal? (redis-ref client "a" "b") '(#"1" #"2")))
 
   (test "INCR, INCRBY and INCRBYFLOAT"
     (check-equal? (redis-incr! client "a") 1)
