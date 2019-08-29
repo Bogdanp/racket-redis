@@ -244,8 +244,6 @@
 ;; TODO: CONFIG SET
 ;; TODO: DEBUG OBJECT
 ;; TODO: DEBUG SEGFAULT
-;; TODO: DECR
-;; TODO: DECRBY
 ;; TODO: DISCARD
 ;; TODO: DUMP
 ;; TODO: EVAL
@@ -442,6 +440,16 @@
   #:command-name "DBSIZE"
   #:result-contract exact-integer?)
 
+;; DECR key
+;; DECRBY key decrement
+(define/contract/provide (redis-decr! client key [n 1])
+  (->* (redis? string?)
+       (exact-integer?)
+       exact-integer?)
+  (apply redis-emit! client (cond
+                              [(= n 1) (list "DECR" key)]
+                              [else    (list "DECRBY" key (number->string n))])))
+
 ;; DEL key [key ...]
 (define-variadic-command (remove! [key0 string?] . [keys string?])
   #:command-name "DEL"
@@ -616,6 +624,12 @@
     (check-equal? (redis-count client) 0)
     (check-true (redis-set! client "a" "1"))
     (check-equal? (redis-count client) 1))
+
+  (test "DECR, DECRBY and DECRBYFLOAT"
+    (check-equal? (redis-decr! client "a") -1)
+    (check-equal? (redis-decr! client "a") -2)
+    (check-equal? (redis-decr! client "a" 3) -5)
+    (check-equal? (redis-type client "a") 'string))
 
   (test "DEL"
     (check-equal? (redis-remove! client "a") 0)
