@@ -12,9 +12,10 @@
     (field [out null] [in null])
     (super-new)
 
-    (define/private (send msg)
-      (display msg out)
-      (flush-output out))
+    (define/private (send proc)
+      (parameterize ([current-output-port out])
+        (proc)
+        (flush-output)))
 
     (define/private (get-response)
       (let loop ([resp ""])
@@ -32,8 +33,11 @@
 
     (define/private (apply-cmd cmd [args null])
       (if (null? args)
-          (send (string-append cmd "\r\n"))
-          (send (redis-encode (append (list cmd) (if (list? args) args (list args)))))))
+          (send (lambda _
+                  (display cmd)
+                  (display "\r\n")))
+          (send (lambda _
+                  (redis-encode  (append (list cmd) (if (list? args) args (list args))))))))
 
     (define/public (set-timeout t) (set! timeout t))
 

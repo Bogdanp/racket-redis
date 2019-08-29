@@ -1,7 +1,12 @@
 #lang racket
-(require "main.rkt" rackunit)
-(define redis (new redis%))
-(send redis set-timeout 0.3) ;this is ok for local testing, probably not for the net though
+
+(require rackunit
+         "main.rkt")
+
+(define redis
+  (new redis%))
+
+(send redis set-timeout 0.3)
 (send redis init)
 
 (check-equal? (send redis config-resetstat) "OK")
