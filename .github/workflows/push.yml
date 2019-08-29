@@ -1,0 +1,15 @@
+on: push
+name: main
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    - name: build
+      uses: jackfirth/racket-package-ci-action@v0.1.1
+      name: redis-lib
+      directory: redis-lib
+    redis:
+      image: redis
+      ports:
+      - 6379/tcp
