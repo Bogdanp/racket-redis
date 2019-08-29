@@ -117,6 +117,7 @@
       (proc client))))
 
 (define (redis-emit! client command . args)
+  ;; TODO: reconnect here if disconnected.
   (call-with-redis client
     (lambda _
       (send-request! client command args)
@@ -239,7 +240,6 @@
 ;; TODO: DEBUG SEGFAULT
 ;; TODO: DECR
 ;; TODO: DECRBY
-;; TODO: DEL
 ;; TODO: DISCARD
 ;; TODO: DUMP
 ;; TODO: ECHO
@@ -451,6 +451,11 @@
   #:command-name "DBSIZE"
   #:result-contract exact-integer?)
 
+;; DEL key [key ...]
+(define-variadic-command (remove! [key0 string?] . [keys string?])
+  #:command-name "DEL"
+  #:result-contract exact-nonnegative-integer?)
+
 ;; EXISTS key [key ...]
 (define-simple-command (has-key? [key string?])
   #:command-name "EXISTS"
@@ -532,7 +537,7 @@
   (check-equal? (redis-echo client "hello") "hello")
   (check-equal? (redis-ping client) "PONG")
 
-  (test "auth"
+  (test "AUTH"
     (check-exn
      (lambda (e)
        (and (exn:fail:redis? e)
@@ -540,27 +545,36 @@
      (lambda _
        (redis-auth! client "hunter2"))))
 
-  (test "append"
+  (test "APPEND"
     (check-equal? (redis-append! client "a" "hello") 5)
     (check-equal? (redis-append! client "a" "world!") 11))
 
-  (test "bitcount"
+  (test "BITCOUNT"
     (check-equal? (redis-bitcount client "a") 0)
     (check-true (redis-set! client "a" "hello"))
     (check-equal? (redis-bitcount client "a") 21))
 
-  (test "client"
+  (test "CLIENT *"
     (check-not-false (redis-client-id client))
     (check-equal? (redis-client-name client) "racket-redis")
     (check-true (redis-set-client-name! client "custom-name"))
     (check-equal? (redis-client-name client) "custom-name"))
 
-  (test "count"
+  (test "DBSIZE"
     (check-equal? (redis-count client) 0)
     (check-true (redis-set! client "a" "1"))
     (check-equal? (redis-count client) 1))
 
-  (test "get and set"
+  (test "DEL"
+    (check-equal? (redis-remove! client "a") 0)
+    (check-equal? (redis-remove! client "a" "b") 0)
+    (check-true (redis-set! client "a" "1"))
+    (check-equal? (redis-remove! client "a" "b") 1)
+    (check-true (redis-set! client "a" "1"))
+    (check-true (redis-set! client "b" "2"))
+    (check-equal? (redis-remove! client "a" "b") 2))
+
+  (test "GET and SET"
     (check-false (redis-has-key? client "a"))
     (check-true (redis-set! client "a" "1"))
     (check-equal? (redis-ref client "a") #"1")
