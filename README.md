@@ -93,16 +93,7 @@ The commands below are yet to be implemented:
 * [ ]  INFO
 * [ ]  KEYS
 * [ ]  LASTSAVE
-* [ ]  LINDEX
-* [ ]  LINSERT
-* [ ]  LLEN
-* [ ]  LPOP
-* [ ]  LPUSH
 * [ ]  LPUSHX
-* [ ]  LRANGE
-* [ ]  LREM
-* [ ]  LSET
-* [ ]  LTRIM
 * [ ]  MEMORY DOCTOR
 * [ ]  MEMORY HELP
 * [ ]  MEMORY MALLOC-STATS
@@ -130,9 +121,7 @@ The commands below are yet to be implemented:
 * [ ]  REPLICAOF
 * [ ]  RESTORE
 * [ ]  ROLE
-* [ ]  RPOP
 * [ ]  RPOPLPUSH
-* [ ]  RPUSH
 * [ ]  RPUSHX
 * [ ]  SADD
 * [ ]  SAVE

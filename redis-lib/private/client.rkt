@@ -205,8 +205,11 @@
 
 ;; commands ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(define redis-string?
+  (or/c bytes? string?))
+
 ;; APPEND key value
-(define-simple-command (append! [key string?] [value string?])
+(define-simple-command (append! [key string?] [value redis-string?])
   #:result-contract exact-nonnegative-integer?)
 
 ;; AUTH password
@@ -329,6 +332,61 @@
       (bytes->string/utf-8 res)
       res))
 
+;; LINDEX key index
+(define-simple-command (list-ref [key string?] [index exact-integer? #:converter number->string])
+  #:command-name "LINDEX"
+  #:result-contract maybe-redis-value/c)
+
+;; LINSERT key BEFORE pivot value
+(define/contract/provide (redis-list-insert-before! client key pivot value)
+  (-> redis? string? string? string? (or/c false/c exact-nonnegative-integer?))
+  (define res (redis-emit! client "LINSERT" key "BEFORE" pivot value))
+  (and (not (= res -1)) res))
+
+;; LINSERT key AFTER pivot value
+(define/contract/provide (redis-list-insert-after! client key pivot value)
+  (-> redis? string? string? string? (or/c false/c exact-nonnegative-integer?))
+  (define res (redis-emit! client "LINSERT" key "AFTER" pivot value))
+  (and (not (= res -1)) res))
+
+;; LLEN key
+(define-simple-command (list-length [key string?])
+  #:command-name "LLEN"
+  #:result-contract exact-nonnegative-integer?)
+
+;; LPOP key
+(define-simple-command (list-pop-left! [key string?])
+  #:command-name "LPOP"
+  #:result-contract maybe-redis-value/c)
+
+;; LPUSH key value [value ...]
+(define-variadic-command (list-prepend! [key string?] . [value redis-string?])
+  #:command-name "LPUSH"
+  #:result-contract exact-nonnegative-integer?)
+
+;; LRANGE key value start stop
+(define/contract/provide (redis-list-range client key [start 0] [stop -1])
+  (->* (redis? string?)
+       (exact-integer? exact-integer?)
+       maybe-redis-value/c)
+  (redis-emit! client "LRANGE" key (number->string start) (number->string stop)))
+
+;; LREM key count value
+(define-simple-command (list-remove! [key string?] [count exact-integer?] [value redis-string?])
+  #:command-name "LREM"
+  #:result-contract exact-nonnegative-integer?)
+
+;; LSET key index value
+(define-simple-command/ok (list-set! [key string?] [index exact-integer?] [value redis-string?])
+  #:command-name "LSET")
+
+;; LTRIM key value start stop
+(define/contract/provide (redis-list-trim! client key [start 0] [stop -1])
+  (->* (redis? string?)
+       (exact-integer? exact-integer?)
+       boolean?)
+  (ok? (redis-emit! client "LTRIM" key (number->string start) (number->string stop))))
+
 ;; PERSIST key
 (define-simple-command/1 (persist! [key string?]))
 
@@ -376,6 +434,16 @@
                     src
                     dest)))
 
+;; RPOP key
+(define-simple-command (list-pop-right! [key string?])
+  #:command-name "RPOP"
+  #:result-contract maybe-redis-value/c)
+
+;; RPUSH key value [value ...]
+(define-variadic-command (list-append! [key string?] . [value redis-string?])
+  #:command-name "RPUSH"
+  #:result-contract exact-nonnegative-integer?)
+
 ;; SCRIPT EXISTS sha1 [sha1 ...]
 (define/contract/provide (redis-scripts-exist? client . shas)
   (-> redis? string? ... (listof boolean?))
@@ -405,7 +473,7 @@
                                      #:expires-in [expires-in #f]
                                      #:unless-exists? [unless-exists? #f]
                                      #:when-exists? [when-exists? #f])
-  (->* (redis? string? string?)
+  (->* (redis? string? redis-string?)
        (#:expires-in (or/c false/c exact-positive-integer?)
         #:unless-exists? boolean?
         #:when-exists? boolean?)
@@ -527,6 +595,32 @@
     (check-equal? (redis-incr! client "a" 1.5) "6.5")
     (check-equal? (redis-type client "a") 'string))
 
+  (test "LINDEX, LLEN, LPUSH, LPOP"
+    (check-equal? (redis-list-length client "a") 0)
+    (check-equal? (redis-list-prepend! client "a" "1") 1)
+    (check-equal? (redis-list-prepend! client "a" "2" "3") 3)
+    (check-equal? (redis-list-length client "a") 3)
+    (check-equal? (redis-list-ref client "a" 1) #"2")
+    (check-equal? (redis-list-pop-left! client "a") #"3")
+    (check-equal? (redis-list-pop-left! client "a") #"2")
+    (check-equal? (redis-list-pop-left! client "a") #"1")
+    (check-equal? (redis-list-pop-left! client "a") (redis-null)))
+
+  (test "LINSERT"
+    (check-equal? (redis-list-prepend! client "a" "1") 1)
+    (check-equal? (redis-list-prepend! client "a" "2") 2)
+    (check-equal? (redis-list-insert-before! client "a" "1" "3") 3)
+    (check-false (redis-list-insert-before! client "a" "8" "3"))
+    (check-equal? (redis-list-range client "a") '(#"2" #"3" #"1"))
+    (check-equal? (redis-list-insert-after! client "a" "3" "4") 4)
+    (check-equal? (redis-list-range client "a") '(#"2" #"3" #"4" #"1")))
+
+  (test "LTRIM"
+    (check-equal? (redis-list-prepend! client "a" "2") 1)
+    (check-equal? (redis-list-prepend! client "a" "2") 2)
+    (check-true (redis-list-trim! client "a" 1))
+    (check-equal? (redis-list-range client "a") '(#"2")))
+
   (test "PERSIST, PEXPIRE and PTTL"
     (check-false (redis-expire-in! client "a" 200))
     (check-equal? (redis-ttl client "a") 'missing)
@@ -544,6 +638,13 @@
     (check-false (redis-has-key? client "a"))
     (check-false (redis-rename! client "c" "b" #:unless-exists? #t))
     (check-true (redis-has-key? client "c")))
+
+  (test "RPUSH, RPOP"
+    (check-equal? (redis-list-append! client "a" "1") 1)
+    (check-equal? (redis-list-append! client "a" "2") 2)
+    (check-equal? (redis-list-pop-right! client "a") #"2")
+    (check-equal? (redis-list-pop-right! client "a") #"1")
+    (check-equal? (redis-list-pop-right! client "a") (redis-null)))
 
   (test "TOUCH"
     (check-equal? (redis-touch! client "a") 0)
