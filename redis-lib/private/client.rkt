@@ -203,7 +203,6 @@
 ;; TODO: BRPOPLPUSH
 ;; TODO: BZPOPMAX
 ;; TODO: BZPOPMIN
-;; TODO: CLIENT ID
 ;; TODO: CLIENT KILL
 ;; TODO: CLIENT LIST
 ;; TODO: CLIENT PAUSE
@@ -236,7 +235,6 @@
 ;; TODO: CONFIG RESETSTAT
 ;; TODO: CONFIG REWRITE
 ;; TODO: CONFIG SET
-;; TODO: DBSIZE
 ;; TODO: DEBUG OBJECT
 ;; TODO: DEBUG SEGFAULT
 ;; TODO: DECR
@@ -433,6 +431,11 @@
        exact-nonnegative-integer?)
   (redis-emit! client "BITCOUNT" key (number->string start) (number->string end)))
 
+;; CLIENT ID
+(define/contract/provide (redis-client-id client)
+  (-> redis? exact-integer?)
+  (redis-emit! client "CLIENT" "ID"))
+
 ;; CLIENT GETNAME
 (define/contract/provide (redis-client-name client)
   (-> redis? string?)
@@ -442,6 +445,11 @@
 (define/contract/provide (redis-set-client-name! client name)
   (-> redis? string? boolean?)
   (ok? (redis-emit! client "CLIENT" "SETNAME" name)))
+
+;; DBSIZE
+(define-simple-command (count)
+  #:command-name "DBSIZE"
+  #:result-contract exact-integer?)
 
 ;; EXISTS key [key ...]
 (define-simple-command (has-key? [key string?])
@@ -467,7 +475,8 @@
 (define-simple-command/ok (flush-db!))
 
 ;; GET key
-(define-simple-command (get [key string?])
+(define-simple-command (ref [key string?])
+  #:command-name "GET"
   #:result-contract maybe-redis-value/c)
 
 ;; PING
@@ -523,11 +532,6 @@
   (check-equal? (redis-echo client "hello") "hello")
   (check-equal? (redis-ping client) "PONG")
 
-  (test "client"
-    (check-equal? (redis-client-name client) "racket-redis")
-    (check-true (redis-set-client-name! client "custom-name"))
-    (check-equal? (redis-client-name client) "custom-name"))
-
   (test "auth"
     (check-exn
      (lambda (e)
@@ -545,12 +549,23 @@
     (check-true (redis-set! client "a" "hello"))
     (check-equal? (redis-bitcount client "a") 21))
 
+  (test "client"
+    (check-not-false (redis-client-id client))
+    (check-equal? (redis-client-name client) "racket-redis")
+    (check-true (redis-set-client-name! client "custom-name"))
+    (check-equal? (redis-client-name client) "custom-name"))
+
+  (test "count"
+    (check-equal? (redis-count client) 0)
+    (check-true (redis-set! client "a" "1"))
+    (check-equal? (redis-count client) 1))
+
   (test "get and set"
     (check-false (redis-has-key? client "a"))
     (check-true (redis-set! client "a" "1"))
-    (check-equal? (redis-get client "a") #"1")
+    (check-equal? (redis-ref client "a") #"1")
     (check-false (redis-set! client "a" "2" #:unless-exists? #t))
-    (check-equal? (redis-get client "a") #"1")
+    (check-equal? (redis-ref client "a") #"1")
     (check-false (redis-set! client "b" "2" #:when-exists? #t))
     (check-false (redis-has-key? client "b")))
 
