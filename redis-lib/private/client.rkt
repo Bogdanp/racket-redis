@@ -21,7 +21,8 @@
 
 (struct redis (connection mutex))
 
-(define/contract (make-redis #:host [host "127.0.0.1"]
+(define/contract (make-redis #:connection-name [connection-name "racket-redis"]
+                             #:host [host "127.0.0.1"]
                              #:port [port 6379]
                              #:timeout [timeout 5]
                              #:db [db 0])
@@ -40,20 +41,27 @@
          [db db]))
 
   (send conn connect)
-  (redis conn (make-semaphore 1)))
+
+  (define client
+    (redis conn (make-semaphore 1)))
+
+  (begin0 client
+    (redis-set-client-name! client connection-name)))
 
 
 ;; commands ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (redis-emit r command . args)
+(define (redis-emit! r command . args)
   ;; TODO: connection pooling.
   (call-with-semaphore (redis-mutex r)
     (lambda _
       (send/apply (redis-connection r) emit command args))))
 
 (begin-for-syntax
+  (define non-alpha-re #rx"[^a-z]+")
+
   (define (stx->command stx)
-    (datum->syntax stx (string-upcase (symbol->string (syntax->datum stx)))))
+    (datum->syntax stx (string-upcase (regexp-replace* non-alpha-re (symbol->string (syntax->datum stx)) ""))))
 
   (define-syntax-class arg
     (pattern name:id
@@ -85,7 +93,7 @@
            (-> redis? arg.contract ... res-contract)
 
            (define res-name
-             (redis-emit client command-name arg.e ...))
+             (redis-emit! client command-name arg.e ...))
 
            e ...)))))
 
@@ -104,7 +112,7 @@
                   res-contract)
 
              (define res-name
-               (apply redis-emit client command-name arg.e ... vararg.e))
+               (apply redis-emit! client command-name arg.e ... vararg.e))
 
              e ...)
 
@@ -119,9 +127,6 @@
 (define (ok? v)
   (equal? v "OK"))
 
-;; TODO: BGREWRITEAOF
-;; TODO: BGSAVE
-;; TODO: BITCOUNT
 ;; TODO: BITFIELD
 ;; TODO: BITOP
 ;; TODO: BITPOS
@@ -130,13 +135,11 @@
 ;; TODO: BRPOPLPUSH
 ;; TODO: BZPOPMAX
 ;; TODO: BZPOPMIN
-;; TODO: CLIENT GETNAME
 ;; TODO: CLIENT ID
 ;; TODO: CLIENT KILL
 ;; TODO: CLIENT LIST
 ;; TODO: CLIENT PAUSE
 ;; TODO: CLIENT REPLY
-;; TODO: CLIENT SETNAME
 ;; TODO: CLIENT UNBLOCK
 ;; TODO: CLUSTER ADDSLOTS
 ;; TODO: CLUSTER COUNT-FAILURE-REPORTS
@@ -338,10 +341,21 @@
 ;; TODO: ZSCORE
 ;; TODO: ZUNIONSTORE
 
+;; APPEND key value
 (define-simple-command (append! [key string?] [value string?])
-  #:command-name "APPEND"
   #:result-contract exact-nonnegative-integer?)
 
+;; AUTH password
+(define-simple-command (auth! [password string?])
+  #:result-contract string?)
+
+;; BGREWRITEAOF
+(define-simple-command/ok (bg-rewrite-aof!))
+
+;; BGSAVE
+(define-simple-command/ok (bg-save!))
+
+;; BITCOUNT key [start end]
 (define/contract/provide (redis-bitcount client key
                                          #:start [start 0]
                                          #:end [end -1])
@@ -349,45 +363,56 @@
        (#:start exact-integer?
         #:end exact-integer?)
        exact-nonnegative-integer?)
-  (redis-emit client "BITCOUNT" key (number->string start) (number->string end)))
+  (redis-emit! client "BITCOUNT" key (number->string start) (number->string end)))
 
-(define-simple-command (auth! [password string?])
-  #:command-name "AUTH"
-  #:result-contract string?)
+;; CLIENT GETNAME
+(define/contract/provide (redis-client-name client)
+  (-> redis? string?)
+  (bytes->string/utf-8 (redis-emit! client "CLIENT" "GETNAME")))
 
-(define-variadic-command (count-keys . [key string?])
-  #:command-name "EXISTS"
-  #:result-contract exact-nonnegative-integer?)
+;; CLIENT SETNAME connection-name
+(define/contract/provide (redis-set-client-name! client name)
+  (-> redis? string? boolean?)
+  (ok? (redis-emit! client "CLIENT" "SETNAME" name)))
 
-(define-simple-command (echo [message string?])
-  #:result-contract string?
-  #:result-name res
-  (bytes->string/utf-8 res))
-
-(define-simple-command/ok (flush-all!)
-  #:command-name "FLUSHALL")
-
-(define-simple-command/ok (flush-db!)
-  #:command-name "FLUSHDB")
-
-(define-simple-command (get [key string?])
-  #:result-contract maybe-redis-value/c)
-
+;; EXISTS key [key ...]
 (define-simple-command (has-key? [key string?])
   #:command-name "EXISTS"
   #:result-contract boolean?
   #:result-name res
   (equal? res (list 1)))
 
+(define-variadic-command (count-keys . [key string?])
+  #:command-name "EXISTS"
+  #:result-contract exact-nonnegative-integer?)
+
+;; ECHO message
+(define-simple-command (echo [message string?])
+  #:result-contract string?
+  #:result-name res
+  (bytes->string/utf-8 res))
+
+;; FLUSHALL
+(define-simple-command/ok (flush-all!))
+
+;; FLUSHDB
+(define-simple-command/ok (flush-db!))
+
+;; GET key
+(define-simple-command (get [key string?])
+  #:result-contract maybe-redis-value/c)
+
+;; PING
 (define-simple-command (ping)
   #:result-contract string?)
 
-(define-simple-command/ok (quit!)
-  #:command-name "QUIT")
+;; QUIT
+(define-simple-command/ok (quit!))
 
-(define-simple-command/ok (select! [db (integer-in 0 15) #:converter number->string])
-  #:command-name "SELECT")
+;; SELECT db
+(define-simple-command/ok (select! [db (integer-in 0 15) #:converter number->string]))
 
+;; SET key value [EX seconds | PX milliseconds] [NX|XX]
 (define/contract/provide (redis-set! client key value
                                      #:expires-in [expires-in #f]
                                      #:unless-exists? [unless-exists? #f]
@@ -397,7 +422,7 @@
         #:unless-exists? boolean?
         #:when-exists? boolean?)
        boolean?)
-  (ok? (apply redis-emit
+  (ok? (apply redis-emit!
               client
               "SET" key value
               (flatten (list (if expires-in
@@ -405,10 +430,9 @@
                                  (list))
                              (if unless-exists?
                                  (list "NX")
-                                 (list))
-                             (if when-exists?
-                                 (list "XX")
-                                 (list)))))))
+                                 (if when-exists?
+                                     (list "XX")
+                                     (list))))))))
 
 
 (module+ test
@@ -427,6 +451,11 @@
 
   (check-equal? (redis-echo client "hello") "hello")
   (check-equal? (redis-ping client) "PONG")
+
+  (test "client"
+    (check-equal? (redis-client-name client) "racket-redis")
+    (check-true (redis-set-client-name! client "custom-name"))
+    (check-equal? (redis-client-name client) "custom-name"))
 
   (test "auth"
     (check-exn
