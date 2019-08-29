@@ -7,8 +7,9 @@ jobs:
     - uses: actions/checkout@master
     - name: build
       uses: jackfirth/racket-package-ci-action@v0.1.1
-      name: redis-lib
-      directory: redis-lib
+      with:
+        name: redis-lib
+        directory: redis-lib
     redis:
       image: redis
       ports:
