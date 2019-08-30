@@ -11,7 +11,49 @@
 
 @section[#:tag "intro"]{Introduction}
 
-This package provides up-to-date bindings to the Redis database.
+This package provides up-to-date bindings to the Redis database that
+are idiomatic and fast.  Every exposed function has a contract (some
+are even quite complex!) and the library is about as fast as hiredis
+(written in C) + redis-py.
+
+Here is a microbenchmark in Python:
+
+@verbatim{
+$ cat <<EOF >test.py
+import redis
+import timeit
+
+c = redis.Redis()
+
+print(timeit.timeit("c.set('a', '1')", number=10000, globals=globals()))
+EOF
+
+$ python test.py
+0.5616942420000001
+}
+
+and the equivalent benchmark in Racket:
+
+@verbatim{
+$ cat <<EOF >test.rkt
+#lang racket/base
+
+(require redis)
+
+(define c (make-redis))
+
+(time
+ (for ([_ (in-range 10000)])
+   (redis-bytes-set! c "a" "1")))
+EOF
+
+$ racket test.rkt
+cpu time: 562 real time: 655 gc time: 18
+}
+
+Obviously, real world use cases will have different characteristics,
+but the point is that the library won't get in your way.
+
 
 @section[#:tag "reference"]{Reference}
 @defmodule[redis]

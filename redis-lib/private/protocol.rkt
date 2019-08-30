@@ -6,12 +6,11 @@
          racket/port)
 
 (provide
- (contract-out
-  [redis-null (parameter/c any/c)]
-  [redis-null? (-> any/c boolean?)]
-  [redis-value/c (-> any/c boolean?)]
-  [redis-write (->* (redis-value/c) (output-port?) void?)]
-  [redis-read (->* () (input-port?) (or/c redis-value/c (cons/c 'err string?)))]))
+ redis-value/c
+ redis-null
+ redis-null?
+ redis-write
+ redis-read)
 
 (module+ test
   (require rackunit))
