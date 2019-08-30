@@ -27,10 +27,9 @@ Each client represents a single TCP connection to the Redis server.
                      [#:db db (integer-in 0 16) 0]) redis?]{
 
   Creates a redis client and immediately attempts to connect to the
-  database at @racket[host] and @racket[port].
-
-  The @racket[timeout] parameter controls the maximum amount of time
-  the client will wait for any given response from the database.
+  database at @racket[host] and @racket[port].  The @racket[timeout]
+  parameter controls the maximum amount of time the client will wait
+  for any individual response from the database.
 }
 
 @defproc[(redis? [v any/c]) boolean?]{
@@ -91,48 +90,54 @@ Each client represents a single TCP connection to the Redis server.
 @defcmd[
   ((SET)
    (set! [key string?]
-         [value any/c]
+         [value (or/c bytes? string? serializable?)]
          [#:expires-in expires-in (or/c false/c exact-nonnegative-integer?) #f]
          [#:unless-exists? unless-exists? boolean? #f]
          [#:when-exists? when-exists? boolean? #f]) boolean?)]{
 
-  @exec{SET}s @racket[key] to @racket[value].  Byte string
-  @racket[value]s are written to the server as-is, strings are
-  converted to byte strings first and all other values are converted
-  to strings via @racket[serialize].
-
-  When @racket[expires-in] is @racket[#t], then the key will expire
-  after @racket[expires-in] milliseconds.
-
-  When @racket[unless-exists?] is @racket[#t], then the key will only
-  be set if it doesn't already exist.
-
-  When @racket[when-exists?] is @racket[#t], then the key will only be
-  set if it already exists.
+  Like @racket[redis-string-set!], but non string-y values are
+  converted to strings via @racket[serialize] before they are sent to
+  the server.
 }
 
 
 @;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 @subsubsection{Connection Commands}
 
-@defcmd[(auth! [password string?]) string?]{
+@defcmd[
+  ((AUTH)
+   (auth! [password string?]) string?)]{
+
   @exec{AUTH}s the current connection using @racket[password].  Raises
-  an exception if authentication is not set up.
+  an exception if authentication is not set up or if the password is
+  invalid.
 }
 
-@defcmd[(select! [db (integer-in 0 16)]) boolean?]{
+@defcmd[
+  ((SELECT)
+   (select-db! [db (integer-in 0 16)]) boolean?)]{
+
   Selects the current database.
 }
 
-@defcmd[(echo [message string?]) string?]{
+@defcmd[
+  ((ECHO)
+   (echo [message string?]) string?)]{
+
   Returns @racket[message].
 }
 
-@defcmd[(ping) string?]{
+@defcmd[
+  ((PING)
+   (ping) string?)]{
+
   Pings the server and returns @racket["PONG"].
 }
 
-@defcmd[(quit!) void?]{
+@defcmd[
+  ((QUIT)
+   (quit!) void?)]{
+
   Gracefully disconnects from the server.
 }
 
@@ -140,48 +145,68 @@ Each client represents a single TCP connection to the Redis server.
 @;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 @subsubsection{Key Commands}
 
-@defcmd[(count-keys [key string?] ...) exact-nonnegative-integer?]{
+@defcmd[
+  ((EXISTS)
+   (count-keys [key string?] ...) exact-nonnegative-integer?)]{
+
   Returns how many of the given @racket[key]s exist.  Keys are counted
-  as many times as they are provided.  Analogous to @exec{EXISTS}.
+  as many times as they are provided.
 }
 
-@defcmd[(expire-at! [key string?] [ms exact-nonnegative-integer?]) boolean?]{
+@defcmd[
+  ((PEXPIREAT)
+   (expire-at! [key string?]
+               [ms exact-nonnegative-integer?]) boolean?)]{
+
   Marks @racket[key] so that it will expire at the UNIX timestamp
   represented by @racket[ms] milliseconds.  Returns @racket[#f] if the
   key is not in the database.
-
-  Issues a @exec{PEXPIREAT}.
 }
 
-@defcmd[(expire-in! [key string?] [ms exact-nonnegative-integer?]) boolean?]{
+@defcmd[
+  ((PEXPIRE)
+   (expire-in! [key string?]
+               [ms exact-nonnegative-integer?]) boolean?)]{
+
   Marks @racket[key] so that it will expire in @racket[ms]
   milliseconds.  Returns @racket[#f] if the key is not in the
   database.
-
-  Issues a @exec{PEXPIRE}.
 }
 
-@defcmd[(has-key? [key string?]) boolean?]{
-  Returns @racket[#t] if @racket[key] is in the database.  Uses
-  @exec{EXISTS} under the hood.
+@defcmd[
+  ((EXISTS)
+   (has-key? [key string?]) boolean?)]{
+
+  Returns @racket[#t] when @racket[key] is in the database.
 }
 
-@defcmd[(persist! [key string?]) boolean?]{
-  Removes @racket[key]'s expiration, if any.
+@defcmd[
+  ((PERSIST)
+   (persist! [key string?]) boolean?)]{
+
+  Removes @racket[key]'s expiration.
 }
 
-@defcmd[(random-key) (or/c redis-null? string?)]{
+@defcmd[
+  ((RANDOMKEY)
+   (random-key) (or/c redis-null? string?))]{
+
   Returns a random key from the database or @racket[(redis-null)].
 }
 
-@defcmd[(remove! [key string?] ...+) exact-nonnegative-integer?]{
+@defcmd[
+  ((DEL)
+   (remove! [key string?] ...+) exact-nonnegative-integer?)]{
+
   Removes each @racket[key] from the database and returns the number
   of keys that were removed.
 }
 
-@defcmd[(rename! [src string?]
-                 [dest string?]
-                 [#:unless-exists? unless-exists? boolean? #f]) boolean?]{
+@defcmd[
+  ((RENAME)
+   (rename! [src string?]
+            [dest string?]
+            [#:unless-exists? unless-exists? boolean? #f]) boolean?)]{
 
   Renames @racket[src] to @racket[dest].
 
@@ -306,35 +331,59 @@ Each client represents a single TCP connection to the Redis server.
 @;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 @subsubsection{Server Commands}
 
-@defcmd[(bg-rewrite-aof!) #t]{
-  Initiates a @exec{BGREWRITEAOF}.
+@defcmd[
+  ((BGREWRITEAOF)
+   (bg-rewrite-aof!) #t)]{
+
+  Starts the AOF-rewrite process on the server.
 }
 
-@defcmd[(bg-save!) #t]{
-  Initiates a @exec{BGSAVE}.
+@defcmd[
+  ((BGSAVE)
+   (bg-save!) #t)]{
+
+  Starts the save process on the server.
 }
 
-@defcmd[(client-id) exact-integer?]{
+@defcmd[
+  ((CLIENT_ID)
+   (client-id) exact-integer?)]{
+
   Returns the current client id.
 }
 
-@defcmd[(client-name) string?]{
+@defcmd[
+  ((CLIENT_GETNAME)
+   (client-name) (or/c redis-null? string?))]{
+
   Returns the current client name.
 }
 
-@defcmd[(set-client-name! [name string?]) boolean?]{
+@defcmd[
+  ((CLIENT_SETNAME)
+   (set-client-name! [name string?]) boolean?)]{
+
   Sets the current client name on the server.
 }
 
-@defcmd[(count) exact-integer?]{
-  Returns the number of keys in the database, like @exec{DBSIZE}.
+@defcmd[
+  ((DBSIZE)
+   (count) exact-nonnegative-integer?)]{
+
+  Returns the number of keys in the database.
 }
 
-@defcmd[(flush-all!) #t]{
+@defcmd[
+  ((FLUSHALL)
+   (flush-all!) #t)]{
+
   Deletes everything in all the databases.
 }
 
-@defcmd[(flush-db!) #t]{
+@defcmd[
+  ((FLUSHDB)
+   (flush-db!) #t)]{
+
   Deletes everything in the current database.
 }
 
@@ -390,4 +439,26 @@ Each client represents a single TCP connection to the Redis server.
 
   If the value at @racket[key] is not a number, then the function will
   raise an @racket[exn:fail:redis] error.
+}
+
+@defcmd[
+  ((SET)
+   (string-set! [key string?]
+                [value (or/c bytes? string?)]
+                [#:expires-in expires-in (or/c false/c exact-nonnegative-integer?) #f]
+                [#:unless-exists? unless-exists? boolean? #f]
+                [#:when-exists? when-exists? boolean? #f]) boolean?)]{
+
+  @exec{SET}s @racket[key] to @racket[value].  Byte string
+  @racket[value]s are written to the server as-is, strings are
+  converted to byte strings first.
+
+  When @racket[expires-in] is @racket[#t], then the key will expire
+  after @racket[expires-in] milliseconds.
+
+  When @racket[unless-exists?] is @racket[#t], then the key will only
+  be set if it doesn't already exist.
+
+  When @racket[when-exists?] is @racket[#t], then the key will only be
+  set if it already exists.
 }

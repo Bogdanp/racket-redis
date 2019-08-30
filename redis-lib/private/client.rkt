@@ -45,7 +45,7 @@
   (define client (redis host port timeout #f #f mutex #f #f))
   (begin0 client
     (redis-connect! client)
-    (redis-select! client db)
+    (redis-select-db! client db)
     (redis-set-client-name! client client-name)))
 
 (define/contract (redis-connected? client)
@@ -472,28 +472,22 @@
   (bytes->string/utf-8 (redis-emit! client "SCRIPT" "LOAD" script)))
 
 ;; SELECT db
-(define-simple-command/ok (select! [db (integer-in 0 16) #:converter number->string]))
+(define-simple-command/ok (select-db! [db (integer-in 0 16) #:converter number->string])
+  #:command-name "SELECT")
 
 ;; SET key value [EX seconds | PX milliseconds] [NX|XX]
-(define/contract/provide (redis-set! client key value
-                                     #:expires-in [expires-in #f]
-                                     #:unless-exists? [unless-exists? #f]
-                                     #:when-exists? [when-exists? #f])
+(define/contract/provide (redis-string-set! client key value
+                                            #:expires-in [expires-in #f]
+                                            #:unless-exists? [unless-exists? #f]
+                                            #:when-exists? [when-exists? #f])
   (->* (redis? string? redis-string?)
        (#:expires-in (or/c false/c exact-positive-integer?)
         #:unless-exists? boolean?
         #:when-exists? boolean?)
        boolean?)
-  (define serialized-value
-    (cond
-      [(redis-string? value) value]
-      [else (with-output-to-string
-              (lambda _
-                (write (serialize value))))]))
-
   (ok? (apply redis-emit!
               client
-              "SET" key serialized-value
+              "SET" key value
               (flatten (list (if expires-in
                                  (list "PX" expires-in)
                                  (list))
@@ -502,6 +496,20 @@
                                  (if when-exists?
                                      (list "XX")
                                      (list))))))))
+
+(define redis-set!
+  (make-keyword-procedure
+   (lambda (kws kw-args client key value . args)
+     (define serialized-value
+       (cond
+         [(redis-string? value) value]
+         [else (with-output-to-string
+                 (lambda _
+                   (write (serialize value))))]))
+
+     (keyword-apply redis-string-set! kws kw-args client key serialized-value args))))
+
+(provide redis-set!)
 
 ;; TOUCH key [key ...]
 (define-variadic-command (touch! [key0 string?] . [key string?])
@@ -525,7 +533,7 @@
       (redis-flush-all! client)
       e0 e ...))
 
-  (check-true (redis-select! client 0))
+  (check-true (redis-select-db! client 0))
   (check-true (redis-flush-all! client))
 
   (check-equal? (redis-echo client "hello") "hello")
