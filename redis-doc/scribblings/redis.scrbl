@@ -21,8 +21,8 @@ counterparts to avoid confusion as much as possible.  The rule is that
 when a function name is ambiguous with regards to the type of value it
 operates on, then it must contain the type in its name.
 
-For example, rather than exposing a function called @exec{redis-ref}
-for looking up keys, we expose @racket[redis-bytes-ref] so that it is
+For example, rather than exposing a function called @exec{redis-get}
+for looking up keys, we expose @racket[redis-bytes-get] so that it is
 clear to the user that they're about to receive one or more byte
 strings.  On the other hand, @racket[redis-rename!] doesn't need to be
 prefixed, because the operation can only refer to renaming a key.
@@ -484,7 +484,7 @@ be either @racket[(redis-null)] or @racket[bytes?].
 
 @defcmd[
   ((GET MGET)
-   (bytes-ref [key string?] ...+) (or/c redis-null? bytes?))]{
+   (bytes-get [key string?] ...+) (or/c redis-null? bytes?))]{
 
   Retrieves one or more @racket[key]s from the database.
 }

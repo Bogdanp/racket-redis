@@ -312,7 +312,7 @@
 
 ;; GET key
 ;; MGET key [key ...]
-(define/contract/provide (redis-bytes-ref client key . keys)
+(define/contract/provide (redis-bytes-get client key . keys)
   (-> redis? string? string? ... redis-value/c)
   (if (null? keys)
       (redis-emit! client "GET" key)
@@ -599,14 +599,14 @@
   (test "{M,}GET and SET"
     (check-false (redis-has-key? client "a"))
     (check-true (redis-bytes-set! client "a" "1"))
-    (check-equal? (redis-bytes-ref client "a") #"1")
+    (check-equal? (redis-bytes-get client "a") #"1")
     (check-false (redis-bytes-set! client "a" "2" #:unless-exists? #t))
-    (check-equal? (redis-bytes-ref client "a") #"1")
+    (check-equal? (redis-bytes-get client "a") #"1")
     (check-false (redis-bytes-set! client "b" "2" #:when-exists? #t))
     (check-false (redis-has-key? client "b"))
     (check-true (redis-bytes-set! client "b" "2" #:unless-exists? #t))
     (check-true (redis-has-key? client "b"))
-    (check-equal? (redis-bytes-ref client "a" "b") '(#"1" #"2")))
+    (check-equal? (redis-bytes-get client "a" "b") '(#"1" #"2")))
 
   (test "INCR, INCRBY and INCRBYFLOAT"
     (check-equal? (redis-bytes-incr! client "a") 1)

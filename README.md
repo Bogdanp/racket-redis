@@ -14,8 +14,8 @@
 
 (define c (make-redis))
 (redis-bytes-set! c "some-key" "hello, world!")
-(redis-bytes-ref c "some-key")  ;; => #"hello, world!"
-(redis-bytes-ref c "some-key" "some-other-key")  ;; => (list #"hello, world!", (redis-null))
+(redis-bytes-get c "some-key")  ;; => #"hello, world!"
+(redis-bytes-get c "some-key" "some-other-key")  ;; => (list #"hello, world!", (redis-null))
 ```
 
 ## Missing commands
