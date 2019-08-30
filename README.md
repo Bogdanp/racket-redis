@@ -23,7 +23,6 @@
 The commands below are yet to be implemented:
 
 * [ ]  BITFIELD
-* [ ]  BITOP
 * [ ]  BITPOS
 * [ ]  BLPOP
 * [ ]  BRPOP

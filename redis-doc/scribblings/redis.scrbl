@@ -471,6 +471,46 @@ be either @racket[(redis-null)] or @racket[bytes?].
 }
 
 @defcmd[
+  ((BITOP)
+   (bytes-bitwise-and! [dst string?]
+                       [src string?] ...) exact-nonnegative-integer?)]{
+
+  @exec{AND}s all the @racket[src] byte strings together and saves the
+  result into @racket[dst], returning the length of the resulting byte
+  string.
+}
+
+@defcmd[
+  ((BITOP)
+   (bytes-bitwise-not! [src string?]
+                       [dst string? src]) exact-nonnegative-integer?)]{
+
+  Flips all the bits in the byte string at @racket[src] and stores the
+  result in @racket[dst], returning the length of the resulting byte
+  string.
+}
+
+@defcmd[
+  ((BITOP)
+   (bytes-bitwise-or! [dst string?]
+                      [src string?] ...) exact-nonnegative-integer?)]{
+
+  @exec{OR}s all the @racket[src] byte strings together and saves the
+  result into @racket[dst], returning the length of the resulting byte
+  string.
+}
+
+@defcmd[
+  ((BITOP)
+   (bytes-bitwise-xor! [dst string?]
+                       [src string?] ...) exact-nonnegative-integer?)]{
+
+  @exec{XOR}s all the @racket[src] byte strings together and saves the
+  result into @racket[dst], returning the length of the resulting byte
+  string.
+}
+
+@defcmd[
   ((DECR DECRBY)
    (bytes-decr! [key string?]
                 [amt exact-integer? 1]) exact-integer?)]{

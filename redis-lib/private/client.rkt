@@ -226,7 +226,7 @@
 (define-simple-command/ok (bg-save!))
 
 ;; BITCOUNT key [start stop]
-(define/contract/provide (redis-string-bitcount client key
+(define/contract/provide (redis-bytes-bitcount client key
                                                 #:start [start 0]
                                                 #:stop [stop -1])
   (->* (redis? string?)
@@ -234,6 +234,26 @@
         #:stop exact-integer?)
        exact-nonnegative-integer?)
   (redis-emit! client "BITCOUNT" key (number->string start) (number->string stop)))
+
+;; BITOP AND destkey key [key ...]
+(define/contract/provide (redis-bytes-bitwise-and! client dest src0 . srcs)
+  (-> redis? string? string? string? ... exact-nonnegative-integer?)
+  (apply redis-emit! client "BITOP" "AND" dest src0 srcs))
+
+;; BITOP NOT destkey key
+(define/contract/provide (redis-bytes-bitwise-not! client src [dest src])
+  (->* (redis? string?) (string?) exact-nonnegative-integer?)
+  (redis-emit! client "BITOP" "NOT" dest src))
+
+;; BITOP OR destkey key [key ...]
+(define/contract/provide (redis-bytes-bitwise-or! client dest src0 . srcs)
+  (-> redis? string? string? string? ... exact-nonnegative-integer?)
+  (apply redis-emit! client "BITOP" "OR" dest src0 srcs))
+
+;; BITOP XOR destkey key [key ...]
+(define/contract/provide (redis-bytes-bitwise-xor! client dest src0 . srcs)
+  (-> redis? string? string? string? ... exact-nonnegative-integer?)
+  (apply redis-emit! client "BITOP" "XOR" dest src0 srcs))
 
 ;; CLIENT ID
 (define/contract/provide (redis-client-id client)
@@ -557,9 +577,18 @@
     (check-equal? (redis-bytes-append! client "a" "world!") 11))
 
   (test "BITCOUNT"
-    (check-equal? (redis-string-bitcount client "a") 0)
+    (check-equal? (redis-bytes-bitcount client "a") 0)
     (check-true (redis-bytes-set! client "a" "hello"))
-    (check-equal? (redis-string-bitcount client "a") 21))
+    (check-equal? (redis-bytes-bitcount client "a") 21))
+
+  (test "BITOP"
+    (redis-bytes-set! client "a" "hello")
+    (check-equal? (redis-bytes-bitwise-not! client "a") 5)
+    (check-equal? (redis-bytes-get client "a") #"\227\232\223\223\220")
+    (redis-bytes-set! client "a" #"\xFF")
+    (redis-bytes-set! client "b" #"\x00")
+    (redis-bytes-bitwise-and! client "c" "a" "b")
+    (check-equal? (redis-bytes-get client "c") #"\x00"))
 
   (test "CLIENT *"
     (check-not-false (redis-client-id client))
