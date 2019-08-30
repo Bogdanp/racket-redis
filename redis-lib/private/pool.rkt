@@ -106,7 +106,7 @@
   (require rackunit)
 
   (define pool
-    (make-redis-pool #:host (or (getenv "REDIS_HOSTNAME") "127.0.0.1")
+    (make-redis-pool #:host (or (getenv "REDIS_HOST") "127.0.0.1")
                      #:pool-size 2))
 
   (let ([c1-fn (redis-pool-take! pool)]
