@@ -12,9 +12,6 @@
  redis-write
  redis-read)
 
-(module+ test
-  (require rackunit))
-
 
 ;; common ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -62,31 +59,6 @@
   (display (length l) out)
   (display "\r\n" out)
   (for-each (curryr redis-write out) l))
-
-(module+ test
-  (define (redis-write/string v)
-    (call-with-output-string
-      (curry redis-write v)))
-
-  (define (redis-write-simple/string v)
-    (with-output-to-string
-      (lambda _
-        (redis-write-simple-string v))))
-
-  (check-equal? (redis-write/string "")         "$0\r\n\r\n")
-  (check-equal? (redis-write/string "OK")       "$2\r\nOK\r\n")
-  (check-equal? (redis-write/string "foobar")   "$6\r\nfoobar\r\n")
-  (check-equal? (redis-write/string "hello\n")  "$6\r\nhello\n\r\n")
-  (check-equal? (redis-write/string #"")        "$0\r\n\r\n")
-  (check-equal? (redis-write/string #"OK")      "$2\r\nOK\r\n")
-  (check-equal? (redis-write/string #"foobar")  "$6\r\nfoobar\r\n")
-  (check-equal? (redis-write/string #"hello\n") "$6\r\nhello\n\r\n")
-
-  (check-equal? (redis-write/string 0)    ":0\r\n")
-  (check-equal? (redis-write/string 1)    ":1\r\n")
-  (check-equal? (redis-write/string 1024) ":1024\r\n")
-
-  (check-equal? (redis-write/string (list #"foo" #"bar")) "*2\r\n$3\r\nfoo\r\n$3\r\nbar\r\n"))
 
 
 ;; read ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -141,32 +113,3 @@
   (match (regexp-match error-re in)
     [(list _ err) (cons 'err (bytes->string/utf-8 err))]
     [#f (raise-argument-error 'redis-read-error "a valid error response from Redis" in)]))
-
-(module+ test
-  (check-equal? (redis-read (open-input-string "+\r\n")) "")
-  (check-equal? (redis-read (open-input-string "+OK\r\n")) "OK")
-  (check-exn
-   exn:fail:contract?
-   (lambda _
-     (redis-read (open-input-string ""))))
-
-  (check-equal? (redis-read (open-input-string "$-1\r\n\r\n")) (redis-null))
-  (check-equal? (redis-read (open-input-string "$0\r\n\r\n")) #"")
-  (check-equal? (redis-read (open-input-string "$5\r\nhello\r\n")) #"hello")
-
-  (check-equal? (redis-read (open-input-string ":0\r\n")) 0)
-  (check-equal? (redis-read (open-input-string ":1024\r\n")) 1024)
-  (check-equal? (redis-read (open-input-string ":-1024\r\n")) -1024)
-  (check-exn
-   exn:fail:contract?
-   (lambda _
-     (redis-read (open-input-string ":01\r\n"))))
-
-
-  (check-equal? (redis-read (open-input-string "*2\r\n$3\r\nfoo\r\n$3\r\nbar\r\n"))
-                (list #"foo" #"bar"))
-
-  (check-equal? (redis-read (open-input-string "*2\r\n*3\r\n:1\r\n:2\r\n:3\r\n*2\r\n+Foo\r\n-Bar\r\n"))
-                (list (list 1 2 3) (list "Foo" (cons 'err "Bar"))))
-
-  (check-equal? (redis-read (open-input-string "-ERR Fatal\r\n")) (cons 'err "ERR Fatal")))

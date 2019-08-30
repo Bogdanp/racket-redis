@@ -25,7 +25,7 @@
  redis-null?
  redis-null)
 
-(struct redis (host port timeout in out response-ch response-reader)
+(struct redis (host port timeout custodian in out response-ch response-reader)
   #:mutable)
 
 (define/contract (make-redis #:client-name [client-name "racket-redis"]
@@ -43,7 +43,7 @@
         #:password (or/c false/c non-empty-string?))
        redis?)
 
-  (define client (redis host port timeout #f #f #f #f))
+  (define client (redis host port timeout #f #f #f #f #f))
   (begin0 client
     (redis-connect! client)
     (when password (redis-auth! client password))
@@ -64,25 +64,30 @@
   (when (redis-connected? client)
     (redis-disconnect! client))
 
-  (define-values (in out)
-    (tcp-connect (redis-host client)
-                 (redis-port client)))
+  (define custodian (make-custodian))
+  (set-redis-custodian! client custodian)
 
-  (set-redis-in! client in)
-  (set-redis-out! client out)
+  (parameterize ([current-custodian custodian])
+    (define-values (in out)
+      (tcp-connect (redis-host client)
+                   (redis-port client)))
 
-  (define response-ch (make-channel))
-  (define response-reader
-    (thread (make-response-reader in response-ch)))
+    (set-redis-in! client in)
+    (set-redis-out! client out)
 
-  (set-redis-response-ch! client response-ch)
-  (set-redis-response-reader! client response-reader))
+    (define response-ch (make-channel))
+    (define response-reader
+      (thread (make-response-reader in response-ch)))
+
+    (set-redis-response-ch! client response-ch)
+    (set-redis-response-reader! client response-reader)))
 
 (define/contract (redis-disconnect! client)
   (-> redis? void?)
-  (kill-thread (redis-response-reader client))
-  (tcp-abandon-port (redis-in client))
-  (tcp-abandon-port (redis-out client)))
+  (parameterize ([current-custodian (redis-custodian client)])
+    (kill-thread (redis-response-reader client))
+    (tcp-abandon-port (redis-in client))
+    (tcp-abandon-port (redis-out client))))
 
 (define ((make-response-reader in ->out))
   (let loop ()
@@ -857,270 +862,3 @@
   (map pair->entry (apply redis-emit! client "XRANGE" key start stop (if limit
                                                                          (list (number->string limit))
                                                                          (list)))))
-
-
-(module+ test
-  (require rackunit)
-
-  (define client
-    (make-redis #:host (or (getenv "REDIS_HOST") "127.0.0.1")))
-
-  (define-syntax-rule (test message e0 e ...)
-    (test-case message
-      (redis-flush-all! client)
-      e0 e ...))
-
-  (check-true (redis-select-db! client 0))
-  (check-true (redis-flush-all! client))
-
-  (check-equal? (redis-echo client "hello") "hello")
-  (check-equal? (redis-ping client) "PONG")
-
-  (test "AUTH"
-    (check-exn
-     (lambda (e)
-       (and (exn:fail:redis? e)
-            (check-equal? (exn-message e) "Client sent AUTH, but no password is set")))
-     (lambda _
-       (redis-auth! client "hunter2"))))
-
-  (test "APPEND"
-    (check-equal? (redis-bytes-append! client "a" "hello") 5)
-    (check-equal? (redis-bytes-append! client "a" "world!") 11))
-
-  (test "BITCOUNT"
-    (check-equal? (redis-bytes-bitcount client "a") 0)
-    (check-true (redis-bytes-set! client "a" "hello"))
-    (check-equal? (redis-bytes-bitcount client "a") 21))
-
-  (test "BITOP"
-    (redis-bytes-set! client "a" "hello")
-    (check-equal? (redis-bytes-bitwise-not! client "a") 5)
-    (check-equal? (redis-bytes-get client "a") #"\227\232\223\223\220")
-    (redis-bytes-set! client "a" #"\xFF")
-    (redis-bytes-set! client "b" #"\x00")
-    (redis-bytes-bitwise-and! client "c" "a" "b")
-    (check-equal? (redis-bytes-get client "c") #"\x00"))
-
-  (test "CLIENT *"
-    (check-not-false (redis-client-id client))
-    (check-equal? (redis-client-name client) "racket-redis")
-    (check-true (redis-set-client-name! client "custom-name"))
-    (check-equal? (redis-client-name client) "custom-name"))
-
-  (test "DBSIZE"
-    (check-equal? (redis-key-count client) 0)
-    (check-true (redis-bytes-set! client "a" "1"))
-    (check-equal? (redis-key-count client) 1))
-
-  (test "DECR and DECRBY"
-    (check-equal? (redis-bytes-decr! client "a") -1)
-    (check-equal? (redis-bytes-decr! client "a") -2)
-    (check-equal? (redis-bytes-decr! client "a" 3) -5)
-    (check-equal? (redis-key-type client "a") 'string)
-
-    (check-true (redis-bytes-set! client "a" "1.5"))
-    (check-exn
-     (lambda (e)
-       (and (exn:fail:redis? e)
-            (check-equal? (exn-message e) "value is not an integer or out of range")))
-     (lambda _
-       (redis-bytes-decr! client "a"))))
-
-  (test "DEL"
-    (check-equal? (redis-remove! client "a") 0)
-    (check-equal? (redis-remove! client "a" "b") 0)
-    (check-true (redis-bytes-set! client "a" "1"))
-    (check-equal? (redis-remove! client "a" "b") 1)
-    (check-true (redis-bytes-set! client "a" "1"))
-    (check-true (redis-bytes-set! client "b" "2"))
-    (check-equal? (redis-remove! client "a" "b") 2))
-
-  (test "EVAL"
-    (check-equal? (redis-script-eval! client "return 1") 1)
-    (check-equal? (redis-script-eval! client "return {KEYS[1], ARGV[1], ARGV[2]}"
-                                      #:keys '("a")
-                                      #:args '("b" "c"))
-                  '(#"a" #"b" #"c")))
-
-  (test "HEXISTS, HSET, HMSET, HGETALL, HDEL, HLEN, HKEYS, HVALS"
-    (check-false (redis-hash-has-key? client "notahash" "a"))
-    (check-true (redis-hash-set! client "simple-hash" "a" "1"))
-    (check-true (redis-hash-has-key? client "simple-hash" "a"))
-    (check-equal? (redis-hash-get client "simple-hash") (hash #"a" #"1"))
-    (check-equal? (redis-hash-get client "simple-hash" "a") #"1")
-    (check-equal? (redis-hash-remove! client "simple-hash" "a") 1)
-    (check-equal? (redis-hash-get client "simple-hash") (hash))
-
-    (check-true (redis-hash-set! client "alist-hash" '(("a" . "1")
-                                                       ("b" . "2")
-                                                       ("c" . "3"))))
-    (check-equal? (redis-hash-get client "alist-hash") (hash #"a" #"1"
-                                                             #"b" #"2"
-                                                             #"c" #"3"))
-    (check-equal? (redis-hash-get client "alist-hash" "a") #"1")
-    (check-equal? (redis-hash-get client "alist-hash" "a" "b") (hash #"a" #"1"
-                                                                     #"b" #"2"))
-    (check-equal? (redis-hash-get client "alist-hash" "a" "d" "b") (hash #"a" #"1"
-                                                                         #"b" #"2"
-                                                                         #"d" (redis-null)))
-
-    (check-equal? (redis-hash-length client "notahash") 0)
-    (check-equal? (redis-hash-length client "alist-hash") 3)
-
-    (check-equal? (redis-hash-keys client "notahash") null)
-    (check-equal? (sort (redis-hash-keys client "alist-hash") bytes<?)
-                  (sort'(#"a" #"b" #"c") bytes<?))
-
-    (check-equal? (redis-hash-values client "notahash") null)
-    (check-equal? (sort (redis-hash-values client "alist-hash") bytes<?)
-                  (sort '(#"1" #"2" #"3") bytes<?)))
-
-  (test "{M,}GET and SET"
-    (check-false (redis-has-key? client "a"))
-    (check-true (redis-bytes-set! client "a" "1"))
-    (check-equal? (redis-bytes-get client "a") #"1")
-    (check-false (redis-bytes-set! client "a" "2" #:unless-exists? #t))
-    (check-equal? (redis-bytes-get client "a") #"1")
-    (check-false (redis-bytes-set! client "b" "2" #:when-exists? #t))
-    (check-false (redis-has-key? client "b"))
-    (check-true (redis-bytes-set! client "b" "2" #:unless-exists? #t))
-    (check-true (redis-has-key? client "b"))
-    (check-equal? (redis-bytes-get client "a" "b") '(#"1" #"2")))
-
-  (test "INCR, INCRBY and INCRBYFLOAT"
-    (check-equal? (redis-bytes-incr! client "a") 1)
-    (check-equal? (redis-bytes-incr! client "a") 2)
-    (check-equal? (redis-bytes-incr! client "a" 3) 5)
-    (check-equal? (redis-bytes-incr! client "a" 1.5) "6.5")
-    (check-equal? (redis-key-type client "a") 'string))
-
-  (test "LINDEX, LLEN, LPUSH, LPOP, BLPOP"
-    (check-equal? (redis-list-length client "a") 0)
-    (check-equal? (redis-list-prepend! client "a" "1") 1)
-    (check-equal? (redis-list-prepend! client "a" "2" "3") 3)
-    (check-equal? (redis-list-length client "a") 3)
-    (check-equal? (redis-list-ref client "a" 1) #"2")
-    (check-equal? (redis-list-pop-left! client "a") #"3")
-    (check-equal? (redis-list-pop-left! client "a") #"2")
-    (check-equal? (redis-list-pop-left! client "a") #"1")
-    (check-equal? (redis-list-pop-left! client "a") (redis-null))
-
-    (check-exn
-     exn:fail:contract?
-     (lambda _
-       (redis-list-pop-left! client "a" "b")))
-
-    (check-exn
-     exn:fail:contract?
-     (lambda _
-       (redis-list-pop-left! client "a" #:timeout 10)))
-
-    (redis-list-append! client "a" "1")
-    (check-equal? (redis-list-pop-left! client "a" #:block? #t) '(#"a" #"1"))
-
-    (redis-list-append! client "b" "2")
-    (check-equal? (redis-list-pop-left! client "a" "b" #:block? #t) '(#"b" #"2")))
-
-  (test "LINSERT"
-    (check-equal? (redis-list-prepend! client "a" "1") 1)
-    (check-equal? (redis-list-prepend! client "a" "2") 2)
-    (check-equal? (redis-list-insert! client "a" "3" #:before "1") 3)
-    (check-false (redis-list-insert! client "a" "3" #:before "8"))
-    (check-equal? (redis-sublist client "a") '(#"2" #"3" #"1"))
-    (check-equal? (redis-list-insert! client "a" "4" #:after "3") 4)
-    (check-equal? (redis-sublist client "a") '(#"2" #"3" #"4" #"1")))
-
-  (test "LTRIM"
-    (check-equal? (redis-list-prepend! client "a" "2") 1)
-    (check-equal? (redis-list-prepend! client "a" "2") 2)
-    (check-true (redis-list-trim! client "a" #:start 1))
-    (check-equal? (redis-sublist client "a") '(#"2")))
-
-  (test "PERSIST, PEXPIRE and PTTL"
-    (check-false (redis-expire-in! client "a" 200))
-    (check-equal? (redis-key-ttl client "a") 'missing)
-    (check-true (redis-bytes-set! client "a" "1"))
-    (check-equal? (redis-key-ttl client "a") 'persisted)
-    (check-true (redis-expire-in! client "a" 20))
-    (check-true (> (redis-key-ttl client "a") 5))
-    (check-true (redis-persist! client "a"))
-    (check-equal? (redis-key-ttl client "a") 'persisted))
-
-  (test "PFADD, PFCOUNT and PFMERGE"
-    (check-true (redis-hll-add! client "a" "1"))
-    (check-true (redis-hll-add! client "a" "2"))
-    (check-false (redis-hll-add! client "a" "1"))
-    (check-equal? (redis-hll-count client "a") 2)
-    (check-equal? (redis-hll-count client "a" "b") 2)
-    (check-true (redis-hll-add! client "b" "1"))
-    (check-equal? (redis-hll-count client "a" "b") 2)
-    (check-true (redis-hll-merge! client "c" "a" "b"))
-    (check-equal? (redis-hll-count client "c") 2))
-
-  (test "RENAME"
-    (check-true (redis-bytes-set! client "a" "1"))
-    (check-true (redis-bytes-set! client "b" "2"))
-    (check-true (redis-rename! client "a" "c"))
-    (check-false (redis-has-key? client "a"))
-    (check-false (redis-rename! client "c" "b" #:unless-exists? #t))
-    (check-true (redis-has-key? client "c")))
-
-  (test "RPUSH, RPOP, BRPOP, BRPOPLPUSH"
-    (check-equal? (redis-list-append! client "a" "1") 1)
-    (check-equal? (redis-list-append! client "a" "2") 2)
-    (check-equal? (redis-list-pop-right! client "a") #"2")
-    (check-equal? (redis-list-pop-right! client "a") #"1")
-    (check-equal? (redis-list-pop-right! client "a") (redis-null))
-
-    (check-exn
-     exn:fail:contract?
-     (lambda _
-       (redis-list-pop-right! client "a" "b")))
-
-    (check-exn
-     exn:fail:contract?
-     (lambda _
-       (redis-list-pop-right! client "a" #:timeout 10)))
-
-    (check-exn
-     exn:fail:contract?
-     (lambda _
-       (redis-list-pop-right! client "a" "b" #:dest "b" #:block? #t)))
-
-    (redis-list-append! client "a" "1")
-    (check-equal? (redis-list-pop-right! client "a" #:block? #t) '(#"a" #"1"))
-
-    (redis-list-append! client "b" "2")
-    (check-equal? (redis-list-pop-right! client "a" "b" #:block? #t) '(#"b" #"2"))
-
-    (redis-list-append! client "b" "2")
-    (check-equal? (redis-list-pop-right! client "b" #:dest "a") #"2")
-    (check-equal? (redis-list-pop-right! client "a") #"2")
-
-    (redis-list-append! client "b" "2")
-    (check-equal? (redis-list-pop-right! client "b" #:dest "a" #:block? #t) #"2")
-    (check-equal? (redis-list-pop-right! client "a") #"2"))
-
-  (test "TOUCH"
-    (check-equal? (redis-touch! client "a") 0)
-    (check-equal? (redis-touch! client "a" "b") 0)
-    (check-true (redis-bytes-set! client "a" "1"))
-    (check-true (redis-bytes-set! client "b" "2"))
-    (check-equal? (redis-touch! client "a" "b" "c") 2))
-
-  (test "XADD, XDEL, XINFO, XLEN, XRANGE"
-    (define first-id (redis-stream-add! client "a" "message" "hello"))
-    (define second-id (redis-stream-add! client "a" "message" "goodbye"))
-    (check-equal? (redis-stream-length client "a") 2)
-    (define info (redis-stream-get client "a"))
-    (check-equal? (redis-stream-info-length info) 2)
-    (check-equal? (redis-stream-range client "a")
-                  (list (redis-stream-info-first-entry info)
-                        (redis-stream-info-last-entry info)))
-    (check-equal? (redis-stream-remove! client "a" first-id) 1)
-    (check-equal? (redis-stream-remove! client "a" first-id) 0)
-    (check-equal? (redis-stream-range client "a")
-                  (list (redis-stream-info-last-entry info))))
-
-  (check-equal? (redis-quit! client) (void)))
