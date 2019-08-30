@@ -737,7 +737,7 @@
 
 (provide
  (contract-out
-  [struct redis-stream-entry ([id string?]
+  [struct redis-stream-entry ([id bytes?]
                               [fields (hash/c bytes? bytes?)])]
   [struct redis-stream-info ([length exact-nonnegative-integer?]
                              [radix-tree-keys exact-nonnegative-integer?]
@@ -809,6 +809,28 @@
   #:command-name "XDEL"
   #:result-contract exact-nonnegative-integer?)
 
+;; XGROUP CREATE key group id
+(define/contract/provide (redis-stream-group-create! client key group [starting-id "0-0"])
+  (->* (redis? string? string-like?)
+       (string-like?)
+       boolean?)
+  (ok? (redis-emit! client "XGROUP" "CREATE" key group starting-id)))
+
+;; XGROUP DESTROY key group
+(define/contract/provide (redis-stream-group-remove! client key group)
+  (-> redis? string? string-like? boolean?)
+  (ok? (redis-emit! client "XGROUP" "DESTROY" key group)))
+
+;; XGROUP DELCONSUMER key group consumer
+(define/contract/provide (redis-stream-consumer-remove! client key group consumer)
+  (-> redis? string? string-like? string-like? boolean?)
+  (ok? (redis-emit! client "XGROUP" "DELCONSUMER" key group consumer)))
+
+;; XGROUP SETID key group id
+(define/contract/provide (redis-stream-group-set-id! client key group id)
+  (-> redis? string? string-like? string-like? boolean?)
+  (ok? (redis-emit! client "XGROUP" "SETID" key group id)))
+
 ;; XINFO CONSUMERS key group
 (define/contract/provide (redis-stream-consumers client key group)
   (-> redis? string? string-like? (listof redis-stream-consumer?))
@@ -862,3 +884,50 @@
   (map pair->entry (apply redis-emit! client "XRANGE" key start stop (if limit
                                                                          (list (number->string limit))
                                                                          (list)))))
+
+;; XREADGROUP GROUP group consumer [COUNT count] [BLOCK milliseconds] [NOACK] STREAMS key [key ...] id [id ...]
+(define/contract/provide (redis-stream-group-read! client
+                                                   #:group group
+                                                   #:consumer consumer
+                                                   #:limit [limit #f]
+                                                   #:block? [block? #f]
+                                                   #:timeout [timeout 0]
+                                                   #:no-ack? [no-ack? #f]
+                                                   key id . key-or-ids)
+  (->i ([client redis?]
+        #:group [group string-like?]
+        #:consumer [consumer string-like?]
+        [key string?]
+        [id string-like?])
+       (#:limit [limit (or/c false/c exact-positive-integer?)]
+        #:block? [block? boolean?]
+        #:timeout [timeout exact-positive-integer?]
+        #:no-ack? [no-ack? boolean?])
+       #:rest [key-or-ids (listof string-like?)]
+
+       #:pre/name (key-or-ids)
+       "an even number of key-or-ids entries"
+       (even? (length key-or-ids))
+
+       [result (or/c redis-null? (listof (list/c bytes? (listof redis-stream-entry?))))])
+
+  (define timeout/read (if (> timeout 0) (add1 timeout) #f))
+
+  (define-values (keys ids)
+    (let loop ([keys (list key)]
+               [ids (list id)]
+               [remaining key-or-ids])
+      (match remaining
+        [(list)
+         (values (reverse keys)
+                 (reverse ids))]
+        [(list key id remaining ...)
+         (values (cons key keys) (cons id ids) remaining)])))
+
+  (let* ([args (cons "STREAMS" (append keys ids))]
+         [args (if no-ack? (cons "NOACK" args) args)]
+         [args (if block? (cons "BLOCK" (cons (number->string timeout) args)) args)]
+         [args (if limit (cons "COUNT" (cons (number->string limit) args)) args)])
+    (for/list ([pair (in-list (apply redis-emit! client "XREADGROUP" "GROUP" group consumer args
+                                     #:timeout timeout/read))])
+      (list (car pair) (map pair->entry (cadr pair))))))
