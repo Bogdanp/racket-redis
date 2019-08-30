@@ -101,7 +101,7 @@
     [else  (raise-argument-error 'redis-read "a valid response from Redis" in)]))
 
 (define simple-string-re      #rx"^\\+([^\r]*)\r\n")
-(define bulk-string-prefix-re #rx"^\\$([^\r]+)\r\n")
+(define bulk-string-prefix-re #rx"^\\$(\\-?(0|[1-9][0-9]*))\r\n")
 (define integer-re            #rx"^\\:(\\-?(0|[1-9][0-9]*))\r\n")
 (define array-re              #rx"^\\*(\\-?(0|[1-9][0-9]*))\r\n")
 (define error-re              #rx"^\\-([^\r]*)\r\n")
@@ -113,10 +113,10 @@
 
 (define (redis-read-bulk-string in)
   (match (regexp-match bulk-string-prefix-re in)
-    [(list _ #"-1")
+    [(list _ #"-1" _)
      (redis-null)]
 
-    [(list _ n:str)
+    [(list _ n:str _)
      (begin0 (read-bytes (string->number (bytes->string/utf-8 n:str)) in)
        (read-bytes 2 in))]
 
