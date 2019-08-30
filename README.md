@@ -107,7 +107,6 @@ The commands below are yet to be implemented:
 * [ ]  PFADD
 * [ ]  PFCOUNT
 * [ ]  PFMERGE
-* [ ]  PING
 * [ ]  PSETEX
 * [ ]  PSUBSCRIBE
 * [ ]  PUBLISH
@@ -147,7 +146,6 @@ The commands below are yet to be implemented:
 * [ ]  SUBSCRIBE
 * [ ]  SUNION
 * [ ]  SUNIONSTORE
-* [ ]  SWAPDB
 * [ ]  SYNC
 * [ ]  UNLINK
 * [ ]  UNSUBSCRIBE

@@ -132,6 +132,14 @@ Each client represents a single TCP connection to the Redis server.
 }
 
 @defcmd[
+  ((SWAPDB)
+   (swap-dbs! [a (integer-in 0 16)]
+              [b (integer-in 0 16)]) boolean?)]{
+
+  Swaps the given databases.
+}
+
+@defcmd[
   ((ECHO)
    (echo [message string?]) string?)]{
 

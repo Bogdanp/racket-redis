@@ -611,6 +611,11 @@
                                      (list "XX")
                                      (list))))))))
 
+;; SWAPDB a b
+(define-simple-command/ok (swap-dbs! [a (integer-in 0 16) #:converter number->string]
+                                     [b (integer-in 0 16) #:converter number->string])
+  #:command-name "SWAPDB")
+
 ;; TIME
 (define-simple-command (time)
   #:result-contract real?
