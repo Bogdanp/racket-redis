@@ -7,6 +7,8 @@
          racket/function
          racket/list
          racket/match
+         racket/port
+         racket/serialize
          racket/string
          racket/tcp
          "error.rkt"
@@ -19,7 +21,10 @@
  redis?
  redis-connected?
  redis-connect!
- redis-disconnect!)
+ redis-disconnect!
+
+ redis-null?
+ redis-null)
 
 (struct redis (host port timeout in out mutex response-ch response-reader)
   #:mutable)
@@ -209,7 +214,8 @@
   (or/c bytes? string?))
 
 ;; APPEND key value
-(define-simple-command (append! [key string?] [value redis-string?])
+(define-simple-command (string-append! [key string?] [value redis-string?])
+  #:command-name "APPEND"
   #:result-contract exact-nonnegative-integer?)
 
 ;; AUTH password
@@ -223,9 +229,9 @@
 (define-simple-command/ok (bg-save!))
 
 ;; BITCOUNT key [start end]
-(define/contract/provide (redis-bitcount client key
-                                         #:start [start 0]
-                                         #:end [end -1])
+(define/contract/provide (redis-string-bitcount client key
+                                                #:start [start 0]
+                                                #:end [end -1])
   (->* (redis? string?)
        (#:start exact-integer?
         #:end exact-integer?)
@@ -254,7 +260,7 @@
 
 ;; DECR key
 ;; DECRBY key decrement
-(define/contract/provide (redis-decr! client key [n 1])
+(define/contract/provide (redis-string-decr! client key [n 1])
   (->* (redis? string?)
        (exact-integer?)
        exact-integer?)
@@ -318,7 +324,7 @@
 ;; INCR key
 ;; INCRBY key increment
 ;; INCRBYFLOAT key increment
-(define/contract/provide (redis-incr! client key [n 1])
+(define/contract/provide (redis-string-incr! client key [n 1])
   (->* (redis? string?)
        ((or/c exact-integer? rational?))
        (or/c string? exact-integer?))
@@ -478,9 +484,16 @@
         #:unless-exists? boolean?
         #:when-exists? boolean?)
        boolean?)
+  (define serialized-value
+    (cond
+      [(redis-string? value) value]
+      [else (with-output-to-string
+              (lambda _
+                (write (serialize value))))]))
+
   (ok? (apply redis-emit!
               client
-              "SET" key value
+              "SET" key serialized-value
               (flatten (list (if expires-in
                                  (list "PX" expires-in)
                                  (list))
@@ -527,13 +540,13 @@
        (redis-auth! client "hunter2"))))
 
   (test "APPEND"
-    (check-equal? (redis-append! client "a" "hello") 5)
-    (check-equal? (redis-append! client "a" "world!") 11))
+    (check-equal? (redis-string-append! client "a" "hello") 5)
+    (check-equal? (redis-string-append! client "a" "world!") 11))
 
   (test "BITCOUNT"
-    (check-equal? (redis-bitcount client "a") 0)
+    (check-equal? (redis-string-bitcount client "a") 0)
     (check-true (redis-set! client "a" "hello"))
-    (check-equal? (redis-bitcount client "a") 21))
+    (check-equal? (redis-string-bitcount client "a") 21))
 
   (test "CLIENT *"
     (check-not-false (redis-client-id client))
@@ -547,9 +560,9 @@
     (check-equal? (redis-count client) 1))
 
   (test "DECR and DECRBY"
-    (check-equal? (redis-decr! client "a") -1)
-    (check-equal? (redis-decr! client "a") -2)
-    (check-equal? (redis-decr! client "a" 3) -5)
+    (check-equal? (redis-string-decr! client "a") -1)
+    (check-equal? (redis-string-decr! client "a") -2)
+    (check-equal? (redis-string-decr! client "a" 3) -5)
     (check-equal? (redis-type client "a") 'string)
 
     (check-true (redis-set! client "a" "1.5"))
@@ -558,7 +571,7 @@
        (and (exn:fail:redis? e)
             (check-equal? (exn-message e) "value is not an integer or out of range")))
      (lambda _
-       (redis-decr! client "a"))))
+       (redis-string-decr! client "a"))))
 
   (test "DEL"
     (check-equal? (redis-remove! client "a") 0)
@@ -589,10 +602,10 @@
     (check-equal? (redis-ref client "a" "b") '(#"1" #"2")))
 
   (test "INCR, INCRBY and INCRBYFLOAT"
-    (check-equal? (redis-incr! client "a") 1)
-    (check-equal? (redis-incr! client "a") 2)
-    (check-equal? (redis-incr! client "a" 3) 5)
-    (check-equal? (redis-incr! client "a" 1.5) "6.5")
+    (check-equal? (redis-string-incr! client "a") 1)
+    (check-equal? (redis-string-incr! client "a") 2)
+    (check-equal? (redis-string-incr! client "a" 3) 5)
+    (check-equal? (redis-string-incr! client "a" 1.5) "6.5")
     (check-equal? (redis-type client "a") 'string))
 
   (test "LINDEX, LLEN, LPUSH, LPOP"

@@ -2,6 +2,7 @@
 
 @(require (for-label racket/base
                      racket/contract
+                     racket/serialize
                      redis)
           "redis.rkt")
 
@@ -82,6 +83,33 @@ Each client represents a single TCP connection to the Redis server.
 
 
 @subsection[#:tag "commands"]{Supported Commands}
+
+
+@;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+@subsubsection{Generic Commands}
+
+@defcmd[
+  ((SET)
+   (set! [key string?]
+         [value any/c]
+         [#:expires-in expires-in (or/c false/c exact-nonnegative-integer?) #f]
+         [#:unless-exists? unless-exists? boolean? #f]
+         [#:when-exists? when-exists? boolean? #f]) boolean?)]{
+
+  @exec{SET}s @racket[key] to @racket[value].  Byte string
+  @racket[value]s are written to the server as-is, strings are
+  converted to byte strings first and all other values are converted
+  to strings via @racket[serialize].
+
+  When @racket[expires-in] is @racket[#t], then the key will expire
+  after @racket[expires-in] milliseconds.
+
+  When @racket[unless-exists?] is @racket[#t], then the key will only
+  be set if it doesn't already exist.
+
+  When @racket[when-exists?] is @racket[#t], then the key will only be
+  set if it already exists.
+}
 
 
 @;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -314,49 +342,52 @@ Each client represents a single TCP connection to the Redis server.
 @;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 @subsubsection{String Commands}
 
-@defcmd[(append! [key string?] [value string?]) exact-nonnegative-integer?]{
-  @exec{APPEND}s @racket[value] to @racket[key] if it exists and
-  returns the new length of @racket[key].
+@defcmd[
+  ((APPEND)
+   (string-append! [key string?]
+                        [value (or/c bytes? string?)]) exact-nonnegative-integer?)]{
+
+  @exec{APPEND}s @racket[value] to the string at @racket[key] if it
+  exists and returns the new length of @racket[key].
 }
 
-@defcmd[(bitcount [key string?]
-                  [#:start start exact-integer? 0]
-                  [#:end end exact-integer? -1]) exact-nonnegative-integer?]{
-  Counts the bits in @racket[key] between racket[start] and
-  @racket[end].
+@defcmd[
+  ((BITCOUNT)
+   (string-bitcount [key string?]
+                    [#:start start exact-integer? 0]
+                    [#:end end exact-integer? -1]) exact-nonnegative-integer?)]{
+
+  Counts the bits in @racket[key] between @racket[start] and
+  @racket[end] using @exec{BITCOUNT}.
 }
 
-@defcmd[(decr! [key string?] [n exact-integer? 1]) exact-integer?]{
-  Decrements @racket[key] by @racket[n].  If @racket[n] is @racket[1],
-  then an @racket{DECR} is issued.  Otherwise, an @racket{DECRBY} is
-  issued.
+@defcmd[
+  ((DECR DECRBY)
+   (string-decr! [key string?]
+                 [amt exact-integer? 1]) exact-integer?)]{
+
+  Decrements @racket[key] by @racket[amt].
+
+  If the value at @racket[key] is not an integer, then the function
+  will raise an @racket[exn:fail:redis] error.
 }
 
-@defcmd[(ref [key string?] ...+) any/c]{
-  If called with a single key, then it is analogous to a @exec{GET}.
-  Otherwise, it issues an @exec{MGET}.
+@defcmd[
+  ((GET MGET)
+   (ref [key string?] ...+) (or/c redis-null? bytes?))]{
+
+  Retrieves one or more @racket[key]s from the database.
 }
 
-@defcmd[(incr! [key string?] [n (or/c exact-integer? rational?)]) (or/c string? exact-integer?)]{
-  If @racket[n] is @racket[1], then an @exec{INCR} is issued.  If
-  @racket[n] is an @racket[exact-integer?] then an @exec{INCRBY} is
-  issued.  Otherwise,  an @exec{INCRBYFLOAT} is issued.
-}
+@defcmd[
+  ((INCR INCRBY INCRBYFLOAT)
+   (string-incr! [key string?]
+                 [amt (or/c exact-integer? rational?)]) (or/c string? exact-integer?))]{
 
-@defcmd[(set! [key string?]
-              [value string?]
-              [#:expires-in expires-in (or/c false/c exact-nonnegative-integer?) #f]
-              [#:unless-exists? unless-exists? boolean? #f]
-              [#:when-exists? when-exists? boolean? #f]) boolean?]{
+  Increments the value at @racket[key] by @racket[amt].  If the
+  resulting value is a float, then a string is returned rather than an
+  integer.
 
-  Sets @racket[key] to @racket[value].
-
-  If @racket[expires-in] is @racket[#t], then the key will expire
-  after @racket[expires-in] milliseconds.
-
-  If @racket[unless-exists?] is @racket[#t], then the key will only be
-  set if it doesn't already exist.
-
-  If @racket[when-exists?] is @racket[#t], then the key will only be
-  set if it already exists.
+  If the value at @racket[key] is not a number, then the function will
+  raise an @racket[exn:fail:redis] error.
 }
