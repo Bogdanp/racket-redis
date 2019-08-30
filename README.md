@@ -104,9 +104,6 @@ The commands below are yet to be implemented:
 * [ ]  MSETNX
 * [ ]  MULTI
 * [ ]  OBJECT
-* [ ]  PFADD
-* [ ]  PFCOUNT
-* [ ]  PFMERGE
 * [ ]  PSETEX
 * [ ]  PSUBSCRIBE
 * [ ]  PUBLISH

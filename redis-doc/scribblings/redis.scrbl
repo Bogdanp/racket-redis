@@ -162,6 +162,36 @@ Each client represents a single TCP connection to the Redis server.
 
 
 @;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+@subsubsection{HyperLogLog Commands}
+
+@defcmd[
+  ((PFADD)
+   (hll-add! [key string?]
+             [value (or/c string? bytes?)] ...+) boolean?)]{
+
+  Adds all the @racket[value]s to the HyperLogLog struct at
+  @racket[key].
+}
+
+@defcmd[
+  ((PFCOUNT)
+   (hll-count [key string?] ...+) exact-nonnegative-integer?)]{
+
+  Returns the appromixated cardinality of the union of the given
+  HyperLogLog structs at each @racket[key].
+}
+
+@defcmd[
+  ((PFMERGE)
+   (hll-merge! [dest string?]
+               [key string?] ...+) boolean?)]{
+
+  Writes the union of the given HyperLogLog structs at each
+  @racket[key] into the @racket[dest] key.
+}
+
+
+@;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 @subsubsection{Key Commands}
 
 @defcmd[

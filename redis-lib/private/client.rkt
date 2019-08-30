@@ -288,7 +288,7 @@
                               [else    (list "DECRBY" key (number->string n))])))
 
 ;; DEL key [key ...]
-(define-variadic-command (remove! [key0 string?] . [keys string?])
+(define-variadic-command (remove! [key string?] . [keys string?])
   #:command-name "DEL"
   #:result-contract exact-nonnegative-integer?)
 
@@ -472,6 +472,25 @@
 (define-simple-command/1 (expire-at! [key string?] [ms exact-nonnegative-integer? #:converter number->string])
   #:command-name "PEXPIREAT")
 
+;; PFADD key elt [elt ...]
+(define-variadic-command (hll-add! [key string?] [elt redis-string?] . [elts redis-string?])
+  #:command-name "PFADD"
+  #:result-contract boolean?
+  #:result-name res
+  (= res 1))
+
+;; PFCOUNT key [key ...]
+(define-variadic-command (hll-count [key string?] . [keys string?])
+  #:command-name "PFCOUNT"
+  #:result-contract exact-nonnegative-integer?)
+
+;; PFMERGE dest key [key ...]
+(define-variadic-command (hll-merge! [dest string?] [key string?] . [keys string?])
+  #:command-name "PFMERGE"
+  #:result-contract boolean?
+  #:result-name res
+  (ok? res))
+
 ;; PTTL key
 (define-simple-command (key-ttl [key string?])
   #:command-name "PTTL"
@@ -625,7 +644,7 @@
   (real->double-flonum (+ (* seconds 1000) (/ micros 1000))))
 
 ;; TOUCH key [key ...]
-(define-variadic-command (touch! [key0 string?] . [key string?])
+(define-variadic-command (touch! [key string?] . [keys string?])
   #:result-contract exact-nonnegative-integer?)
 
 ;; TYPE key
@@ -790,6 +809,17 @@
     (check-true (> (redis-key-ttl client "a") 5))
     (check-true (redis-persist! client "a"))
     (check-equal? (redis-key-ttl client "a") 'persisted))
+
+  (test "PFADD, PFCOUNT and PFMERGE"
+    (check-true (redis-hll-add! client "a" "1"))
+    (check-true (redis-hll-add! client "a" "2"))
+    (check-false (redis-hll-add! client "a" "1"))
+    (check-equal? (redis-hll-count client "a") 2)
+    (check-equal? (redis-hll-count client "a" "b") 2)
+    (check-true (redis-hll-add! client "b" "1"))
+    (check-equal? (redis-hll-count client "a" "b") 2)
+    (check-true (redis-hll-merge! client "c" "a" "b"))
+    (check-equal? (redis-hll-count client "c") 2))
 
   (test "RENAME"
     (check-true (redis-bytes-set! client "a" "1"))
