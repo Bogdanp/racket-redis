@@ -70,7 +70,8 @@ Each client represents a single TCP connection to the Redis server.
                               (#:keys (listof string?)
                                #:args (listof string?))
                               maybe-redis-value/c)]{
-  The contract for Lua-backed Redis scripts.
+
+  The contract for lua-backed Redis scripts.
 }
 
 @defproc[(make-redis-script [client redis?]
@@ -312,19 +313,44 @@ Each client represents a single TCP connection to the Redis server.
 @;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 @subsubsection{Script Commands}
 
-@defcmd[(eval! [lua-script string?]
-               [#:keys keys (listof string?) null]
-               [#:args args (listof string?) null]) maybe-redis-value/c]{
+@defcmd[
+  ((EVAL)
+   (script-eval! [lua-script string?]
+                 [#:keys keys (listof string?) null]
+                 [#:args args (listof string?) null]) maybe-redis-value/c)]{
 
   Evaluate the @racket[lua-script] on the fly within the database.
 }
 
-@defcmd[(evalsha! [script-sha1 string?]
-                  [#:keys keys (listof string?) null]
-                  [#:args args (listof string?) null]) maybe-redis-value/c]{
+@defcmd[
+  ((EVALSHA)
+   (script-eval-sha! [script-sha1 string?]
+                     [#:keys keys (listof string?) null]
+                     [#:args args (listof string?) null]) maybe-redis-value/c)]{
 
-  Evaluate the Lua script represented by the given
+  Evaluate the lua script represented by the given
   @racket[script-sha1] on the fly within the database.
+}
+
+@defcmd[
+  ((SCRIPT_FLUSH)
+   (scripts-flush!) boolean?)]{
+
+  Removes all the registered lua scripts from the server.
+}
+
+@defcmd[
+  ((SCRIPT_KILL)
+   (script-kill!) boolean?)]{
+
+  Stops the currently-running lua script.
+}
+
+@defcmd[
+  ((SCRIPT_LOAD)
+   (script-load! [script string?]) string?)]{
+
+  Registers the given lua script with the server, returning its sha-1 hash.
 }
 
 

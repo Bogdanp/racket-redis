@@ -280,9 +280,9 @@
   (bytes->string/utf-8 res))
 
 ;; EVAL script numkeys [key ...] [arg ...]
-(define/contract/provide (redis-eval! client script
-                                      #:keys [keys null]
-                                      #:args [args null])
+(define/contract/provide (redis-script-eval! client script
+                                             #:keys [keys null]
+                                             #:args [args null])
   (->* (redis? string?)
        (#:keys (listof string?)
         #:args (listof string?))
@@ -290,9 +290,9 @@
   (apply redis-emit! client "EVAL" script (number->string (length keys)) (append keys args)))
 
 ;; EVALSHA sha1 numkeys [key ...] [arg ...]
-(define/contract/provide (redis-eval-sha! client script-sha1
-                                          #:keys [keys null]
-                                          #:args [args null])
+(define/contract/provide (redis-script-eval-sha! client script-sha1
+                                                 #:keys [keys null]
+                                                 #:args [args null])
   (->* (redis? string?)
        (#:keys (listof string?)
         #:args (listof string?))
@@ -457,17 +457,17 @@
     (= 1 one-or-zero)))
 
 ;; SCRIPT FLUSH
-(define/contract/provide (redis-flush-all-scripts! client)
+(define/contract/provide (redis-scripts-flush! client)
   (-> redis? boolean?)
   (ok? (redis-emit! client "SCRIPT" "FLUSH")))
 
 ;; SCRIPT KILL
-(define/contract/provide (redis-kill-current-script! client)
+(define/contract/provide (redis-script-kill! client)
   (-> redis? boolean?)
   (ok? (redis-emit! client "SCRIPT" "KILL")))
 
 ;; SCRIPT LOAD
-(define/contract/provide (redis-load-script! client script)
+(define/contract/provide (redis-script-load! client script)
   (-> redis? string? string?)
   (bytes->string/utf-8 (redis-emit! client "SCRIPT" "LOAD" script)))
 
@@ -591,10 +591,10 @@
     (check-equal? (redis-remove! client "a" "b") 2))
 
   (test "EVAL"
-    (check-equal? (redis-eval! client "return 1") 1)
-    (check-equal? (redis-eval! client "return {KEYS[1], ARGV[1], ARGV[2]}"
-                               #:keys '("a")
-                               #:args '("b" "c"))
+    (check-equal? (redis-script-eval! client "return 1") 1)
+    (check-equal? (redis-script-eval! client "return {KEYS[1], ARGV[1], ARGV[2]}"
+                                      #:keys '("a")
+                                      #:args '("b" "c"))
                   '(#"a" #"b" #"c")))
 
   (test "{M,}GET and SET"
