@@ -28,7 +28,7 @@
   (make-flat-contract
    #:name 'redis-value/c
    #:first-order (lambda (v)
-                   ((or/c bytes? string? exact-integer? (listof redis-value/c) redis-null?) v))))
+                   ((or/c bytes? exact-integer? (listof redis-value/c) redis-null?) v))))
 
 
 ;; write ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

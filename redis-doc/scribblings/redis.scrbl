@@ -770,6 +770,121 @@ Each client represents a single TCP connection to the Redis server.
 
 
 @;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+@subsubsection{Stream Commands}
+
+@defstruct[redis-stream-entry ([id string?]
+                               [fields (hash/c bytes? bytes?)])]{
+
+  A struct representing individual entries within a stream.
+}
+
+@defstruct[redis-stream-info ([length exact-nonnegative-integer?]
+                              [radix-tree-keys exact-nonnegative-integer?]
+                              [radix-tree-nodes exact-nonnegative-integer?]
+                              [groups exact-nonnegative-integer?]
+                              [last-generated-id bytes?]
+                              [first-entry redis-stream-entry?]
+                              [last-entry redis-stream-entry?])]{
+
+  A struct representing information about a stream.
+}
+
+@defstruct[redis-stream-group ([name bytes?]
+                               [consumers exact-nonnegative-integer?]
+                               [pending exact-nonnegative-integer?])]{
+
+  A struct representing an individual stream group.
+}
+
+@defstruct[redis-stream-consumer ([name bytes?]
+                                  [idle exact-nonnegative-integer?]
+                                  [pending exact-nonnegative-integer?])]{
+
+  A struct representing an individual stream consumer.
+}
+
+@defcmd[
+  ((XACK)
+   (stream-ack! [key string?]
+                [group (or/c bytes? string?)]
+                [id (or/c bytes? string?)] ...+) exact-nonnegative-integer?)]{
+
+  Acknowledges all of the messages represented by the given
+  @racket[ids] within the @racket[group] belonging to the stream at
+  @racket[key] and returns the total number of acknowledged messages.
+}
+
+@defcmd[
+  ((XADD)
+   (stream-add! [key string?]
+                [flds-and-vals (or/c bytes? string?)] ...+
+                [#:id id (or/c bytes? string?) "*"]
+                [#:max-length max-length exact-positive-integer?]
+                [#:max-length/approximate max-length/approximate exact-positive-integer?]) bytes?)]{
+
+  Adds an entry to the stream at @racket[key] with fields
+  @racket[flds-and-vals].  @racket[flds-and-vals] must contain an even
+  number of items (one field name and one value for each field).
+
+  See the Redis documentation for the value of the @racket[id] parameter.
+
+  Either @racket[max-length] or @racket[max-length/approximate] can be
+  provided, but not both.
+}
+
+@defcmd[
+  ((XINFO_CONSUMERS)
+   (stream-consumers [key string?]
+                     [group (or/c bytes? string?)]) (listof redis-stream-consumer?))]{
+
+  Returns all of the consumers belonging to the @racket[group] of the
+  stream at @racket[key].
+}
+
+@defcmd[
+  ((XINFO_GROUPS)
+   (stream-groups [key string?]) (listof redis-stream-group?))]{
+
+  Returns all of the groups belonging to the stream at @racket[key].
+}
+
+@defcmd[
+  ((XINFO_STREAM)
+   (stream-get [key string?]) redis-stream-info?)]{
+
+  Returns information about the stream at @racket[key].
+}
+
+@defcmd[
+  ((XLEN)
+   (stream-length [key string?]) exact-nonnegative-integer?)]{
+
+  Returns the lenth of the stream at @racket[key].
+}
+
+@defcmd[
+  ((XRANGE)
+   (stream-range [key string?]
+                 [#:start start (or/c bytes? string?) "-"]
+                 [#:stop stop (or/c bytes? string?) "+"]
+                 [#:limit limit (or/c false/c exact-positive-integer?)]) (listof redis-stream-entry?))]{
+
+  Returns at most @racket[limit] entries between @racket[start] and
+  @racket[stop] from the stream at @racket[key].  If @racket[limit] is
+  @racket[#f], then all the entries are returned.
+}
+
+@defcmd[
+  ((XDEL)
+   (stream-remove! [key string?]
+                   [id (or/c bytes? string?)] ...+) exact-nonnegative-integer?)]{
+
+  Removes the entries represented by each @racket[id] from the stream
+  at @racket[key], returning the total number of removed entries.
+}
+
+
+@;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 @subsubsection{String/bytes Commands}
 
 All Redis strings are sequences of bytes, so whereas most of the

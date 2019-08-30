@@ -146,14 +146,9 @@ The commands below are yet to be implemented:
 * [ ]  WAIT
 * [ ]  WATCH
 * [ ]  XACK
-* [ ]  XADD
 * [ ]  XCLAIM
-* [ ]  XDEL
 * [ ]  XGROUP
-* [ ]  XINFO
-* [ ]  XLEN
 * [ ]  XPENDING
-* [ ]  XRANGE
 * [ ]  XREAD
 * [ ]  XREADGROUP
 * [ ]  XREVRANGE
@@ -184,6 +179,7 @@ The commands below are yet to be implemented:
 
 ## Acknowledgements
 
-This project was originally based on [rackdis].
+This project was originally based on [rackdis], but has since been
+rewritten from the ground up for increased performance and safety.
 
 [rackdis]: https://github.com/eu90h/rackdis

@@ -202,11 +202,11 @@
 
 ;; commands ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define redis-string?
+(define string-like?
   (or/c bytes? string?))
 
 ;; APPEND key value
-(define-simple-command (bytes-append! [key string?] [value redis-string?])
+(define-simple-command (bytes-append! [key string?] [value string-like?])
   #:command-name "APPEND"
   #:result-contract exact-nonnegative-integer?)
 
@@ -222,8 +222,8 @@
 
 ;; BITCOUNT key [start stop]
 (define/contract/provide (redis-bytes-bitcount client key
-                                                #:start [start 0]
-                                                #:stop [stop -1])
+                                               #:start [start 0]
+                                               #:stop [stop -1])
   (->* (redis? string?)
        (#:start exact-integer?
         #:stop exact-integer?)
@@ -334,12 +334,12 @@
       (apply redis-emit! client "MGET" key keys)))
 
 ;; HDEL key field [field ...]
-(define-variadic-command (hash-remove! [key string?] [fld redis-string?] . [flds redis-string?])
+(define-variadic-command (hash-remove! [key string?] [fld string-like?] . [flds string-like?])
   #:command-name "HDEL"
   #:result-contract exact-nonnegative-integer?)
 
 ;; HEXISTS key field
-(define-simple-command/1 (hash-has-key? [key string?] [fld redis-string?])
+(define-simple-command/1 (hash-has-key? [key string?] [fld string-like?])
   #:command-name "HEXISTS")
 
 ;; HGET key field
@@ -347,9 +347,9 @@
 ;; HMGET key field [field ...]
 (define/contract/provide redis-hash-get
   (case->
-   (-> redis? string? redis-string? redis-value/c)
+   (-> redis? string? string-like? redis-value/c)
    (-> redis? string? hash?)
-   (-> redis? string? #:rest (listof redis-string?) hash?))
+   (-> redis? string? #:rest (listof string-like?) hash?))
   (case-lambda
     [(client key f)
      (redis-emit! client "HGET" key f)]
@@ -380,8 +380,8 @@
 ;; HMSET key field value [field value ...]
 (define/contract/provide redis-hash-set!
   (case->
-   (-> redis? string? redis-string? redis-string? boolean?)
-   (-> redis? string? redis-string? redis-string? #:rest redis-string? boolean?)
+   (-> redis? string? string-like? string-like? boolean?)
+   (-> redis? string? string-like? string-like? #:rest string-like? boolean?)
    (-> redis? string? dict? boolean?))
   (case-lambda
     [(client key f v)
@@ -421,7 +421,7 @@
       res))
 
 ;; KEYS pattern
-(define-simple-command (keys [pattern redis-string?])
+(define-simple-command (keys [pattern string-like?])
   #:result-contract (listof string?)
   #:result-name res
   (map bytes->string/utf-8 res))
@@ -438,9 +438,9 @@
                                              #:before [pivot/before #f])
   (->i ([client redis?]
         [key string?]
-        [value redis-string?])
-       (#:after [pivot/after redis-string?]
-        #:before [pivot/before redis-string?])
+        [value string-like?])
+       (#:after [pivot/after string-like?]
+        #:before [pivot/before string-like?])
 
        #:pre/name (pivot/after pivot/before)
        "either after or before, but not both"
@@ -491,7 +491,7 @@
       (redis-emit! client "LPOP" key)))
 
 ;; LPUSH key value [value ...]
-(define-variadic-command (list-prepend! [key string?] . [value redis-string?])
+(define-variadic-command (list-prepend! [key string?] . [value string-like?])
   #:command-name "LPUSH"
   #:result-contract exact-nonnegative-integer?)
 
@@ -512,12 +512,12 @@
 ;; LREM key count value
 (define-simple-command (list-remove! [key string?]
                                      [count exact-integer?]
-                                     [value redis-string?])
+                                     [value string-like?])
   #:command-name "LREM"
   #:result-contract exact-nonnegative-integer?)
 
 ;; LSET key index value
-(define-simple-command/ok (list-set! [key string?] [index exact-integer?] [value redis-string?])
+(define-simple-command/ok (list-set! [key string?] [index exact-integer?] [value string-like?])
   #:command-name "LSET")
 
 ;; LTRIM key value start stop
@@ -546,7 +546,7 @@
   #:command-name "PEXPIREAT")
 
 ;; PFADD key elt [elt ...]
-(define-variadic-command (hll-add! [key string?] [elt redis-string?] . [elts redis-string?])
+(define-variadic-command (hll-add! [key string?] [elt string-like?] . [elts string-like?])
   #:command-name "PFADD"
   #:result-contract boolean?
   #:result-name res
@@ -652,7 +652,7 @@
      (redis-emit! client "RPOP" key)]))
 
 ;; RPUSH key value [value ...]
-(define-variadic-command (list-append! [key string?] . [value redis-string?])
+(define-variadic-command (list-append! [key string?] . [value string-like?])
   #:command-name "RPUSH"
   #:result-contract exact-nonnegative-integer?)
 
@@ -686,7 +686,7 @@
                                            #:expires-in [expires-in #f]
                                            #:unless-exists? [unless-exists? #f]
                                            #:when-exists? [when-exists? #f])
-  (->* (redis? string? redis-string?)
+  (->* (redis? string? string-like?)
        (#:expires-in (or/c false/c exact-positive-integer?)
         #:unless-exists? boolean?
         #:when-exists? boolean?)
@@ -726,6 +726,137 @@
   #:result-contract (or/c 'none 'string 'list 'set 'zset 'hash 'stream)
   #:result-name res
   (string->symbol res))
+
+
+;; stream commands ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(provide
+ (contract-out
+  [struct redis-stream-entry ([id string?]
+                              [fields (hash/c bytes? bytes?)])]
+  [struct redis-stream-info ([length exact-nonnegative-integer?]
+                             [radix-tree-keys exact-nonnegative-integer?]
+                             [radix-tree-nodes exact-nonnegative-integer?]
+                             [groups exact-nonnegative-integer?]
+                             [last-generated-id bytes?]
+                             [first-entry redis-stream-entry?]
+                             [last-entry redis-stream-entry?])]
+  [struct redis-stream-group ([name bytes?]
+                              [consumers exact-nonnegative-integer?]
+                              [pending exact-nonnegative-integer?])]
+  [struct redis-stream-consumer ([name bytes?]
+                                 [idle exact-nonnegative-integer?]
+                                 [pending exact-positive-integer?])]))
+
+(struct redis-stream-entry (id fields) #:transparent)
+(struct redis-stream-info (length radix-tree-keys radix-tree-nodes groups last-generated-id first-entry last-entry) #:transparent)
+(struct redis-stream-group (name consumers pending) #:transparent)
+(struct redis-stream-consumer (name idle pending) #:transparent)
+
+;; XACK key group id [id ...]
+(define-variadic-command (stream-ack! [key string?] [group string-like?] [id string-like?] . [ids string-like?])
+  #:command-name "XACK"
+  #:result-contract exact-nonnegative-integer?)
+
+;; XADD key MAXLEN ~ n id field value [field value ...]
+;; XADD key MAXLEN n id field value [field value ...]
+;; XADD key id field value [field value ...]
+(define/contract/provide (redis-stream-add! client key fld val
+                                            #:id [id "*"]
+                                            #:max-length [max-length #f]
+                                            #:max-length/approximate [max-length/approximate #f]
+                                            . flds-and-vals)
+  (->i ([client redis?]
+        [key string?]
+        [fld string-like?]
+        [val string-like?])
+       (#:id [id non-empty-string?]
+        #:max-length [max-length exact-positive-integer?]
+        #:max-length/approximate [max-length/approximate exact-positive-integer?])
+       #:rest [flds-and-vals (listof string-like?)]
+
+       #:pre/name (max-length max-length/approximate)
+       "either max-length or max-length/approximate can be provided but not both"
+       (or (and max-length (unsupplied-arg? max-length/approximate))
+           (and max-length/approximate (unsupplied-arg? max-length)))
+
+       #:pre/name (flds-and-vals)
+       "flds-and-vals must contain an even number of field and value pairs"
+       (even? (length flds-and-vals))
+
+       [result non-empty-string?])
+
+  (define message-id
+    (cond
+      [max-length/approximate
+       (apply redis-emit! client "XADD" key "MAXLEN" "~" (number->string max-length/approximate) id fld val flds-and-vals)]
+
+      [max-length
+       (apply redis-emit! client "XADD" key "MAXLEN" (number->string max-length) id fld val flds-and-vals)]
+
+      [else
+       (apply redis-emit! client "XADD" key id fld val flds-and-vals)]))
+
+  (bytes->string/utf-8 message-id))
+
+;; XDEL key id [id ...]
+(define-variadic-command (stream-remove! [key string?] [id string-like?] . [ids string-like?])
+  #:command-name "XDEL"
+  #:result-contract exact-nonnegative-integer?)
+
+;; XINFO CONSUMERS key group
+(define/contract/provide (redis-stream-consumers client key group)
+  (-> redis? string? string-like? (listof redis-stream-consumer?))
+  (for*/list ([fields (redis-emit! client "XINFO" "CONSUMERS" key)]
+              [info (in-value (apply hash fields))])
+    (redis-stream-consumer (hash-ref info #"name")
+                           (hash-ref info #"idle")
+                           (hash-ref info #"pending"))))
+
+;; XINFO GROUPS key
+(define/contract/provide (redis-stream-groups client key)
+  (-> redis? string? (listof redis-stream-group?))
+  (for*/list ([fields (redis-emit! client "XINFO" "GROUPS" key)]
+              [info (in-value (apply hash fields))])
+    (redis-stream-group (hash-ref info #"name")
+                        (hash-ref info #"consumers")
+                        (hash-ref info #"pending"))))
+
+;; XINFO STREAM key
+(define/contract/provide (redis-stream-get client key)
+  (-> redis? string? redis-stream-info?)
+  (define info
+    (apply hash (redis-emit! client "XINFO" "STREAM" key)))
+
+  (redis-stream-info (hash-ref info #"length")
+                     (hash-ref info #"radix-tree-keys")
+                     (hash-ref info #"radix-tree-nodes")
+                     (hash-ref info #"groups")
+                     (hash-ref info #"last-generated-id")
+                     (pair->entry (hash-ref info #"first-entry"))
+                     (pair->entry (hash-ref info #"last-entry"))))
+
+(define (pair->entry p)
+  (redis-stream-entry (car p) (apply hash (cadr p))))
+
+;; XLEN key
+(define-simple-command (stream-length [key string?])
+  #:command-name "XLEN"
+  #:result-contract exact-nonnegative-integer?)
+
+;; XRANGE key start stop [COUNT count]
+(define/contract/provide (redis-stream-range client key
+                                             #:start [start "-"]
+                                             #:stop [stop "+"]
+                                             #:limit [limit #f])
+  (->* (redis? string?)
+       (#:start (or/c false/c string-like?)
+        #:stop (or/c false/c string-like?)
+        #:limit (or/c false/c exact-positive-integer?))
+       (listof redis-stream-entry?))
+  (map pair->entry (apply redis-emit! client "XRANGE" key start stop (if limit
+                                                                         (list (number->string limit))
+                                                                         (list)))))
 
 
 (module+ test
@@ -977,5 +1108,19 @@
     (check-true (redis-bytes-set! client "a" "1"))
     (check-true (redis-bytes-set! client "b" "2"))
     (check-equal? (redis-touch! client "a" "b" "c") 2))
+
+  (test "XADD, XDEL, XINFO, XLEN, XRANGE"
+    (define first-id (redis-stream-add! client "a" "message" "hello"))
+    (define second-id (redis-stream-add! client "a" "message" "goodbye"))
+    (check-equal? (redis-stream-length client "a") 2)
+    (define info (redis-stream-get client "a"))
+    (check-equal? (redis-stream-info-length info) 2)
+    (check-equal? (redis-stream-range client "a")
+                  (list (redis-stream-info-first-entry info)
+                        (redis-stream-info-last-entry info)))
+    (check-equal? (redis-stream-remove! client "a" first-id) 1)
+    (check-equal? (redis-stream-remove! client "a" first-id) 0)
+    (check-equal? (redis-stream-range client "a")
+                  (list (redis-stream-info-last-entry info))))
 
   (check-equal? (redis-quit! client) (void)))
