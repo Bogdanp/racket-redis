@@ -47,10 +47,8 @@ Each client represents a single TCP connection to the Redis server.
   parameter controls the maximum amount of time the client will wait
   for any individual response from the database.
 
-  Each Redis client maps to a single connection to the server, meaning
-  that, if whatever command you issue blocks, all other commands
-  issued through the client will also be blocked until that command
-  completes.
+  Each client maps to an individual connection, therefore clients
+  @emph{are not} thread safe!  See @secref["pooling"].
 }
 
 @defproc[(redis? [v any/c]) boolean?]{

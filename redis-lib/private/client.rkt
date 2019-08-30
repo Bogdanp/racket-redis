@@ -24,7 +24,7 @@
  redis-null?
  redis-null)
 
-(struct redis (host port timeout in out mutex response-ch response-reader)
+(struct redis (host port timeout in out response-ch response-reader)
   #:mutable)
 
 (define/contract (make-redis #:client-name [client-name "racket-redis"]
@@ -39,8 +39,7 @@
         #:db (integer-in 0 16))
        redis?)
 
-  (define mutex (make-semaphore 1))
-  (define client (redis host port timeout #f #f mutex #f #f))
+  (define client (redis host port timeout #f #f #f #f))
   (begin0 client
     (redis-connect! client)
     (redis-select-db! client db)
@@ -60,29 +59,25 @@
   (when (redis-connected? client)
     (redis-disconnect! client))
 
-  (call-with-redis client
-    (lambda _
-      (define-values (in out)
-        (tcp-connect (redis-host client)
-                     (redis-port client)))
+  (define-values (in out)
+    (tcp-connect (redis-host client)
+                 (redis-port client)))
 
-      (set-redis-in! client in)
-      (set-redis-out! client out)
+  (set-redis-in! client in)
+  (set-redis-out! client out)
 
-      (define response-ch (make-channel))
-      (define response-reader
-        (thread (make-response-reader in response-ch)))
+  (define response-ch (make-channel))
+  (define response-reader
+    (thread (make-response-reader in response-ch)))
 
-      (set-redis-response-ch! client response-ch)
-      (set-redis-response-reader! client response-reader))))
+  (set-redis-response-ch! client response-ch)
+  (set-redis-response-reader! client response-reader))
 
 (define/contract (redis-disconnect! client)
   (-> redis? void?)
-  (call-with-redis client
-    (lambda _
-      (kill-thread (redis-response-reader client))
-      (tcp-abandon-port (redis-in client))
-      (tcp-abandon-port (redis-out client)))))
+  (kill-thread (redis-response-reader client))
+  (tcp-abandon-port (redis-in client))
+  (tcp-abandon-port (redis-out client)))
 
 (define ((make-response-reader in ->out))
   (let loop ()
@@ -114,19 +109,12 @@
 
     [response response]))
 
-(define (call-with-redis client proc)
-  (call-with-semaphore (redis-mutex client)
-    (lambda _
-      (proc client))))
-
 (define (redis-emit! client command
                      #:timeout [timeout (redis-timeout client)]
                      . args)
   ;; TODO: reconnect here if disconnected.
-  (call-with-redis client
-    (lambda _
-      (send-request! client command args)
-      (take-response! client timeout))))
+  (send-request! client command args)
+  (take-response! client timeout))
 
 (begin-for-syntax
   (define non-alpha-re #rx"[^a-z]+")
