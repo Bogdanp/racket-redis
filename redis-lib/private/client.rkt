@@ -283,7 +283,7 @@
   (->* (redis? string?)
        (#:keys (listof string?)
         #:args (listof string?))
-       maybe-redis-value/c)
+       redis-value/c)
   (apply redis-emit! client "EVAL" script (number->string (length keys)) (append keys args)))
 
 ;; EVALSHA sha1 numkeys [key ...] [arg ...]
@@ -293,7 +293,7 @@
   (->* (redis? string?)
        (#:keys (listof string?)
         #:args (listof string?))
-       maybe-redis-value/c)
+       redis-value/c)
   (apply redis-emit! client "EVALSHA" script-sha1 (number->string (length keys)) (append keys args)))
 
 ;; EXISTS key [key ...]
@@ -313,7 +313,7 @@
 ;; GET key
 ;; MGET key [key ...]
 (define/contract/provide (redis-bytes-ref client key . keys)
-  (-> redis? string? string? ... maybe-redis-value/c)
+  (-> redis? string? string? ... redis-value/c)
   (if (null? keys)
       (redis-emit! client "GET" key)
       (apply redis-emit! client "MGET" key keys)))
@@ -338,7 +338,7 @@
 ;; LINDEX key index
 (define-simple-command (list-ref [key string?] [index exact-integer? #:converter number->string])
   #:command-name "LINDEX"
-  #:result-contract maybe-redis-value/c)
+  #:result-contract redis-value/c)
 
 ;; LINSERT key AFTER pivot value
 ;; LINSERT key BEFORE pivot value
@@ -373,7 +373,7 @@
 ;; LPOP key
 (define-simple-command (list-pop-left! [key string?])
   #:command-name "LPOP"
-  #:result-contract maybe-redis-value/c)
+  #:result-contract redis-value/c)
 
 ;; LPUSH key value [value ...]
 (define-variadic-command (list-prepend! [key string?] . [value redis-string?])
@@ -384,7 +384,7 @@
 (define/contract/provide (redis-list-range client key [start 0] [stop -1])
   (->* (redis? string?)
        (exact-integer? exact-integer?)
-       maybe-redis-value/c)
+       redis-value/c)
   (redis-emit! client "LRANGE" key (number->string start) (number->string stop)))
 
 ;; LREM key count value
@@ -453,7 +453,7 @@
 ;; RPOP key
 (define-simple-command (list-pop-right! [key string?])
   #:command-name "RPOP"
-  #:result-contract maybe-redis-value/c)
+  #:result-contract redis-value/c)
 
 ;; RPUSH key value [value ...]
 (define-variadic-command (list-append! [key string?] . [value redis-string?])

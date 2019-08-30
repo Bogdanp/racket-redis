@@ -85,7 +85,7 @@ Each client represents a single TCP connection to the Redis server.
 @defthing[redis-script/c (->* (redis?)
                               (#:keys (listof string?)
                                #:args (listof string?))
-                              maybe-redis-value/c)]{
+                              redis-value/c)]{
 
   The contract for lua-backed Redis scripts.
 }
@@ -279,14 +279,14 @@ Each client represents a single TCP connection to the Redis server.
 
 @defcmd[
   ((LPOP)
-   (list-pop-left! [key string?]) maybe-redis-value/c)]{
+   (list-pop-left! [key string?]) redis-value/c)]{
 
   Removes and then returns the first value from the list at @racket[key].
 }
 
 @defcmd[
   ((RPOP)
-   (list-pop-right! [key string?]) maybe-redis-value/c)]{
+   (list-pop-right! [key string?]) redis-value/c)]{
 
   Removes and then returns the last value from the list at @racket[key].
 }
@@ -304,7 +304,7 @@ Each client represents a single TCP connection to the Redis server.
   ((LRANGE)
    (list-range [key string?]
                     [start exact-integer? 0]
-                    [stop exact-integer? -1]) maybe-redis-value/c)]{
+                    [stop exact-integer? -1]) redis-value/c)]{
 
   Returns the sublist between the inclusive indices @racket[start] and
   @racket[end] of the list at @racket[key].
@@ -312,7 +312,7 @@ Each client represents a single TCP connection to the Redis server.
 
 @defcmd[
   ((LINDEX)
-   (list-ref [key string?] [index exact-integer?]) maybe-redis-value/c)]{
+   (list-ref [key string?] [index exact-integer?]) redis-value/c)]{
 
   Returns the item at @racket[index] in @racket[key] or @racket[(redis-null)].
 }
@@ -343,7 +343,7 @@ Each client represents a single TCP connection to the Redis server.
   ((EVAL)
    (script-eval! [lua-script string?]
                  [#:keys keys (listof string?) null]
-                 [#:args args (listof string?) null]) maybe-redis-value/c)]{
+                 [#:args args (listof string?) null]) redis-value/c)]{
 
   Evaluate the @racket[lua-script] on the fly within the database.
 }
@@ -352,7 +352,7 @@ Each client represents a single TCP connection to the Redis server.
   ((EVALSHA)
    (script-eval-sha! [script-sha1 string?]
                      [#:keys keys (listof string?) null]
-                     [#:args args (listof string?) null]) maybe-redis-value/c)]{
+                     [#:args args (listof string?) null]) redis-value/c)]{
 
   Evaluate the lua script represented by the given
   @racket[script-sha1] on the fly within the database.

@@ -9,9 +9,9 @@
  (contract-out
   [redis-null (parameter/c any/c)]
   [redis-null? (-> any/c boolean?)]
-  [maybe-redis-value/c (-> any/c boolean?)]
+  [redis-value/c (-> any/c boolean?)]
   [redis-write (->* (redis-value/c) (output-port?) void?)]
-  [redis-read (->* () (input-port?) (or/c maybe-redis-value/c (cons/c 'err string?)))]))
+  [redis-read (->* () (input-port?) (or/c redis-value/c (cons/c 'err string?)))]))
 
 (module+ test
   (require rackunit))
@@ -29,10 +29,7 @@
   (make-flat-contract
    #:name 'redis-value/c
    #:first-order (lambda (v)
-                   ((or/c bytes? string? exact-integer? (listof redis-value/c)) v))))
-
-(define maybe-redis-value/c
-  (or/c redis-value/c redis-null?))
+                   ((or/c bytes? string? exact-integer? (listof redis-value/c) redis-null?) v))))
 
 
 ;; write ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

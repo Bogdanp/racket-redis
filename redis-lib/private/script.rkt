@@ -12,7 +12,7 @@
   (->* (redis?)
        (#:keys (listof string?)
         #:args (listof string?))
-       maybe-redis-value/c))
+       redis-value/c))
 
 (define/contract (make-redis-script client lua-script)
   (-> redis? string? redis-script/c)
