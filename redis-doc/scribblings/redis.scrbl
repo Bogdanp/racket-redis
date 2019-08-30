@@ -95,9 +95,9 @@ Each client represents a single TCP connection to the Redis server.
          [#:unless-exists? unless-exists? boolean? #f]
          [#:when-exists? when-exists? boolean? #f]) boolean?)]{
 
-  Like @racket[redis-string-set!], but non string-y values are
-  converted to strings via @racket[serialize] before they are sent to
-  the server.
+  Like @racket[redis-bytes-set!], but non string-like values are
+  converted to byte strings via @racket[serialize] before they are
+  sent to the server.
 }
 
 
@@ -389,33 +389,39 @@ Each client represents a single TCP connection to the Redis server.
 
 
 @;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-@subsubsection{String Commands}
+@subsubsection{String/bytes Commands}
+
+All Redis strings are sequences of bytes, so whereas most of the
+following functions accept both @racket[bytes?] and @racket[string?]
+values, when a key is retrieved from the server, its value will always
+be either @racket[(redis-null)] or @racket[bytes?].
 
 @defcmd[
   ((APPEND)
-   (string-append! [key string?]
-                        [value (or/c bytes? string?)]) exact-nonnegative-integer?)]{
+   (bytes-append! [key string?]
+                  [value (or/c bytes? string?)]) exact-nonnegative-integer?)]{
 
-  @exec{APPEND}s @racket[value] to the string at @racket[key] if it
-  exists and returns the new length of @racket[key].
+  @exec{APPEND}s @racket[value] to the byte string at @racket[key] if
+  it exists and returns the new length of @racket[key].
 }
 
 @defcmd[
   ((BITCOUNT)
-   (string-bitcount [key string?]
-                    [#:start start exact-integer? 0]
-                    [#:end end exact-integer? -1]) exact-nonnegative-integer?)]{
+   (bytes-bitcount [key string?]
+                   [#:start start exact-integer? 0]
+                   [#:end end exact-integer? -1]) exact-nonnegative-integer?)]{
 
-  Counts the bits in @racket[key] between @racket[start] and
-  @racket[end] using @exec{BITCOUNT}.
+  Counts the bits in the byte string at @racket[key] between
+  @racket[start] and @racket[end] using @exec{BITCOUNT}.
 }
 
 @defcmd[
   ((DECR DECRBY)
-   (string-decr! [key string?]
-                 [amt exact-integer? 1]) exact-integer?)]{
+   (bytes-decr! [key string?]
+                [amt exact-integer? 1]) exact-integer?)]{
 
-  Decrements @racket[key] by @racket[amt].
+  Decrements the numeric value of the byte string at @racket[key] by
+  @racket[amt].
 
   If the value at @racket[key] is not an integer, then the function
   will raise an @racket[exn:fail:redis] error.
@@ -423,14 +429,14 @@ Each client represents a single TCP connection to the Redis server.
 
 @defcmd[
   ((GET MGET)
-   (ref [key string?] ...+) (or/c redis-null? bytes?))]{
+   (bytes-ref [key string?] ...+) (or/c redis-null? bytes?))]{
 
   Retrieves one or more @racket[key]s from the database.
 }
 
 @defcmd[
   ((INCR INCRBY INCRBYFLOAT)
-   (string-incr! [key string?]
+   (bytes-incr! [key string?]
                  [amt (or/c exact-integer? rational?)]) (or/c string? exact-integer?))]{
 
   Increments the value at @racket[key] by @racket[amt].  If the
@@ -443,7 +449,7 @@ Each client represents a single TCP connection to the Redis server.
 
 @defcmd[
   ((SET)
-   (string-set! [key string?]
+   (bytes-set! [key string?]
                 [value (or/c bytes? string?)]
                 [#:expires-in expires-in (or/c false/c exact-nonnegative-integer?) #f]
                 [#:unless-exists? unless-exists? boolean? #f]

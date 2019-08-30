@@ -214,7 +214,7 @@
   (or/c bytes? string?))
 
 ;; APPEND key value
-(define-simple-command (string-append! [key string?] [value redis-string?])
+(define-simple-command (bytes-append! [key string?] [value redis-string?])
   #:command-name "APPEND"
   #:result-contract exact-nonnegative-integer?)
 
@@ -260,7 +260,7 @@
 
 ;; DECR key
 ;; DECRBY key decrement
-(define/contract/provide (redis-string-decr! client key [n 1])
+(define/contract/provide (redis-bytes-decr! client key [n 1])
   (->* (redis? string?)
        (exact-integer?)
        exact-integer?)
@@ -315,7 +315,7 @@
 
 ;; GET key
 ;; MGET key [key ...]
-(define/contract/provide (redis-ref client key . keys)
+(define/contract/provide (redis-bytes-ref client key . keys)
   (-> redis? string? string? ... maybe-redis-value/c)
   (if (null? keys)
       (redis-emit! client "GET" key)
@@ -324,7 +324,7 @@
 ;; INCR key
 ;; INCRBY key increment
 ;; INCRBYFLOAT key increment
-(define/contract/provide (redis-string-incr! client key [n 1])
+(define/contract/provide (redis-bytes-incr! client key [n 1])
   (->* (redis? string?)
        ((or/c exact-integer? rational?))
        (or/c string? exact-integer?))
@@ -476,10 +476,10 @@
   #:command-name "SELECT")
 
 ;; SET key value [EX seconds | PX milliseconds] [NX|XX]
-(define/contract/provide (redis-string-set! client key value
-                                            #:expires-in [expires-in #f]
-                                            #:unless-exists? [unless-exists? #f]
-                                            #:when-exists? [when-exists? #f])
+(define/contract/provide (redis-bytes-set! client key value
+                                           #:expires-in [expires-in #f]
+                                           #:unless-exists? [unless-exists? #f]
+                                           #:when-exists? [when-exists? #f])
   (->* (redis? string? redis-string?)
        (#:expires-in (or/c false/c exact-positive-integer?)
         #:unless-exists? boolean?
@@ -507,7 +507,7 @@
                  (lambda _
                    (write (serialize value))))]))
 
-     (keyword-apply redis-string-set! kws kw-args client key serialized-value args))))
+     (keyword-apply redis-bytes-set! kws kw-args client key serialized-value args))))
 
 (provide redis-set!)
 
@@ -548,8 +548,8 @@
        (redis-auth! client "hunter2"))))
 
   (test "APPEND"
-    (check-equal? (redis-string-append! client "a" "hello") 5)
-    (check-equal? (redis-string-append! client "a" "world!") 11))
+    (check-equal? (redis-bytes-append! client "a" "hello") 5)
+    (check-equal? (redis-bytes-append! client "a" "world!") 11))
 
   (test "BITCOUNT"
     (check-equal? (redis-string-bitcount client "a") 0)
@@ -568,9 +568,9 @@
     (check-equal? (redis-count client) 1))
 
   (test "DECR and DECRBY"
-    (check-equal? (redis-string-decr! client "a") -1)
-    (check-equal? (redis-string-decr! client "a") -2)
-    (check-equal? (redis-string-decr! client "a" 3) -5)
+    (check-equal? (redis-bytes-decr! client "a") -1)
+    (check-equal? (redis-bytes-decr! client "a") -2)
+    (check-equal? (redis-bytes-decr! client "a" 3) -5)
     (check-equal? (redis-type client "a") 'string)
 
     (check-true (redis-set! client "a" "1.5"))
@@ -579,7 +579,7 @@
        (and (exn:fail:redis? e)
             (check-equal? (exn-message e) "value is not an integer or out of range")))
      (lambda _
-       (redis-string-decr! client "a"))))
+       (redis-bytes-decr! client "a"))))
 
   (test "DEL"
     (check-equal? (redis-remove! client "a") 0)
@@ -600,20 +600,20 @@
   (test "{M,}GET and SET"
     (check-false (redis-has-key? client "a"))
     (check-true (redis-set! client "a" "1"))
-    (check-equal? (redis-ref client "a") #"1")
+    (check-equal? (redis-bytes-ref client "a") #"1")
     (check-false (redis-set! client "a" "2" #:unless-exists? #t))
-    (check-equal? (redis-ref client "a") #"1")
+    (check-equal? (redis-bytes-ref client "a") #"1")
     (check-false (redis-set! client "b" "2" #:when-exists? #t))
     (check-false (redis-has-key? client "b"))
     (check-true (redis-set! client "b" "2" #:unless-exists? #t))
     (check-true (redis-has-key? client "b"))
-    (check-equal? (redis-ref client "a" "b") '(#"1" #"2")))
+    (check-equal? (redis-bytes-ref client "a" "b") '(#"1" #"2")))
 
   (test "INCR, INCRBY and INCRBYFLOAT"
-    (check-equal? (redis-string-incr! client "a") 1)
-    (check-equal? (redis-string-incr! client "a") 2)
-    (check-equal? (redis-string-incr! client "a" 3) 5)
-    (check-equal? (redis-string-incr! client "a" 1.5) "6.5")
+    (check-equal? (redis-bytes-incr! client "a") 1)
+    (check-equal? (redis-bytes-incr! client "a") 2)
+    (check-equal? (redis-bytes-incr! client "a" 3) 5)
+    (check-equal? (redis-bytes-incr! client "a" 1.5) "6.5")
     (check-equal? (redis-type client "a") 'string))
 
   (test "LINDEX, LLEN, LPUSH, LPOP"

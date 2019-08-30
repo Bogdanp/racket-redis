@@ -13,8 +13,8 @@
 (require redis)
 
 (define c (make-redis))
-(redis-set! c "some-key" "hello, world!")
-(redis-ref c "some-key")
+(redis-bytes-set! c "some-key" "hello, world!")
+(redis-bytes-ref c "some-key")  ;; => #"hello, world!"
 ```
 
 ## Missing commands
