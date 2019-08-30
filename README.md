@@ -86,7 +86,6 @@ The commands below are yet to be implemented:
 * [ ]  HSETNX
 * [ ]  HSTRLEN
 * [ ]  INFO
-* [ ]  KEYS
 * [ ]  LASTSAVE
 * [ ]  LPUSHX
 * [ ]  MEMORY DOCTOR

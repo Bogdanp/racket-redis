@@ -420,6 +420,12 @@
       (bytes->string/utf-8 res)
       res))
 
+;; KEYS pattern
+(define-simple-command (keys [pattern redis-string?])
+  #:result-contract (listof string?)
+  #:result-name res
+  (map bytes->string/utf-8 res))
+
 ;; LINDEX key index
 (define-simple-command (list-ref [key string?] [index exact-integer? #:converter number->string])
   #:command-name "LINDEX"
@@ -455,8 +461,8 @@
   #:command-name "LLEN"
   #:result-contract exact-nonnegative-integer?)
 
-;; BLPOP key [key ...] timeout
 ;; LPOP key
+;; BLPOP key [key ...] timeout
 (define/contract/provide (redis-list-pop-left! client key
                                                #:block? [block? #f]
                                                #:timeout [timeout 0]

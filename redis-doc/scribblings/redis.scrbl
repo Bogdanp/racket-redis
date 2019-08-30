@@ -404,6 +404,14 @@ Each client represents a single TCP connection to the Redis server.
 }
 
 @defcmd[
+  ((KEYS)
+   (keys [pattern string?]) (listof string?))]{
+
+  Returns a list of all the keys in the database that match the given
+  @racket[pattern].
+}
+
+@defcmd[
   ((MOVE)
    (move-key! [key string?]
               [db (integer-in 0 16)]) boolean?)]{
