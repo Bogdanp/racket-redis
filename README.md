@@ -1,6 +1,6 @@
 # racket-redis
 
-(WIP) Redis bindings for Racket.
+Fast, idiomatic redis bindings for Racket.
 
 ## Installation
 
