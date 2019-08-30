@@ -4,6 +4,7 @@
                      racket/syntax
                      syntax/parse)
          racket/contract
+         racket/dict
          racket/list
          racket/match
          racket/string
@@ -139,14 +140,14 @@
 
 (define-syntax (define/contract/provide stx)
   (syntax-parse stx
-    ([_ (name:id arg ... . vararg) ctr:expr e ...+]
+    ([_ (name:id . args) ctr:expr e ...+]
      #'(begin
-         (define/contract (name arg ... . vararg) ctr e ...)
+         (define/contract (name . args) ctr e ...)
          (provide name)))
 
-    ([_ (name:id arg ...) ctr:expr e ...+]
+    ([_ name:id ctr:expr e ...+]
      #'(begin
-         (define/contract (name arg ...) ctr e ...)
+         (define/contract name ctr e ...)
          (provide name)))))
 
 (define-syntax (define-simple-command stx)
@@ -331,6 +332,76 @@
   (if (null? keys)
       (redis-emit! client "GET" key)
       (apply redis-emit! client "MGET" key keys)))
+
+;; HDEL key field [field ...]
+(define-variadic-command (hash-remove! [key string?] [fld redis-string?] . [flds redis-string?])
+  #:command-name "HDEL"
+  #:result-contract exact-nonnegative-integer?)
+
+;; HEXISTS key field
+(define-simple-command/1 (hash-has-key? [key string?] [fld redis-string?])
+  #:command-name "HEXISTS")
+
+;; HGET key field
+;; HGETALL key
+;; HMGET key field [field ...]
+(define/contract/provide redis-hash-get
+  (case->
+   (-> redis? string? redis-string? redis-value/c)
+   (-> redis? string? (hash/c bytes? bytes?))
+   (-> redis? string? #:rest (listof redis-string?) (hash/c bytes? bytes?)))
+  (case-lambda
+    [(client key f)
+     (redis-emit! client "HGET" key f)]
+
+    [(client key)
+     (apply hash (redis-emit! client "HGETALL" key))]
+
+    [(client key f . fs)
+     (apply hash (for/fold ([items null])
+                           ([name (in-list (cons f fs))]
+                            [value (in-list (apply redis-emit! client "HMGET" key f fs))])
+                   (cons (if (string? name)
+                             (string->bytes/utf-8 name)
+                             name)
+                         (cons value items))))]))
+
+;; HKEYS key
+(define-simple-command (hash-keys [key string?])
+  #:command-name "HKEYS"
+  #:result-contract (listof bytes?))
+
+;; HLEN key
+(define-simple-command (hash-length [key string?])
+  #:command-name "HLEN"
+  #:result-contract exact-nonnegative-integer?)
+
+;; HSET key field value
+;; HMSET key field value [field value ...]
+(define/contract/provide redis-hash-set!
+  (case->
+   (-> redis? string? redis-string? redis-string? boolean?)
+   (-> redis? string? redis-string? redis-string? #:rest redis-string? boolean?)
+   (-> redis? string? dict? boolean?))
+  (case-lambda
+    [(client key f v)
+     (= 1 (redis-emit! client "HSET" key f v))]
+
+    [(client key f v . fvs)
+     (unless (even? (length fvs))
+       (raise-argument-error 'redis-hash-set! "an even number of fields and values" fvs))
+
+     (ok? (apply redis-emit! client "HMSET" key f v fvs))]
+
+    [(client key d)
+     (ok? (apply redis-emit! client "HMSET" key (for/fold ([fields null])
+                                                          ([(k v) (in-dict d)])
+                                                  (cons k (cons v fields)))))]))
+
+;; HVALS key
+(define-simple-command (hash-values [key string?])
+  #:command-name "HVALS"
+  #:result-contract (listof bytes?))
 
 ;; INCR key
 ;; INCRBY key increment
@@ -734,6 +805,39 @@
                                       #:keys '("a")
                                       #:args '("b" "c"))
                   '(#"a" #"b" #"c")))
+
+  (test "HEXISTS, HSET, HMSET, HGETALL, HDEL, HLEN, HKEYS, HVALS"
+    (check-false (redis-hash-has-key? client "notahash" "a"))
+    (check-true (redis-hash-set! client "simple-hash" "a" "1"))
+    (check-true (redis-hash-has-key? client "simple-hash" "a"))
+    (check-equal? (redis-hash-get client "simple-hash") (hash #"a" #"1"))
+    (check-equal? (redis-hash-get client "simple-hash" "a") #"1")
+    (check-equal? (redis-hash-remove! client "simple-hash" "a") 1)
+    (check-equal? (redis-hash-get client "simple-hash") (hash))
+
+    (check-true (redis-hash-set! client "alist-hash" '(("a" . "1")
+                                                       ("b" . "2")
+                                                       ("c" . "3"))))
+    (check-equal? (redis-hash-get client "alist-hash") (hash #"a" #"1"
+                                                             #"b" #"2"
+                                                             #"c" #"3"))
+    (check-equal? (redis-hash-get client "alist-hash" "a") #"1")
+    (check-equal? (redis-hash-get client "alist-hash" "a" "b") (hash #"a" #"1"
+                                                                     #"b" #"2"))
+    (check-equal? (redis-hash-get client "alist-hash" "a" "d" "b") (hash #"a" #"1"
+                                                                         #"b" #"2"
+                                                                         #"d" (redis-null)))
+
+    (check-equal? (redis-hash-length client "notahash") 0)
+    (check-equal? (redis-hash-length client "alist-hash") 3)
+
+    (check-equal? (redis-hash-keys client "notahash") null)
+    (check-equal? (sort (redis-hash-keys client "alist-hash") bytes<?)
+                  (sort'(#"a" #"b" #"c") bytes<?))
+
+    (check-equal? (redis-hash-values client "notahash") null)
+    (check-equal? (sort (redis-hash-values client "alist-hash") bytes<?)
+                  (sort '(#"1" #"2" #"3") bytes<?)))
 
   (test "{M,}GET and SET"
     (check-false (redis-has-key? client "a"))

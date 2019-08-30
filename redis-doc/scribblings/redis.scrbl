@@ -2,6 +2,7 @@
 
 @(require (for-label racket/base
                      racket/contract
+                     racket/dict
                      racket/serialize
                      redis)
           "redis.rkt")
@@ -257,6 +258,80 @@ Each client represents a single TCP connection to the Redis server.
    (quit!) void?)]{
 
   Gracefully disconnects from the server.
+}
+
+
+@;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+@subsubsection{Hash Commands}
+
+@defcmd*[
+  ((HGET HGETALL HMGET)
+   ([(redis-hash-get [client redis?] [key string?] [fld string?]) redis-value/c]
+    [(redis-hash-get [client redis?] [key string?]) (hash/c bytes? bytes?)]
+    [(redis-hash-get [client redis?] [key string?] [fld string?] ...+) (hash/c bytes? bytes?)]))]{
+
+  The first form grabs a single field value from the hash at
+  @racket[key].
+
+  The second form grabs the entire hash at @racket[key].
+
+  The third form grabs the given sub@racket[fld]s from the hash at
+  @racket[key].
+}
+
+@defcmd[
+  ((HEXISTS)
+   (hash-has-key? [key string?]
+                  [fld (or/c bytes? string?)]) boolean?)]{
+
+  Returns @racket[#t] when the hash at @racket[key] has a key named
+  @racket[fld].
+}
+
+@defcmd[
+  ((HKEYS)
+   (hash-keys [key string?]) (listof bytes?))]{
+
+  Returns all the keys belonging to the hash at @racket[key].
+}
+
+@defcmd[
+  ((HLEN)
+   (hash-length [key string?]) exact-nonnegative-integer?)]{
+
+  Returns the length of the hash at @racket[key].
+}
+
+@defcmd[
+  ((HDEL)
+   (hash-remove! [key string?]
+                 [fld (or/c bytes? string?)] ...+) exact-nonnegative-integer?)]{
+
+  Removes one or more @racket[fld]s from the hash at @racket[key] and
+  returns the total number of fields that were removed.
+}
+
+@defcmd*[
+  ((HSET HMSET)
+   ([(redis-hash-set! [client redis?] [key string?] [fld (or/c bytes? string?)] [value (or/c bytes? string?)]) boolean?]
+    [(redis-hash-set! [client redis?] [key string?] [fld-or-value (or/c bytes? string?)] ...+) boolean?]
+    [(redis-hash-set! [client redis?] [key string?] [d dict?]) boolean?]))]{
+
+  The first form sets @racket[fld] to @racket[value] within the hash
+  at @racket[key].
+
+  The second form sets each pair of @racket[fld-or-value] within the
+  hash at @racket[key].  A contract error is raised if an even number
+  of @racket[fld-or-value]s is not provided,
+
+  The third form stores @racket[d] at @racket[key].
+}
+
+@defcmd[
+  ((HVALS)
+   (hash-values [key string?]) (listof bytes?))]{
+
+  Returns all the values of the hash at @racket[key].
 }
 
 
