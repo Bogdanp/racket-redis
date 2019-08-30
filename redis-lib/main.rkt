@@ -8,4 +8,5 @@
 (reprovide
  "private/client.rkt"
  "private/error.rkt"
+ "private/pool.rkt"
  "private/script.rkt")

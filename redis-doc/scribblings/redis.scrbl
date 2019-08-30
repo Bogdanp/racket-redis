@@ -38,9 +38,10 @@ Each client represents a single TCP connection to the Redis server.
 
 @defproc[(make-redis [#:client-name client-name string? "racket-redis"]
                      [#:host host string? "127.0.0.1"]
-                     [#:port port (integer-in 0 65535) 6379]
+                     [#:port port (integer-in 0 65536) 6379]
                      [#:timeout timeout exact-nonnegative-integer? 5]
-                     [#:db db (integer-in 0 16) 0]) redis?]{
+                     [#:db db (integer-in 0 16) 0]
+                     [#:password password (or/c false/c non-empty-string?) #f]) redis?]{
 
   Creates a Redis client and immediately attempts to connect to the
   database at @racket[host] and @racket[port].  The @racket[timeout]
@@ -89,6 +90,7 @@ Each client represents a single TCP connection to the Redis server.
 }
 
 
+
 @subsection[#:tag "scripts"]{Scripts}
 
 @defthing[redis-script/c (->* (redis?)
@@ -104,6 +106,63 @@ Each client represents a single TCP connection to the Redis server.
 
   Returns a function that will execute @racket[lua-script] via
   @exec{EVALSHA} every time it's called.
+}
+
+
+@subsection[#:tag "pooling"]{Connection Pooling}
+
+@defproc[(redis-pool? [v any/c]) boolean?]{
+  Returns @racket[#t] if @racket[v] is a pool of Redis connections.
+}
+
+@defproc[(make-redis-pool [#:client-name client-name non-empty-string? "racket-redis"]
+                          [#:host host non-empty-string? "127.0.0.1"]
+                          [#:port port (integer-in 0 65536) 6379]
+                          [#:timeout timeout exact-nonnegative-integer? 5]
+                          [#:db db (integer-in 0 15) 0]
+                          [#:password password (or/c false/c non-empty-string?) #f]
+                          [#:pool-size pool-size exact-positive-integer? 4]
+                          [#:idle-ttl idle-ttl exact-nonnegative-integer? 3600]) redis-pool?]{
+
+  Create a lazy pool of Redis connections that will contain at most
+  @racket[pool-size] connections.
+
+  Connections that have been idle for more than @racket[idle-ttl]
+  seconds are lazily reconnected.
+
+  All other parameters are passed directly to @racket[make-redis]
+  whenever a new connection is initiated.
+}
+
+@defproc[(call-with-redis-client [pool redis-pool?]
+                                 [proc (-> redis? any)]
+                                 [#:timeout timeout (or/c false/c exact-nonnegative-integer?) #f]) any]{
+
+  Grabs a connection from the @racket[pool] and calls @racket[proc]
+  with it, ensuring that the connection is returned to the pool upon
+  completion.
+
+  Holding on to a connection past the execution of @racket[proc] is a
+  bad idea so don't do it.
+
+  This function blocks until either a connection becomes available or
+  the @racket[timeout] is reached.  If @racket[timeout] is
+  @racket[#f], then the function will block indefinitely.  Upon
+  timeout an @racket[exn:fail:redis:pool:timeout] exception is raised.
+}
+
+
+@subsection[#:tag "exceptions"]{Exceptions}
+
+@deftogether[
+  (@defstruct[(exn:fail:redis exn:fail) ()]
+   @defstruct[(exn:fail:redis:timeout exn:fail:redis) ()]
+   @defstruct[(exn:fail:redis:type exn:fail:redis) ()]
+   @defstruct[(exn:fail:redis:pool exn:fail:redis) ()]
+   @defstruct[(exn:fail:redis:pool:timeout exn:fail:redis:pool) ()])]{
+
+  The various Redis-related exceptions that functions in this package
+  can raise.
 }
 
 

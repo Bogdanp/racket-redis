@@ -9,13 +9,21 @@
 
 ## Basic Usage
 
-``` racket
+```racket
 (require redis)
 
 (define c (make-redis))
 (redis-bytes-set! c "some-key" "hello, world!")
 (redis-bytes-get c "some-key")  ;; => #"hello, world!"
 (redis-bytes-get c "some-key" "some-other-key")  ;; => (list #"hello, world!" (redis-null))
+
+;; or, with a connection pool:
+
+(define pool (make-redis-pool))
+(call-with-redis-client pool
+  (lambda (c)
+    (redis-bytes-set! c "some-key" "hello, world!")
+    (redis-bytes-get c "some-key")))
 ```
 
 ## Missing commands

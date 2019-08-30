@@ -31,17 +31,21 @@
                              #:host [host "127.0.0.1"]
                              #:port [port 6379]
                              #:timeout [timeout 5]
-                             #:db [db 0])
+                             #:db [db 0]
+                             #:password [password #f])
   (->* ()
-       (#:host non-empty-string?
-        #:port (integer-in 0 65535)
+       (#:client-name non-empty-string?
+        #:host non-empty-string?
+        #:port (integer-in 0 65536)
         #:timeout exact-nonnegative-integer?
-        #:db (integer-in 0 16))
+        #:db (integer-in 0 16)
+        #:password (or/c false/c non-empty-string?))
        redis?)
 
   (define client (redis host port timeout #f #f #f #f))
   (begin0 client
     (redis-connect! client)
+    (when password (redis-auth! client password))
     (redis-select-db! client db)
     (redis-set-client-name! client client-name)))
 
