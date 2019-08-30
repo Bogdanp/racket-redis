@@ -84,6 +84,12 @@ Each client represents a single TCP connection to the Redis server.
   @racket[(redis-null)].
 }
 
+@defthing[
+  redis-value/c (or/c bytes? string? exact-integer? (listof redis-value/c) redis-null?)]{
+
+  The contract for Redis response values.
+}
+
 
 @subsection[#:tag "scripts"]{Scripts}
 
@@ -261,6 +267,14 @@ Each client represents a single TCP connection to the Redis server.
 }
 
 @defcmd[
+  ((LRANGE)
+   (list-get [key string?]) redis-value/c)]{
+
+  An alias for @racket[redis-sublist] that retrieves the whole list at
+  @racket[key].
+}
+
+@defcmd[
   ((LINSERT)
    (list-insert! [key string?]
                  [value (or/c bytes? string?)]
@@ -293,17 +307,71 @@ Each client represents a single TCP connection to the Redis server.
 
   Removes and then returns the first value from the list at @racket[key].
 
+  @racketblock[
+    (code:comment "LPOP a")
+    (redis-list-pop-left! client "a")
+  ]
+
   When @racket[block?] is @racket[#t], you can supply multiple
   @racket[key]s to retrieve a value from.  The function will wait up
   to @racket[timeout] seconds for a value and the result will contain
   a list containing the popped key and its value.
+
+  @racketblock[
+    (code:comment "BLPOP a b 0")
+    (redis-list-pop-left! client "a" "b" #:block? #t)
+
+    (code:comment "BLPOP a b 1")
+    (redis-list-pop-left! client "a" "b" #:block? #t #:timeout 1)
+  ]
 }
 
 @defcmd[
-  ((RPOP)
-   (list-pop-right! [key string?]) redis-value/c)]{
+  ((RPOP RPOPLPUSH BRPOP BRPOPLPUSH)
+   (list-pop-right! [key string?] ...+
+                    [#:dest dest string? #f]
+                    [#:block? block? boolean? #f]
+                    [#:timeout timeout exact-nonnegative-integer? 0]) redis-value/c)]{
 
   Removes and then returns the last value from the list at @racket[key].
+
+  @racketblock[
+    (code:comment "RPOP a")
+    (redis-list-pop-right! client "a")
+  ]
+
+  When a @racket[dest] is provided, the popped value is prepended to
+  the list at @racket[dest].  If multiple @racket[key]s are provided
+  along with a @racket[dest], then a contract error is raised.
+
+  @racketblock[
+    (code:comment "RPOPLPUSH a b")
+    (redis-list-pop-right! client "a" #:dest "b")
+
+    (code:comment "BRPOPLPUSH a b 0")
+    (redis-list-pop-right! client "a" #:dest "b" #:block? #t)
+
+    (code:comment "BRPOPLPUSH a b 1")
+    (redis-list-pop-right! client "a" #:dest "b" #:block? #t #:timeout 1)
+  ]
+
+  When @racket[block?] is @racket[#t], you can supply multiple
+  @racket[key]s to retrieve a value from or you can specify a
+  @racket[dest] into which the popped value should be prepended.  The
+  former operation maps to an @exec{BRPOP} and the latter to a
+  @exec{BRPOPLPUSH} command.
+
+  @racketblock[
+    (code:comment "BRPOP a b 0")
+    (redis-list-pop-right! client "a" "b" #:block? #t)
+
+    (code:comment "BRPOP a b 1")
+    (redis-list-pop-right! client "a" "b" #:block? #t #:timeout 1)
+  ]
+
+  In blocking mode, the function will wait up to @racket[timeout]
+  seconds for a value and the result will contain a list containing
+  the popped key and its value.
 }
 
 @defcmd[
@@ -316,20 +384,21 @@ Each client represents a single TCP connection to the Redis server.
 }
 
 @defcmd[
-  ((LRANGE)
-   (list-range [key string?]
-               [#:start start exact-integer? 0]
-               [#:stop stop exact-integer? -1]) redis-value/c)]{
-
-  Returns the sublist between the inclusive indices @racket[start] and
-  @racket[end] of the list at @racket[key].
-}
-
-@defcmd[
   ((LINDEX)
    (list-ref [key string?] [index exact-integer?]) redis-value/c)]{
 
   Returns the item at @racket[index] in @racket[key] or @racket[(redis-null)].
+}
+
+@defcmd[
+  ((LREM)
+   (list-remove! [key string?]
+                 [count exact-integer?]
+                 [value redis-string?]) exact-nonnegative-integer?)]{
+
+  Removes up to @racket[count] @racket[value]s from the list at
+  @racket[key] and returns the total number of items that were
+  removed.
 }
 
 @defcmd[
@@ -348,6 +417,16 @@ Each client represents a single TCP connection to the Redis server.
 
   Removes any elements from the list not included in the inclusive
   range between @racket[start] and @racket[end].
+}
+
+@defcmd[
+  ((LRANGE)
+   (sublist [key string?]
+            [#:start start exact-integer? 0]
+            [#:stop stop exact-integer? -1]) redis-value/c)]{
+
+  Returns the sublist between the inclusive indices @racket[start] and
+  @racket[end] of the list at @racket[key].
 }
 
 

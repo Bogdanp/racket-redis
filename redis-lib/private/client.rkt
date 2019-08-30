@@ -20,6 +20,7 @@
  redis-connect!
  redis-disconnect!
 
+ redis-value/c
  redis-null?
  redis-null)
 
@@ -391,6 +392,7 @@
   #:command-name "LLEN"
   #:result-contract exact-nonnegative-integer?)
 
+;; BLPOP key [key ...] timeout
 ;; LPOP key
 (define/contract/provide (redis-list-pop-left! client key
                                                #:block? [block? #f]
@@ -425,14 +427,18 @@
   #:result-contract exact-nonnegative-integer?)
 
 ;; LRANGE key value start stop
-(define/contract/provide (redis-list-range client key
-                                           #:start [start 0]
-                                           #:stop [stop -1])
+(define/contract/provide (redis-sublist client key
+                                        #:start [start 0]
+                                        #:stop [stop -1])
   (->* (redis? string?)
        (#:start exact-integer?
         #:stop exact-integer?)
        redis-value/c)
   (redis-emit! client "LRANGE" key (number->string start) (number->string stop)))
+
+(define/contract/provide (redis-list-get client key)
+  (-> redis? string? redis-value/c)
+  (redis-sublist client key))
 
 ;; LREM key count value
 (define-simple-command (list-remove! [key string?]
@@ -502,10 +508,56 @@
                     src
                     dest)))
 
+;; BRPOP key [key ...] timeout
+;; BRPOPLPUSH src dest timeout
 ;; RPOP key
-(define-simple-command (list-pop-right! [key string?])
-  #:command-name "RPOP"
-  #:result-contract redis-value/c)
+;; RPOPLPUSH src dest
+(define/contract/provide (redis-list-pop-right! client key
+                                                #:dest [dest #f]
+                                                #:block? [block? #f]
+                                                #:timeout [timeout 0]
+                                                . keys)
+  (->i ([client redis?]
+        [key string?])
+       (#:dest [dest string?]
+        #:block? [block? boolean?]
+        #:timeout [timeout exact-nonnegative-integer?])
+       #:rest [keys (listof string?)]
+
+       #:pre/name (keys block?)
+       "a list of keys may only be provided if block? is #t"
+       (or (null? keys) (equal? block? #t))
+
+       #:pre/name (keys dest)
+       "dest and multiple keys are incompatible"
+       (or (unsupplied-arg? dest) (null? keys))
+
+       #:pre/name (block? timeout)
+       "a timeout may only be provided if block? is #t"
+       (or (unsupplied-arg? timeout) (equal? block? #t))
+
+       [result redis-value/c])
+  ;; This command's timeout must take precedence over the client's,
+  ;; otherwise we risk timing out before the server does and that can
+  ;; leave the connection in a bad state.
+  (define timeout/read (if (> timeout 0) (add1 timeout) #f))
+  (define timeout:str (number->string timeout))
+
+  (cond
+    [(and dest block?)
+     (redis-emit! #:timeout timeout/read
+                  client "BRPOPLPUSH" key dest timeout:str)]
+
+    [dest
+     (redis-emit! client "RPOPLPUSH" key dest)]
+
+    [block?
+     (apply redis-emit!
+            #:timeout timeout/read
+            client "BRPOP" (append (cons key keys) (list timeout:str)))]
+
+    [else
+     (redis-emit! client "RPOP" key)]))
 
 ;; RPUSH key value [value ...]
 (define-variadic-command (list-append! [key string?] . [value redis-string?])
@@ -705,15 +757,15 @@
     (check-equal? (redis-list-prepend! client "a" "2") 2)
     (check-equal? (redis-list-insert! client "a" "3" #:before "1") 3)
     (check-false (redis-list-insert! client "a" "3" #:before "8"))
-    (check-equal? (redis-list-range client "a") '(#"2" #"3" #"1"))
+    (check-equal? (redis-sublist client "a") '(#"2" #"3" #"1"))
     (check-equal? (redis-list-insert! client "a" "4" #:after "3") 4)
-    (check-equal? (redis-list-range client "a") '(#"2" #"3" #"4" #"1")))
+    (check-equal? (redis-sublist client "a") '(#"2" #"3" #"4" #"1")))
 
   (test "LTRIM"
     (check-equal? (redis-list-prepend! client "a" "2") 1)
     (check-equal? (redis-list-prepend! client "a" "2") 2)
     (check-true (redis-list-trim! client "a" #:start 1))
-    (check-equal? (redis-list-range client "a") '(#"2")))
+    (check-equal? (redis-sublist client "a") '(#"2")))
 
   (test "PERSIST, PEXPIRE and PTTL"
     (check-false (redis-expire-in! client "a" 200))
@@ -733,12 +785,41 @@
     (check-false (redis-rename! client "c" "b" #:unless-exists? #t))
     (check-true (redis-has-key? client "c")))
 
-  (test "RPUSH, RPOP"
+  (test "RPUSH, RPOP, BRPOP, BRPOPLPUSH"
     (check-equal? (redis-list-append! client "a" "1") 1)
     (check-equal? (redis-list-append! client "a" "2") 2)
     (check-equal? (redis-list-pop-right! client "a") #"2")
     (check-equal? (redis-list-pop-right! client "a") #"1")
-    (check-equal? (redis-list-pop-right! client "a") (redis-null)))
+    (check-equal? (redis-list-pop-right! client "a") (redis-null))
+
+    (check-exn
+     exn:fail:contract?
+     (lambda _
+       (redis-list-pop-right! client "a" "b")))
+
+    (check-exn
+     exn:fail:contract?
+     (lambda _
+       (redis-list-pop-right! client "a" #:timeout 10)))
+
+    (check-exn
+     exn:fail:contract?
+     (lambda _
+       (redis-list-pop-right! client "a" "b" #:dest "b" #:block? #t)))
+
+    (redis-list-append! client "a" "1")
+    (check-equal? (redis-list-pop-right! client "a" #:block? #t) '(#"a" #"1"))
+
+    (redis-list-append! client "b" "2")
+    (check-equal? (redis-list-pop-right! client "a" "b" #:block? #t) '(#"b" #"2"))
+
+    (redis-list-append! client "b" "2")
+    (check-equal? (redis-list-pop-right! client "b" #:dest "a") #"2")
+    (check-equal? (redis-list-pop-right! client "a") #"2")
+
+    (redis-list-append! client "b" "2")
+    (check-equal? (redis-list-pop-right! client "b" #:dest "a" #:block? #t) #"2")
+    (check-equal? (redis-list-pop-right! client "a") #"2"))
 
   (test "TOUCH"
     (check-equal? (redis-touch! client "a") 0)

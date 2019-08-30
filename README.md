@@ -24,8 +24,6 @@ The commands below are yet to be implemented:
 
 * [ ]  BITFIELD
 * [ ]  BITPOS
-* [ ]  BRPOP
-* [ ]  BRPOPLPUSH
 * [ ]  BZPOPMAX
 * [ ]  BZPOPMIN
 * [ ]  CLIENT KILL
