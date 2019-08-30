@@ -225,15 +225,15 @@
 ;; BGSAVE
 (define-simple-command/ok (bg-save!))
 
-;; BITCOUNT key [start end]
+;; BITCOUNT key [start stop]
 (define/contract/provide (redis-string-bitcount client key
                                                 #:start [start 0]
-                                                #:end [end -1])
+                                                #:stop [stop -1])
   (->* (redis? string?)
        (#:start exact-integer?
-        #:end exact-integer?)
+        #:stop exact-integer?)
        exact-nonnegative-integer?)
-  (redis-emit! client "BITCOUNT" key (number->string start) (number->string end)))
+  (redis-emit! client "BITCOUNT" key (number->string start) (number->string stop)))
 
 ;; CLIENT ID
 (define/contract/provide (redis-client-id client)
@@ -381,9 +381,12 @@
   #:result-contract exact-nonnegative-integer?)
 
 ;; LRANGE key value start stop
-(define/contract/provide (redis-list-range client key [start 0] [stop -1])
+(define/contract/provide (redis-list-range client key
+                                           #:start [start 0]
+                                           #:stop [stop -1])
   (->* (redis? string?)
-       (exact-integer? exact-integer?)
+       (#:start exact-integer?
+        #:stop exact-integer?)
        redis-value/c)
   (redis-emit! client "LRANGE" key (number->string start) (number->string stop)))
 
@@ -399,9 +402,12 @@
   #:command-name "LSET")
 
 ;; LTRIM key value start stop
-(define/contract/provide (redis-list-trim! client key [start 0] [stop -1])
+(define/contract/provide (redis-list-trim! client key
+                                           #:start [start 0]
+                                           #:stop [stop -1])
   (->* (redis? string?)
-       (exact-integer? exact-integer?)
+       (#:start exact-integer?
+        #:stop exact-integer?)
        boolean?)
   (ok? (redis-emit! client "LTRIM" key (number->string start) (number->string stop))))
 
@@ -638,7 +644,7 @@
   (test "LTRIM"
     (check-equal? (redis-list-prepend! client "a" "2") 1)
     (check-equal? (redis-list-prepend! client "a" "2") 2)
-    (check-true (redis-list-trim! client "a" 1))
+    (check-true (redis-list-trim! client "a" #:start 1))
     (check-equal? (redis-list-range client "a") '(#"2")))
 
   (test "PERSIST, PEXPIRE and PTTL"

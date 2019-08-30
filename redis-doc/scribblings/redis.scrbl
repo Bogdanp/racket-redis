@@ -306,8 +306,8 @@ Each client represents a single TCP connection to the Redis server.
 @defcmd[
   ((LRANGE)
    (list-range [key string?]
-                    [start exact-integer? 0]
-                    [stop exact-integer? -1]) redis-value/c)]{
+               [#:start start exact-integer? 0]
+               [#:stop stop exact-integer? -1]) redis-value/c)]{
 
   Returns the sublist between the inclusive indices @racket[start] and
   @racket[end] of the list at @racket[key].
@@ -331,8 +331,8 @@ Each client represents a single TCP connection to the Redis server.
 @defcmd[
   ((LTRIM)
    (list-trim! [key string?]
-                    [start exact-integer? 0]
-                    [stop exact-integer? -1]) boolean?)]{
+               [#:start start exact-integer? 0]
+               [#:stop stop exact-integer? -1]) boolean?)]{
 
   Removes any elements from the list not included in the inclusive
   range between @racket[start] and @racket[end].
@@ -464,7 +464,7 @@ be either @racket[(redis-null)] or @racket[bytes?].
   ((BITCOUNT)
    (bytes-bitcount [key string?]
                    [#:start start exact-integer? 0]
-                   [#:end end exact-integer? -1]) exact-nonnegative-integer?)]{
+                   [#:stop stop exact-integer? -1]) exact-nonnegative-integer?)]{
 
   Counts the bits in the byte string at @racket[key] between
   @racket[start] and @racket[end] using @exec{BITCOUNT}.
