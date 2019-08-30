@@ -267,8 +267,8 @@ Each client represents a single TCP connection to the Redis server.
 @defcmd*[
   ((HGET HGETALL HMGET)
    ([(redis-hash-get [client redis?] [key string?] [fld string?]) redis-value/c]
-    [(redis-hash-get [client redis?] [key string?]) (hash/c bytes? bytes?)]
-    [(redis-hash-get [client redis?] [key string?] [fld string?] ...+) (hash/c bytes? bytes?)]))]{
+    [(redis-hash-get [client redis?] [key string?]) hash?]
+    [(redis-hash-get [client redis?] [key string?] [fld string?] ...+) hash?]))]{
 
   The first form grabs a single field value from the hash at
   @racket[key].

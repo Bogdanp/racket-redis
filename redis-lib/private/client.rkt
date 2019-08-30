@@ -348,8 +348,8 @@
 (define/contract/provide redis-hash-get
   (case->
    (-> redis? string? redis-string? redis-value/c)
-   (-> redis? string? (hash/c bytes? bytes?))
-   (-> redis? string? #:rest (listof redis-string?) (hash/c bytes? bytes?)))
+   (-> redis? string? hash?)
+   (-> redis? string? #:rest (listof redis-string?) hash?))
   (case-lambda
     [(client key f)
      (redis-emit! client "HGET" key f)]
