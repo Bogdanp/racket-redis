@@ -4,11 +4,8 @@
                      racket/syntax
                      syntax/parse)
          racket/contract
-         racket/function
          racket/list
          racket/match
-         racket/port
-         racket/serialize
          racket/string
          racket/tcp
          "error.rkt"
@@ -497,20 +494,6 @@
                                      (list "XX")
                                      (list))))))))
 
-(define redis-set!
-  (make-keyword-procedure
-   (lambda (kws kw-args client key value . args)
-     (define serialized-value
-       (cond
-         [(redis-string? value) value]
-         [else (with-output-to-string
-                 (lambda _
-                   (write (serialize value))))]))
-
-     (keyword-apply redis-bytes-set! kws kw-args client key serialized-value args))))
-
-(provide redis-set!)
-
 ;; TOUCH key [key ...]
 (define-variadic-command (touch! [key0 string?] . [key string?])
   #:result-contract exact-nonnegative-integer?)
@@ -553,7 +536,7 @@
 
   (test "BITCOUNT"
     (check-equal? (redis-string-bitcount client "a") 0)
-    (check-true (redis-set! client "a" "hello"))
+    (check-true (redis-bytes-set! client "a" "hello"))
     (check-equal? (redis-string-bitcount client "a") 21))
 
   (test "CLIENT *"
@@ -564,7 +547,7 @@
 
   (test "DBSIZE"
     (check-equal? (redis-count client) 0)
-    (check-true (redis-set! client "a" "1"))
+    (check-true (redis-bytes-set! client "a" "1"))
     (check-equal? (redis-count client) 1))
 
   (test "DECR and DECRBY"
@@ -573,7 +556,7 @@
     (check-equal? (redis-bytes-decr! client "a" 3) -5)
     (check-equal? (redis-type client "a") 'string)
 
-    (check-true (redis-set! client "a" "1.5"))
+    (check-true (redis-bytes-set! client "a" "1.5"))
     (check-exn
      (lambda (e)
        (and (exn:fail:redis? e)
@@ -584,10 +567,10 @@
   (test "DEL"
     (check-equal? (redis-remove! client "a") 0)
     (check-equal? (redis-remove! client "a" "b") 0)
-    (check-true (redis-set! client "a" "1"))
+    (check-true (redis-bytes-set! client "a" "1"))
     (check-equal? (redis-remove! client "a" "b") 1)
-    (check-true (redis-set! client "a" "1"))
-    (check-true (redis-set! client "b" "2"))
+    (check-true (redis-bytes-set! client "a" "1"))
+    (check-true (redis-bytes-set! client "b" "2"))
     (check-equal? (redis-remove! client "a" "b") 2))
 
   (test "EVAL"
@@ -599,13 +582,13 @@
 
   (test "{M,}GET and SET"
     (check-false (redis-has-key? client "a"))
-    (check-true (redis-set! client "a" "1"))
+    (check-true (redis-bytes-set! client "a" "1"))
     (check-equal? (redis-bytes-ref client "a") #"1")
-    (check-false (redis-set! client "a" "2" #:unless-exists? #t))
+    (check-false (redis-bytes-set! client "a" "2" #:unless-exists? #t))
     (check-equal? (redis-bytes-ref client "a") #"1")
-    (check-false (redis-set! client "b" "2" #:when-exists? #t))
+    (check-false (redis-bytes-set! client "b" "2" #:when-exists? #t))
     (check-false (redis-has-key? client "b"))
-    (check-true (redis-set! client "b" "2" #:unless-exists? #t))
+    (check-true (redis-bytes-set! client "b" "2" #:unless-exists? #t))
     (check-true (redis-has-key? client "b"))
     (check-equal? (redis-bytes-ref client "a" "b") '(#"1" #"2")))
 
@@ -645,7 +628,7 @@
   (test "PERSIST, PEXPIRE and PTTL"
     (check-false (redis-expire-in! client "a" 200))
     (check-equal? (redis-ttl client "a") 'missing)
-    (check-true (redis-set! client "a" "1"))
+    (check-true (redis-bytes-set! client "a" "1"))
     (check-equal? (redis-ttl client "a") 'persisted)
     (check-true (redis-expire-in! client "a" 20))
     (check-true (> (redis-ttl client "a") 5))
@@ -653,8 +636,8 @@
     (check-equal? (redis-ttl client "a") 'persisted))
 
   (test "RENAME"
-    (check-true (redis-set! client "a" "1"))
-    (check-true (redis-set! client "b" "2"))
+    (check-true (redis-bytes-set! client "a" "1"))
+    (check-true (redis-bytes-set! client "b" "2"))
     (check-true (redis-rename! client "a" "c"))
     (check-false (redis-has-key? client "a"))
     (check-false (redis-rename! client "c" "b" #:unless-exists? #t))
@@ -670,8 +653,8 @@
   (test "TOUCH"
     (check-equal? (redis-touch! client "a") 0)
     (check-equal? (redis-touch! client "a" "b") 0)
-    (check-true (redis-set! client "a" "1"))
-    (check-true (redis-set! client "b" "2"))
+    (check-true (redis-bytes-set! client "a" "1"))
+    (check-true (redis-bytes-set! client "b" "2"))
     (check-equal? (redis-touch! client "a" "b" "c") 2))
 
   (check-equal? (redis-quit! client) (void)))

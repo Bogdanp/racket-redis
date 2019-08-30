@@ -86,23 +86,6 @@ Each client represents a single TCP connection to the Redis server.
 
 
 @;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-@subsubsection{Generic Commands}
-
-@defcmd[
-  ((SET)
-   (set! [key string?]
-         [value (or/c bytes? string? serializable?)]
-         [#:expires-in expires-in (or/c false/c exact-nonnegative-integer?) #f]
-         [#:unless-exists? unless-exists? boolean? #f]
-         [#:when-exists? when-exists? boolean? #f]) boolean?)]{
-
-  Like @racket[redis-bytes-set!], but non string-like values are
-  converted to byte strings via @racket[serialize] before they are
-  sent to the server.
-}
-
-
-@;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 @subsubsection{Connection Commands}
 
 @defcmd[
