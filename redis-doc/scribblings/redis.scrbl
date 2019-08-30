@@ -39,13 +39,18 @@ Each client represents a single TCP connection to the Redis server.
 @defproc[(make-redis [#:client-name client-name string? "racket-redis"]
                      [#:host host string? "127.0.0.1"]
                      [#:port port (integer-in 0 65535) 6379]
-                     [#:timeout timeout (and/c rational? positive?) 5]
+                     [#:timeout timeout exact-nonnegative-integer? 5]
                      [#:db db (integer-in 0 16) 0]) redis?]{
 
-  Creates a redis client and immediately attempts to connect to the
+  Creates a Redis client and immediately attempts to connect to the
   database at @racket[host] and @racket[port].  The @racket[timeout]
   parameter controls the maximum amount of time the client will wait
   for any individual response from the database.
+
+  Each Redis client maps to a single connection to the server, meaning
+  that, if whatever command you issue blocks, all other commands
+  issued through the client will also be blocked until that command
+  completes.
 }
 
 @defproc[(redis? [v any/c]) boolean?]{
@@ -281,10 +286,17 @@ Each client represents a single TCP connection to the Redis server.
 }
 
 @defcmd[
-  ((LPOP)
-   (list-pop-left! [key string?]) redis-value/c)]{
+  ((LPOP BLPOP)
+   (list-pop-left! [key string?] ...+
+                   [#:block? block? boolean? #f]
+                   [#:timeout timeout exact-nonnegative-integer? 0]) redis-value/c)]{
 
   Removes and then returns the first value from the list at @racket[key].
+
+  When @racket[block?] is @racket[#t], you can supply multiple
+  @racket[key]s to retrieve a value from.  The function will wait up
+  to @racket[timeout] seconds for a value and the result will contain
+  a list containing the popped key and its value.
 }
 
 @defcmd[

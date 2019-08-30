@@ -34,7 +34,7 @@
   (->* ()
        (#:host non-empty-string?
         #:port (integer-in 0 65535)
-        #:timeout (and/c rational? positive?)
+        #:timeout exact-nonnegative-integer?
         #:db (integer-in 0 16))
        redis?)
 
@@ -93,9 +93,8 @@
     (redis-write (cons cmd args))
     (flush-output)))
 
-(define (take-response! client)
-  (match (sync/timeout (redis-timeout client)
-                       (redis-response-ch client))
+(define (take-response! client timeout)
+  (match (sync/timeout timeout (redis-response-ch client))
     [#f
      (raise (exn:fail:redis:timeout
              "timed out while waiting for response from Redis"
@@ -119,12 +118,14 @@
     (lambda _
       (proc client))))
 
-(define (redis-emit! client command . args)
+(define (redis-emit! client command
+                     #:timeout [timeout (redis-timeout client)]
+                     . args)
   ;; TODO: reconnect here if disconnected.
   (call-with-redis client
     (lambda _
       (send-request! client command args)
-      (take-response! client))))
+      (take-response! client timeout))))
 
 (begin-for-syntax
   (define non-alpha-re #rx"[^a-z]+")
@@ -391,9 +392,32 @@
   #:result-contract exact-nonnegative-integer?)
 
 ;; LPOP key
-(define-simple-command (list-pop-left! [key string?])
-  #:command-name "LPOP"
-  #:result-contract redis-value/c)
+(define/contract/provide (redis-list-pop-left! client key
+                                               #:block? [block? #f]
+                                               #:timeout [timeout 0]
+                                               . keys)
+  (->i ([client redis?]
+        [key string?])
+       (#:block? [block? boolean?]
+        #:timeout [timeout exact-nonnegative-integer?])
+       #:rest [keys (listof string?)]
+
+       #:pre/name (keys block?)
+       "a list of keys may only be provided if block? is #t"
+       (or (null? keys) (equal? block? #t))
+
+       #:pre/name (block? timeout)
+       "a timeout may only be provided if block? is #t"
+       (or (unsupplied-arg? timeout) (equal? block? #t))
+
+       [result redis-value/c])
+  (if block?
+      (apply redis-emit! client "BLPOP" (append (cons key keys) (list (number->string timeout)))
+             ;; This command's timeout must take precedence over the
+             ;; client's, otherwise we risk timing out before the server
+             ;; does and that can leave the connection in a bad state.
+             #:timeout (if (> timeout 0) (add1 timeout) #f))
+      (redis-emit! client "LPOP" key)))
 
 ;; LPUSH key value [value ...]
 (define-variadic-command (list-prepend! [key string?] . [value redis-string?])
@@ -550,8 +574,7 @@
 (module+ test
   (require rackunit)
 
-  (define client
-    (make-redis #:timeout 0.1))
+  (define client (make-redis))
 
   (define-syntax-rule (test message e0 e ...)
     (test-case message
@@ -650,7 +673,7 @@
     (check-equal? (redis-bytes-incr! client "a" 1.5) "6.5")
     (check-equal? (redis-key-type client "a") 'string))
 
-  (test "LINDEX, LLEN, LPUSH, LPOP"
+  (test "LINDEX, LLEN, LPUSH, LPOP, BLPOP"
     (check-equal? (redis-list-length client "a") 0)
     (check-equal? (redis-list-prepend! client "a" "1") 1)
     (check-equal? (redis-list-prepend! client "a" "2" "3") 3)
@@ -659,7 +682,23 @@
     (check-equal? (redis-list-pop-left! client "a") #"3")
     (check-equal? (redis-list-pop-left! client "a") #"2")
     (check-equal? (redis-list-pop-left! client "a") #"1")
-    (check-equal? (redis-list-pop-left! client "a") (redis-null)))
+    (check-equal? (redis-list-pop-left! client "a") (redis-null))
+
+    (check-exn
+     exn:fail:contract?
+     (lambda _
+       (redis-list-pop-left! client "a" "b")))
+
+    (check-exn
+     exn:fail:contract?
+     (lambda _
+       (redis-list-pop-left! client "a" #:timeout 10)))
+
+    (redis-list-append! client "a" "1")
+    (check-equal? (redis-list-pop-left! client "a" #:block? #t) '(#"a" #"1"))
+
+    (redis-list-append! client "b" "2")
+    (check-equal? (redis-list-pop-left! client "a" "b" #:block? #t) '(#"b" #"2")))
 
   (test "LINSERT"
     (check-equal? (redis-list-prepend! client "a" "1") 1)
