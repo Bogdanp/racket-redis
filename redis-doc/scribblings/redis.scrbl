@@ -16,6 +16,22 @@ This package provides up-to-date bindings to the Redis database.
 @section[#:tag "reference"]{Reference}
 @defmodule[redis]
 
+The functions in this package are named differently from their Redis
+counterparts to avoid confusion as much as possible.  The rule is that
+when a function name is ambiguous with regards to the type of value it
+operates on, then it must contain the type in its name.
+
+For example, rather than exposing a function called @exec{redis-ref}
+for looking up keys, we expose @racket[redis-bytes-ref] so that it is
+clear to the user that they're about to receive one or more byte
+strings.  On the other hand, @racket[redis-rename!] doesn't need to be
+prefixed, because the operation can only refer to renaming a key.
+
+If you're looking to run a particular command but are not sure what
+the associated function's name is, simply search this documentation
+for that command.  The documentation for each function names the
+commands said function relies on.
+
 @subsection[#:tag "client"]{The Client}
 
 Each client represents a single TCP connection to the Redis server.
@@ -203,7 +219,10 @@ Each client represents a single TCP connection to the Redis server.
   the number of keys that were updated.
 }
 
-@defcmd[(ttl [key string?]) (or/c 'missing 'persisted exact-nonnegative-integer?)]{
+@defcmd[
+  ((PTTL)
+   (key-ttl [key string?]) (or/c 'missing 'persisted exact-nonnegative-integer?))]{
+
   Returns the number of milliseconds before @racket[key] expires.
 
   If @racket[key] is not present on the server, then @racket['missing]
@@ -213,7 +232,10 @@ Each client represents a single TCP connection to the Redis server.
   @racket['persisted] is returned.
 }
 
-@defcmd[(type [key string?]) (or/c 'none 'string 'list 'set 'zset 'hash 'stream)]{
+@defcmd[
+  ((TYPE)
+   (key-type [key string?]) (or/c 'none 'string 'list 'set 'zset 'hash 'stream))]{
+
   Returns @racket[key]'s type.
 }
 
@@ -480,10 +502,10 @@ be either @racket[(redis-null)] or @racket[bytes?].
 @defcmd[
   ((SET)
    (bytes-set! [key string?]
-                [value (or/c bytes? string?)]
-                [#:expires-in expires-in (or/c false/c exact-nonnegative-integer?) #f]
-                [#:unless-exists? unless-exists? boolean? #f]
-                [#:when-exists? when-exists? boolean? #f]) boolean?)]{
+               [value (or/c bytes? string?)]
+               [#:expires-in expires-in (or/c false/c exact-nonnegative-integer?) #f]
+               [#:unless-exists? unless-exists? boolean? #f]
+               [#:when-exists? when-exists? boolean? #f]) boolean?)]{
 
   @exec{SET}s @racket[key] to @racket[value].  Byte string
   @racket[value]s are written to the server as-is, strings are

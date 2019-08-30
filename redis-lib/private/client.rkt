@@ -415,7 +415,7 @@
   #:command-name "PEXPIREAT")
 
 ;; PTTL key
-(define-simple-command (ttl [key string?])
+(define-simple-command (key-ttl [key string?])
   #:command-name "PTTL"
   #:result-contract (or/c 'missing 'persisted exact-nonnegative-integer?)
   #:result-name res
@@ -512,7 +512,8 @@
   #:result-contract exact-nonnegative-integer?)
 
 ;; TYPE key
-(define-simple-command (type [key string?])
+(define-simple-command (key-type [key string?])
+  #:command-name "TYPE"
   #:result-contract (or/c 'none 'string 'list 'set 'zset 'hash 'stream)
   #:result-name res
   (string->symbol res))
@@ -567,7 +568,7 @@
     (check-equal? (redis-bytes-decr! client "a") -1)
     (check-equal? (redis-bytes-decr! client "a") -2)
     (check-equal? (redis-bytes-decr! client "a" 3) -5)
-    (check-equal? (redis-type client "a") 'string)
+    (check-equal? (redis-key-type client "a") 'string)
 
     (check-true (redis-bytes-set! client "a" "1.5"))
     (check-exn
@@ -610,7 +611,7 @@
     (check-equal? (redis-bytes-incr! client "a") 2)
     (check-equal? (redis-bytes-incr! client "a" 3) 5)
     (check-equal? (redis-bytes-incr! client "a" 1.5) "6.5")
-    (check-equal? (redis-type client "a") 'string))
+    (check-equal? (redis-key-type client "a") 'string))
 
   (test "LINDEX, LLEN, LPUSH, LPOP"
     (check-equal? (redis-list-length client "a") 0)
@@ -640,13 +641,13 @@
 
   (test "PERSIST, PEXPIRE and PTTL"
     (check-false (redis-expire-in! client "a" 200))
-    (check-equal? (redis-ttl client "a") 'missing)
+    (check-equal? (redis-key-ttl client "a") 'missing)
     (check-true (redis-bytes-set! client "a" "1"))
-    (check-equal? (redis-ttl client "a") 'persisted)
+    (check-equal? (redis-key-ttl client "a") 'persisted)
     (check-true (redis-expire-in! client "a" 20))
-    (check-true (> (redis-ttl client "a") 5))
+    (check-true (> (redis-key-ttl client "a") 5))
     (check-true (redis-persist! client "a"))
-    (check-equal? (redis-ttl client "a") 'persisted))
+    (check-equal? (redis-key-ttl client "a") 'persisted))
 
   (test "RENAME"
     (check-true (redis-bytes-set! client "a" "1"))
