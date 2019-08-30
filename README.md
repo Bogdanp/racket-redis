@@ -107,7 +107,6 @@ The commands below are yet to be implemented:
 * [ ]  MEMORY USAGE
 * [ ]  MIGRATE
 * [ ]  MONITOR
-* [ ]  MOVE
 * [ ]  MSET
 * [ ]  MSETNX
 * [ ]  MULTI

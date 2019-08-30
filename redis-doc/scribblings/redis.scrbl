@@ -287,6 +287,14 @@ Each client represents a single TCP connection to the Redis server.
 }
 
 @defcmd[
+  ((MOVE)
+   (move-key! [key string?]
+              [db (integer-in 0 16)]) boolean?)]{
+
+  Move @racket[key] from the current database into @racket[db].
+}
+
+@defcmd[
   ((PERSIST)
    (persist! [key string?]) boolean?)]{
 

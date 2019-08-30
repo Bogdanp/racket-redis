@@ -453,6 +453,10 @@
        boolean?)
   (ok? (redis-emit! client "LTRIM" key (number->string start) (number->string stop))))
 
+;; MOVE key db
+(define-simple-command/1 (move-key! [key string?] [db (integer-in 0 16) #:converter number->string])
+  #:command-name "MOVE")
+
 ;; PERSIST key
 (define-simple-command/1 (persist! [key string?]))
 
