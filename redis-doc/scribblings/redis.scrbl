@@ -394,7 +394,7 @@ Each client represents a single TCP connection to the Redis server.
   ((LREM)
    (list-remove! [key string?]
                  [count exact-integer?]
-                 [value redis-string?]) exact-nonnegative-integer?)]{
+                 [value (or/c bytes? string?)]) exact-nonnegative-integer?)]{
 
   Removes up to @racket[count] @racket[value]s from the list at
   @racket[key] and returns the total number of items that were

@@ -6,10 +6,13 @@ jobs:
     steps:
     - uses: actions/checkout@master
     - name: build
-      uses: jackfirth/racket-package-ci-action@v0.1.1
+      uses: docker://bogdanp/racket:7.3
       with:
-        name: redis-lib
-        directory: redis-lib
+        entrypoint: /github/workspace/ci/build.sh
+    - name: test
+      uses: docker://bogdanp/racket:7.3
+      with:
+        entrypoint: /github/workspace/ci/test.sh
     services:
       redis:
         image: redis

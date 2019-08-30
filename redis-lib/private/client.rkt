@@ -626,7 +626,8 @@
 (module+ test
   (require rackunit)
 
-  (define client (make-redis))
+  (define client
+    (make-redis #:host (or (getenv "REDIS_HOST") "127.0.0.1")))
 
   (define-syntax-rule (test message e0 e ...)
     (test-case message
