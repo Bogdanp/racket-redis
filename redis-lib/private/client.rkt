@@ -611,6 +611,14 @@
                                      (list "XX")
                                      (list))))))))
 
+;; TIME
+(define-simple-command (time)
+  #:result-contract real?
+  #:result-name res
+  (define-values (seconds micros)
+    (apply values (map (compose1 string->number bytes->string/utf-8) res)))
+  (real->double-flonum (+ (* seconds 1000) (/ micros 1000))))
+
 ;; TOUCH key [key ...]
 (define-variadic-command (touch! [key0 string?] . [key string?])
   #:result-contract exact-nonnegative-integer?)

@@ -149,8 +149,6 @@ The commands below are yet to be implemented:
 * [ ]  SUNIONSTORE
 * [ ]  SWAPDB
 * [ ]  SYNC
-* [ ]  TIME
-* [ ]  TYPE
 * [ ]  UNLINK
 * [ ]  UNSUBSCRIBE
 * [ ]  UNWATCH

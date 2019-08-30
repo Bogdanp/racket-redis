@@ -533,6 +533,13 @@ Each client represents a single TCP connection to the Redis server.
   Deletes everything in the current database.
 }
 
+@defcmd[
+  ((TIME)
+   (time) real?)]{
+
+  The current server time in milliseconds.
+}
+
 
 @;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 @subsubsection{String/bytes Commands}
