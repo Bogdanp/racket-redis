@@ -214,7 +214,10 @@ Each client represents a single TCP connection to the Redis server.
   renamed if a key named @racket[dest] does not already exist.
 }
 
-@defcmd[(touch! [key string?] ...+) exact-nonnegative-integer?]{
+@defcmd[
+  ((TOUCH)
+   (touch! [key string?] ...+) exact-nonnegative-integer?)]{
+
   Updates the last modification time for each @racket[key] and returns
   the number of keys that were updated.
 }
@@ -420,7 +423,7 @@ Each client represents a single TCP connection to the Redis server.
 
 @defcmd[
   ((DBSIZE)
-   (count) exact-nonnegative-integer?)]{
+   (key-count) exact-nonnegative-integer?)]{
 
   Returns the number of keys in the database.
 }

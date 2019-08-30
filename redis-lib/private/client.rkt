@@ -251,7 +251,7 @@
   (ok? (redis-emit! client "CLIENT" "SETNAME" name)))
 
 ;; DBSIZE
-(define-simple-command (count)
+(define-simple-command (key-count)
   #:command-name "DBSIZE"
   #:result-contract exact-integer?)
 
@@ -388,7 +388,9 @@
   (redis-emit! client "LRANGE" key (number->string start) (number->string stop)))
 
 ;; LREM key count value
-(define-simple-command (list-remove! [key string?] [count exact-integer?] [value redis-string?])
+(define-simple-command (list-remove! [key string?]
+                                     [count exact-integer?]
+                                     [value redis-string?])
   #:command-name "LREM"
   #:result-contract exact-nonnegative-integer?)
 
@@ -560,9 +562,9 @@
     (check-equal? (redis-client-name client) "custom-name"))
 
   (test "DBSIZE"
-    (check-equal? (redis-count client) 0)
+    (check-equal? (redis-key-count client) 0)
     (check-true (redis-bytes-set! client "a" "1"))
-    (check-equal? (redis-count client) 1))
+    (check-equal? (redis-key-count client) 1))
 
   (test "DECR and DECRBY"
     (check-equal? (redis-bytes-decr! client "a") -1)
