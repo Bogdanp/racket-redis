@@ -221,72 +221,93 @@ Each client represents a single TCP connection to the Redis server.
 @;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 @subsubsection{List Commands}
 
-@defcmd[(list-append! [key string?]
-                      [value (or/c bytes? string?)]) (or/c false/c exact-nonnegative-integer?)]{
+@defcmd[
+  ((RPUSH)
+   (list-append! [key string?]
+                 [value (or/c bytes? string?)]) (or/c false/c exact-nonnegative-integer?))]{
 
   Appends @racket[value] to the list at @racket[key], returning the
   new length of the list.
 }
 
-@defcmd[(list-insert-after! [key string?]
-                            [pivot (or/c bytes? string?)]
-                            [value (or/c bytes? string?)]) (or/c false/c exact-nonnegative-integer?)]{
+@defcmd[
+  ((LINSERT)
+   (list-insert! [key string?]
+                 [value (or/c bytes? string?)]
+                 [#:after pivot/after (or/c bytes? string?)]
+                 [#:before pivot/before (or/c bytes? string?)]) (or/c false/c exact-nonnegative-integer?))]{
 
-  Inserts @racket[value] into the list at @racket[key] after the
-  first occurrence of @racket[pivot], returning the new size of the
-  list.  If @racket[key] is not a list, then @racket[#f] is returned.
+  Inserts @racket[value] into the list at @racket[key]
+  @racket[#:before] or @racket[#:after] the first occurrence of
+  @racket[pivot/before] or @racket[pivot/after], respectively,
+  returning the new size of the list.
+
+  If @racket[key] is not a list, then @racket[#f] is returned.
+
+  If both @racket[#:after] and @racket[#:before] are provided, an
+  @racket[exn:fail:contract] error is raised.
 }
 
-@defcmd[(list-insert-before! [key string?]
-                             [pivot (or/c bytes? string?)]
-                             [value (or/c bytes? string?)]) (or/c false/c exact-nonnegative-integer?)]{
+@defcmd[
+  ((LLEN)
+   (list-length [key string?]) exact-nonnegative-integer?)]{
 
-  Inserts @racket[value] into the list at @racket[key] before the
-  first occurrence of @racket[pivot], returning the new size of the
-  list.  If @racket[key] is not a list, then @racket[#f] is returned.
-}
-
-@defcmd[(list-length [key string?]) exact-nonnegative-integer?]{
   Returns the length of the list at @racket[key].
 }
 
-@defcmd[(list-pop-left! [key string?]) maybe-redis-value/c]{
+@defcmd[
+  ((LPOP)
+   (list-pop-left! [key string?]) maybe-redis-value/c)]{
 
   Removes and then returns the first value from the list at @racket[key].
 }
 
-@defcmd[(list-pop-right! [key string?]) maybe-redis-value/c]{
+@defcmd[
+  ((RPOP)
+   (list-pop-right! [key string?]) maybe-redis-value/c)]{
 
   Removes and then returns the last value from the list at @racket[key].
 }
 
-@defcmd[(list-prepend! [key string?]
-                       [value (or/c bytes? string?)]) (or/c false/c exact-nonnegative-integer?)]{
+@defcmd[
+  ((LPUSH)
+   (list-prepend! [key string?]
+                  [value (or/c bytes? string?)]) (or/c false/c exact-nonnegative-integer?))]{
 
   Prepends @racket[value] to the list at @racket[key], returning the
   new length of the list.
 }
 
-@defcmd[(list-range [key string?]
+@defcmd[
+  ((LRANGE)
+   (list-range [key string?]
                     [start exact-integer? 0]
-                    [stop exact-integer? -1]) maybe-redis-value/c]{
+                    [stop exact-integer? -1]) maybe-redis-value/c)]{
 
   Returns the sublist between the inclusive indices @racket[start] and
   @racket[end] of the list at @racket[key].
 }
 
-@defcmd[(list-ref [key string?] [index exact-integer?]) maybe-redis-value/c]{
+@defcmd[
+  ((LINDEX)
+   (list-ref [key string?] [index exact-integer?]) maybe-redis-value/c)]{
+
   Returns the item at @racket[index] in @racket[key] or @racket[(redis-null)].
 }
 
-@defcmd[(list-set! [key string?] [index exact-integer?] [value (or/c bytes? string?)]) boolean?]{
+@defcmd[
+  ((LSET)
+   (list-set! [key string?] [index exact-integer?] [value (or/c bytes? string?)]) boolean?)]{
+
   Sets the value at @racket[index] in the list at @racket[key] to
   @racket[value].
 }
 
-@defcmd[(list-trim! [key string?]
+@defcmd[
+  ((LTRIM)
+   (list-trim! [key string?]
                     [start exact-integer? 0]
-                    [stop exact-integer? -1]) boolean?]{
+                    [stop exact-integer? -1]) boolean?)]{
 
   Removes any elements from the list not included in the inclusive
   range between @racket[start] and @racket[end].

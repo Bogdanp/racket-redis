@@ -340,16 +340,29 @@
   #:command-name "LINDEX"
   #:result-contract maybe-redis-value/c)
 
-;; LINSERT key BEFORE pivot value
-(define/contract/provide (redis-list-insert-before! client key pivot value)
-  (-> redis? string? string? string? (or/c false/c exact-nonnegative-integer?))
-  (define res (redis-emit! client "LINSERT" key "BEFORE" pivot value))
-  (and (not (= res -1)) res))
-
 ;; LINSERT key AFTER pivot value
-(define/contract/provide (redis-list-insert-after! client key pivot value)
-  (-> redis? string? string? string? (or/c false/c exact-nonnegative-integer?))
-  (define res (redis-emit! client "LINSERT" key "AFTER" pivot value))
+;; LINSERT key BEFORE pivot value
+(define/contract/provide (redis-list-insert! client key value
+                                             #:after [pivot/after #f]
+                                             #:before [pivot/before #f])
+  (->i ([client redis?]
+        [key string?]
+        [value redis-string?])
+       (#:after [pivot/after redis-string?]
+        #:before [pivot/before redis-string?])
+
+       #:pre/name (pivot/after pivot/before)
+       "either after or before, but not both"
+       (or (and pivot/after (unsupplied-arg? pivot/before))
+           (and pivot/before (unsupplied-arg? pivot/after)))
+
+       [result (or/c false/c exact-nonnegative-integer?)])
+  (define args
+    (if pivot/after
+        (list "AFTER"  pivot/after  value)
+        (list "BEFORE" pivot/before value)))
+
+  (define res (apply redis-emit! client "LINSERT" key args))
   (and (not (= res -1)) res))
 
 ;; LLEN key
@@ -613,10 +626,10 @@
   (test "LINSERT"
     (check-equal? (redis-list-prepend! client "a" "1") 1)
     (check-equal? (redis-list-prepend! client "a" "2") 2)
-    (check-equal? (redis-list-insert-before! client "a" "1" "3") 3)
-    (check-false (redis-list-insert-before! client "a" "8" "3"))
+    (check-equal? (redis-list-insert! client "a" "3" #:before "1") 3)
+    (check-false (redis-list-insert! client "a" "3" #:before "8"))
     (check-equal? (redis-list-range client "a") '(#"2" #"3" #"1"))
-    (check-equal? (redis-list-insert-after! client "a" "3" "4") 4)
+    (check-equal? (redis-list-insert! client "a" "4" #:after "3") 4)
     (check-equal? (redis-list-range client "a") '(#"2" #"3" #"4" #"1")))
 
   (test "LTRIM"
