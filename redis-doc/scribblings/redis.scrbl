@@ -788,7 +788,7 @@ Each client represents a single TCP connection to the Redis server.
 @;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 @subsubsection{Stream Commands}
 
-@defstruct[redis-stream-entry ([id string?]
+@defstruct[redis-stream-entry ([id bytes?]
                                [fields (hash/c bytes? bytes?)])]{
 
   A struct representing individual entries within a stream.
@@ -858,10 +858,70 @@ Each client represents a single TCP connection to the Redis server.
 }
 
 @defcmd[
+  ((XGROUP_DELCONSUMER)
+   (stream-consumer-remove! [key redis-key/c]
+                            [group redis-string/c]
+                            [consumer redis-string/c]) boolean?)]{
+
+  Removes @racket[consumer] from the stream group named @racket[group]
+  belonging to the stream at @racket[key].
+}
+
+@defcmd[
   ((XINFO_GROUPS)
    (stream-groups [key redis-key/c]) (listof redis-stream-group?))]{
 
   Returns all of the groups belonging to the stream at @racket[key].
+}
+
+@defcmd[
+  ((XGROUP_CREATE)
+   (stream-group-create! [key redis-key/c]
+                         [group redis-string/c]
+                         [starting-id redis-string/c]) boolean?)]{
+
+  Creates a stream group called @racket[group] for the stream at
+  @racket[key].
+}
+
+@defcmd[
+  ((XREADGROUP)
+   (stream-group-read! [#:group group redis-string/c]
+                       [#:consumer consumer redis-string/c]
+                       [#:limit limit (or/c false/c exact-positive-integer?) #f]
+                       [#:block? block? boolean? #f]
+                       [#:timeout timeout exact-nonnegative-integer? 0]
+                       [#:no-ack? no-ack? boolean? #f]
+                       [key-or-id redis-string/c] ...+) (or/c false/c (listof (list/c bytes? (listof redis-stream-entry?)))))]{
+
+  Reads entries from a stream group for every stream and id pair given
+  via @racket[key-or-id] and returns a list of lists where the
+  @racket[first] element of sublist is the name of the stream and the
+  @racket[second] is the list of entries retrieved for that stream.
+
+  An @racket[even?] number of @racket[key-or-id] items must be
+  provided.  The items make up a list of pairs where the first is a
+  key representing a stream and the second is the id within that
+  stream after which to start reading.
+}
+
+@defcmd[
+  ((XGROUP_REMOVE)
+   (stream-group-remove! [key redis-key/c]
+                         [group redis-string/c]) boolean?)]{
+
+  Removes the group named @racket[group] from the stream at
+  @racket[key].
+}
+
+@defcmd[
+  ((XGROUP_SETID)
+   (stream-group-set-id! [key redis-key/c]
+                         [group redis-string/c]
+                         [id redis-string/c]) boolean?)]{
+
+  Sets the starting @racket[id] for the stream group named
+  @racket[group] belonging to the stream at @racket[key].
 }
 
 @defcmd[

@@ -145,12 +145,9 @@ The commands below are yet to be implemented:
 * [ ]  UNWATCH
 * [ ]  WAIT
 * [ ]  WATCH
-* [ ]  XACK
 * [ ]  XCLAIM
-* [ ]  XGROUP
 * [ ]  XPENDING
 * [ ]  XREAD
-* [ ]  XREADGROUP
 * [ ]  XREVRANGE
 * [ ]  XTRIM
 * [ ]  ZADD
