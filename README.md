@@ -42,37 +42,6 @@ The commands below are yet to be implemented:
 * [ ]  MSETNX
 * [ ]  PSETEX
 
-### Client
-
-* [ ]  CLIENT KILL
-* [ ]  CLIENT LIST
-* [ ]  CLIENT REPLY
-* [ ]  CLIENT UNBLOCK
-
-### Cluster
-
-* [ ]  CLUSTER ADDSLOTS
-* [ ]  CLUSTER COUNT-FAILURE-REPORTS
-* [ ]  CLUSTER COUNTKEYSINSLOT
-* [ ]  CLUSTER DELSLOTS
-* [ ]  CLUSTER FAILOVER
-* [ ]  CLUSTER FORGET
-* [ ]  CLUSTER GETKEYSINSLOT
-* [ ]  CLUSTER INFO
-* [ ]  CLUSTER KEYSLOT
-* [ ]  CLUSTER MEET
-* [ ]  CLUSTER NODES
-* [ ]  CLUSTER REPLICAS
-* [ ]  CLUSTER REPLICATE
-* [ ]  CLUSTER RESET
-* [ ]  CLUSTER SAVECONFIG
-* [ ]  CLUSTER SET-CONFIG-EPOCH
-* [ ]  CLUSTER SETSLOT
-* [ ]  CLUSTER SLAVES
-* [ ]  CLUSTER SLOTS
-* [ ]  READONLY
-* [ ]  READWRITE
-
 ### Geo
 
 * [ ]  GEOADD
@@ -89,10 +58,6 @@ The commands below are yet to be implemented:
 * [ ]  HSCAN
 * [ ]  HSETNX
 * [ ]  HSTRLEN
-
-### Keys
-
-* [ ]  MIGRATE
 
 ### Lists
 
