@@ -250,19 +250,22 @@
      (check-true (redis-bytes-set! test-client "b" "2"))
      (check-equal? (redis-touch! test-client "a" "b" "c") 2))
 
-   (test-commands "X*"
-     (define first-id (redis-stream-add! test-client "a" "message" "hello"))
-     (define second-id (redis-stream-add! test-client "a" "message" "goodbye"))
-     (check-equal? (redis-stream-length test-client "a") 2)
-     (define info (redis-stream-get test-client "a"))
-     (check-equal? (redis-stream-info-length info) 2)
-     (check-equal? (redis-stream-range test-client "a")
-                   (list (redis-stream-info-first-entry info)
-                         (redis-stream-info-last-entry info)))
-     (check-equal? (redis-stream-remove! test-client "a" first-id) 1)
-     (check-equal? (redis-stream-remove! test-client "a" first-id) 0)
-     (check-equal? (redis-stream-range test-client "a")
-                   (list (redis-stream-info-last-entry info))))
+   (test-suite
+    "streams"
+
+    (test-commands "XADD, XDEL, XINFO, XLEN and XRANGE"
+      (define first-id (redis-stream-add! test-client "a" "message" "hello"))
+      (define second-id (redis-stream-add! test-client "a" "message" "goodbye"))
+      (check-equal? (redis-stream-length test-client "a") 2)
+      (define info (redis-stream-get test-client "a"))
+      (check-equal? (redis-stream-info-length info) 2)
+      (check-equal? (redis-stream-range test-client "a")
+                    (list (redis-stream-info-first-entry info)
+                          (redis-stream-info-last-entry info)))
+      (check-equal? (redis-stream-remove! test-client "a" first-id) 1)
+      (check-equal? (redis-stream-remove! test-client "a" first-id) 0)
+      (check-equal? (redis-stream-range test-client "a")
+                    (list (redis-stream-info-last-entry info)))))
 
    (check-equal? (redis-quit! test-client) (void))))
 

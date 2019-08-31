@@ -97,6 +97,9 @@
 
 (define (redis-read-array in)
   (match (regexp-match array-re in)
+    [(list _ #"-1" _)
+     (redis-null)]
+
     [(list _ n:str _)
      (for/list ([_ (in-range (string->number (bytes->string/utf-8 n:str)))])
        (redis-read in))]

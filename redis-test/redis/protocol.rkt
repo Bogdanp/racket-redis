@@ -51,6 +51,9 @@
     (test-suite
      "redis-read-array"
 
+     (check-equal? (redis-read (open-input-string "*-1\r\n\r\n"))
+                   (redis-null))
+
      (check-equal? (redis-read (open-input-string "*2\r\n$3\r\nfoo\r\n$3\r\nbar\r\n"))
                    (list #"foo" #"bar"))
 
