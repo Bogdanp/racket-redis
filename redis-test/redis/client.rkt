@@ -92,7 +92,7 @@
      (check-true (redis-hash-set! test-client "simple-hash" "a" "1"))
      (check-true (redis-hash-has-key? test-client "simple-hash" "a"))
      (check-equal? (redis-hash-get test-client "simple-hash") (hash #"a" #"1"))
-     (check-equal? (redis-hash-get test-client "simple-hash" "a") #"1")
+     (check-equal? (redis-hash-ref test-client "simple-hash" "a") #"1")
      (check-equal? (redis-hash-remove! test-client "simple-hash" "a") 1)
      (check-equal? (redis-hash-get test-client "simple-hash") (hash))
 
@@ -102,7 +102,7 @@
      (check-equal? (redis-hash-get test-client "alist-hash") (hash #"a" #"1"
                                                                    #"b" #"2"
                                                                    #"c" #"3"))
-     (check-equal? (redis-hash-get test-client "alist-hash" "a") #"1")
+     (check-equal? (redis-hash-ref test-client "alist-hash" "a") #"1")
      (check-equal? (redis-hash-get test-client "alist-hash" "a" "b") (hash #"a" #"1"
                                                                            #"b" #"2"))
      (check-equal? (redis-hash-get test-client "alist-hash" "a" "d" "b") (hash #"a" #"1"

@@ -369,17 +369,17 @@
   #:command-name "HEXISTS")
 
 ;; HGET key field
+(define-simple-command (hash-ref [key redis-key/c] [fld redis-string/c])
+  #:command-name "HGET"
+  #:result-contract redis-value/c)
+
 ;; HGETALL key
 ;; HMGET key field [field ...]
 (define/contract/provide redis-hash-get
   (case->
-   (-> redis? redis-key/c redis-string/c redis-value/c)
    (-> redis? redis-key/c hash?)
    (-> redis? redis-key/c #:rest (listof redis-string/c) hash?))
   (case-lambda
-    [(client key f)
-     (redis-emit! client "HGET" key f)]
-
     [(client key)
      (apply hash (redis-emit! client "HGETALL" key))]
 
@@ -924,7 +924,7 @@
         [id redis-string/c])
        (#:limit [limit (or/c false/c exact-positive-integer?)]
         #:block? [block? boolean?]
-        #:timeout [timeout exact-positive-integer?]
+        #:timeout [timeout exact-nonnegative-integer?]
         #:no-ack? [no-ack? boolean?])
        #:rest [key-or-ids (listof redis-string/c)]
 

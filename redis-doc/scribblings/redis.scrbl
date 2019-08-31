@@ -265,17 +265,13 @@ Each client represents a single TCP connection to the Redis server.
 @subsubsection{Hash Commands}
 
 @defcmd*[
-  ((HGET HGETALL HMGET)
-   ([(redis-hash-get [client redis?] [key redis-key/c] [fld redis-string/c]) redis-value/c]
-    [(redis-hash-get [client redis?] [key redis-key/c]) hash?]
+  ((HGETALL HMGET)
+   ([(redis-hash-get [client redis?] [key redis-key/c]) hash?]
     [(redis-hash-get [client redis?] [key redis-key/c] [fld redis-string/c] ...+) hash?]))]{
 
-  The first form grabs a single field value from the hash at
-  @racket[key].
+  The first form grabs the entire hash at @racket[key].
 
-  The second form grabs the entire hash at @racket[key].
-
-  The third form grabs the given sub@racket[fld]s from the hash at
+  The second form grabs the given sub@racket[fld]s from the hash at
   @racket[key].
 }
 
@@ -303,6 +299,14 @@ Each client represents a single TCP connection to the Redis server.
 }
 
 @defcmd[
+  ((HGET)
+   (hash-ref [key redis-key/c]
+             [fld redis-string/c]) redis-value/c)]{
+
+  Grabs a single field value from the hash at @racket[key].
+}
+
+@defcmd[
   ((HDEL)
    (hash-remove! [key redis-key/c]
                  [fld redis-string/c] ...+) exact-nonnegative-integer?)]{
@@ -322,7 +326,9 @@ Each client represents a single TCP connection to the Redis server.
 
   The second form sets each pair of @racket[fld-or-value] within the
   hash at @racket[key].  A contract error is raised if an even number
-  of @racket[fld-or-value]s is not provided,
+  of @racket[fld-or-value]s is not provided, the first value of each
+  "pair" representing the field and, the second, the value of that
+  field.
 
   The third form stores @racket[d] at @racket[key].
 }
