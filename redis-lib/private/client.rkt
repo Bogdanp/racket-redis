@@ -241,10 +241,20 @@
 (define-simple-command/ok (auth! [password redis-string/c]))
 
 ;; BGREWRITEAOF
-(define-simple-command/ok (bg-rewrite-aof!))
+;; REWRITEAOF
+(define-simple-command/ok (rewrite-aof/async!)
+  #:command ("BGREWRITEAOF"))
+
+(define-simple-command/ok (rewrite-aof!)
+  #:command ("REWRITEAOF"))
 
 ;; BGSAVE
-(define-simple-command/ok (bg-save!))
+;; SAVE
+(define-simple-command/ok (save/async!)
+  #:command ("BGSAVE"))
+
+(define-simple-command/ok (save!)
+  #:command ("SAVE"))
 
 ;; BITCOUNT key [start stop]
 (define/contract/provide (redis-bytes-bitcount client key

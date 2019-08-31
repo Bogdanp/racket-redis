@@ -30,14 +30,27 @@ Fast, idiomatic redis bindings for Racket.
 
 The commands below are yet to be implemented:
 
+
+### Bytestrings
+
 * [ ]  BITFIELD
 * [ ]  BITPOS
-* [ ]  BZPOPMAX
-* [ ]  BZPOPMIN
+* [ ]  GETBIT
+* [ ]  GETRANGE
+* [ ]  GETSET
+* [ ]  MSET
+* [ ]  MSETNX
+* [ ]  PSETEX
+
+### Client
+
 * [ ]  CLIENT KILL
 * [ ]  CLIENT LIST
 * [ ]  CLIENT REPLY
 * [ ]  CLIENT UNBLOCK
+
+### Cluster
+
 * [ ]  CLUSTER ADDSLOTS
 * [ ]  CLUSTER COUNT-FAILURE-REPORTS
 * [ ]  CLUSTER COUNTKEYSINSLOT
@@ -57,37 +70,39 @@ The commands below are yet to be implemented:
 * [ ]  CLUSTER SETSLOT
 * [ ]  CLUSTER SLAVES
 * [ ]  CLUSTER SLOTS
+* [ ]  READONLY
+* [ ]  READWRITE
+
+### Geo
+
 * [ ]  GEOADD
 * [ ]  GEODIST
 * [ ]  GEOHASH
 * [ ]  GEOPOS
 * [ ]  GEORADIUS
 * [ ]  GEORADIUSBYMEMBER
-* [ ]  GETBIT
-* [ ]  GETRANGE
-* [ ]  GETSET
+
+### Hashes
+
 * [ ]  HINCRBY
 * [ ]  HINCRBYFLOAT
 * [ ]  HSCAN
 * [ ]  HSETNX
 * [ ]  HSTRLEN
-* [ ]  LPUSHX
+
+### Keys
+
 * [ ]  MIGRATE
-* [ ]  MONITOR
-* [ ]  MSET
-* [ ]  MSETNX
-* [ ]  OBJECT
-* [ ]  PSETEX
-* [ ]  PSUBSCRIBE
-* [ ]  PUBLISH
-* [ ]  PUBSUB
-* [ ]  PUNSUBSCRIBE
-* [ ]  READONLY
-* [ ]  READWRITE
+
+### Lists
+
+* [ ]  LPUSHX
 * [ ]  RPOPLPUSH
 * [ ]  RPUSHX
+
+### Sets
+
 * [ ]  SADD
-* [ ]  SAVE
 * [ ]  SCAN
 * [ ]  SCARD
 * [ ]  SDIFF
@@ -96,7 +111,6 @@ The commands below are yet to be implemented:
 * [ ]  SETEX
 * [ ]  SETNX
 * [ ]  SETRANGE
-* [ ]  SHUTDOWN
 * [ ]  SINTER
 * [ ]  SINTERSTORE
 * [ ]  SISMEMBER
@@ -108,14 +122,28 @@ The commands below are yet to be implemented:
 * [ ]  SREM
 * [ ]  SSCAN
 * [ ]  STRLEN
-* [ ]  SUBSCRIBE
 * [ ]  SUNION
 * [ ]  SUNIONSTORE
+
+### Pub/Sub
+
+* [ ]  PSUBSCRIBE
+* [ ]  PUBLISH
+* [ ]  PUBSUB
+* [ ]  PUNSUBSCRIBE
+* [ ]  SUBSCRIBE
 * [ ]  UNSUBSCRIBE
-* [ ]  WAIT
+
+### Streams
+
 * [ ]  XCLAIM
 * [ ]  XPENDING
 * [ ]  XREAD
+
+### Sorted Sets
+
+* [ ]  BZPOPMAX
+* [ ]  BZPOPMIN
 * [ ]  ZADD
 * [ ]  ZCARD
 * [ ]  ZCOUNT

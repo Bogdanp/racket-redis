@@ -739,20 +739,6 @@ scripting world and Racket.
 @subsubsection{Server Commands}
 
 @defcmd[
-  ((BGREWRITEAOF)
-   (bg-rewrite-aof!) #t)]{
-
-  Starts the AOF-rewrite process on the server.
-}
-
-@defcmd[
-  ((BGSAVE)
-   (bg-save!) #t)]{
-
-  Starts the save process on the server.
-}
-
-@defcmd[
   ((CLIENT_ID)
    (client-id) exact-integer?)]{
 
@@ -764,6 +750,34 @@ scripting world and Racket.
    (client-name) (or/c false/c string?))]{
 
   Returns the current client name.
+}
+
+@defcmd[
+  ((REWRITEAOF)
+   (rewrite-aof/async!) #t)]{
+
+  Starts the AOF-rewrite process on the server.
+}
+
+@defcmd[
+  ((BGREWRITEAOF)
+   (rewrite-aof/async!) #t)]{
+
+  Starts a background AOF-rewrite on the server.
+}
+
+@defcmd[
+  ((SAVE)
+   (save!) #t)] {
+
+  Initiates a save to disk of the database.
+}
+
+@defcmd[
+  ((BGSAVE)
+   (save/async!) #t)]{
+
+  Starts the background save process on the server.
 }
 
 @defcmd[
