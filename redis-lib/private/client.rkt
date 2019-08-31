@@ -895,18 +895,37 @@
   #:result-contract exact-nonnegative-integer?)
 
 ;; XRANGE key start stop [COUNT count]
+;; XREVRANGE key stop start [COUNT count]
+(define stream-range-position/c
+  (or/c 'first-item 'last-item redis-string/c))
+
+(define (stream-range-position->string p)
+  (match p
+    ['first-item #"-"]
+    ['last-item  #"+"]
+    [p             p ]))
+
 (define/contract/provide (redis-stream-range client key
-                                             #:start [start "-"]
-                                             #:stop [stop "+"]
+                                             #:reverse? [reverse? #f]
+                                             #:start [start 'first-item]
+                                             #:stop [stop 'last-item]
                                              #:limit [limit #f])
   (->* (redis? redis-key/c)
-       (#:start (or/c false/c redis-string/c)
-        #:stop (or/c false/c redis-string/c)
+       (#:reverse? boolean?
+        #:start stream-range-position/c
+        #:stop stream-range-position/c
         #:limit (or/c false/c exact-positive-integer?))
        (listof redis-stream-entry?))
-  (map pair->entry (apply redis-emit! client "XRANGE" key start stop (if limit
-                                                                         (list (number->string limit))
-                                                                         (list)))))
+
+  (map pair->entry
+       (apply redis-emit! client
+              (if reverse? "XREVRANGE" "XRANGE")
+              key
+              (stream-range-position->string (if reverse? stop start))
+              (stream-range-position->string (if reverse? start stop))
+              (if limit
+                  (list (number->string limit))
+                  (list)))))
 
 ;; XREADGROUP GROUP group consumer [COUNT count] [BLOCK milliseconds] [NOACK] STREAMS key [key ...] id [id ...]
 (define/contract/provide (redis-stream-group-read! client
@@ -954,3 +973,26 @@
     (for/list ([pair (in-list (apply redis-emit! client "XREADGROUP" "GROUP" group consumer args
                                      #:timeout timeout/read))])
       (list (car pair) (map pair->entry (cadr pair))))))
+
+;; XTRIM key MAXLEN [~] count
+(define/contract/provide (redis-stream-trim! client key
+                                             #:max-length [max-length #f]
+                                             #:max-length/approximate [max-length/approximate #f])
+  (->i ([client redis?]
+        [key redis-key/c])
+       (#:max-length [max-length exact-positive-integer?]
+        #:max-length/approximate [max-length/approximate exact-positive-integer?])
+
+       #:pre/name (max-length max-length/approximate)
+       "either max-length or max-length/approximate can be provided but not both"
+       (or (and max-length (unsupplied-arg? max-length/approximate))
+           (and max-length/approximate (unsupplied-arg? max-length)))
+
+       [result exact-nonnegative-integer?])
+
+  (cond
+    [max-length/approximate
+     (apply redis-emit! client "XTRIM" key "MAXLEN" "~" (number->string max-length/approximate))]
+
+    [max-length
+     (apply redis-emit! client "XTRIM" key "MAXLEN" (number->string max-length))]))

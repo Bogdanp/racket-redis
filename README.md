@@ -148,8 +148,6 @@ The commands below are yet to be implemented:
 * [ ]  XCLAIM
 * [ ]  XPENDING
 * [ ]  XREAD
-* [ ]  XREVRANGE
-* [ ]  XTRIM
 * [ ]  ZADD
 * [ ]  ZCARD
 * [ ]  ZCOUNT

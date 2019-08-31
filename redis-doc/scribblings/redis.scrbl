@@ -318,15 +318,15 @@ Each client represents a single TCP connection to the Redis server.
 @defcmd*[
   ((HSET HMSET)
    ([(redis-hash-set! [client redis?] [key redis-key/c] [fld redis-string/c] [value redis-string/c]) boolean?]
-    [(redis-hash-set! [client redis?] [key redis-key/c] [fld-or-value redis-string/c] ...+) boolean?]
+    [(redis-hash-set! [client redis?] [key redis-key/c] [fld-and-value redis-string/c] ...+) boolean?]
     [(redis-hash-set! [client redis?] [key redis-key/c] [d dict?]) boolean?]))]{
 
   The first form sets @racket[fld] to @racket[value] within the hash
   at @racket[key].
 
-  The second form sets each pair of @racket[fld-or-value] within the
+  The second form sets each pair of @racket[fld-and-value] within the
   hash at @racket[key].  A contract error is raised if an even number
-  of @racket[fld-or-value]s is not provided, the first value of each
+  of @racket[fld-and-value]s is not provided, the first value of each
   "pair" representing the field and, the second, the value of that
   field.
 
@@ -892,14 +892,14 @@ Each client represents a single TCP connection to the Redis server.
                        [#:block? block? boolean? #f]
                        [#:timeout timeout exact-nonnegative-integer? 0]
                        [#:no-ack? no-ack? boolean? #f]
-                       [key-or-id redis-string/c] ...+) (or/c false/c (listof (list/c bytes? (listof redis-stream-entry?)))))]{
+                       [key-and-id redis-string/c] ...+) (or/c false/c (listof (list/c bytes? (listof redis-stream-entry?)))))]{
 
   Reads entries from a stream group for every stream and id pair given
-  via @racket[key-or-id] and returns a list of lists where the
+  via @racket[key-and-id] and returns a list of lists where the
   @racket[first] element of sublist is the name of the stream and the
   @racket[second] is the list of entries retrieved for that stream.
 
-  An @racket[even?] number of @racket[key-or-id] items must be
+  An @racket[even?] number of @racket[key-and-id] items must be
   provided.  The items make up a list of pairs where the first is a
   key representing a stream and the second is the id within that
   stream after which to start reading.
@@ -941,13 +941,23 @@ Each client represents a single TCP connection to the Redis server.
 @defcmd[
   ((XRANGE)
    (stream-range [key redis-key/c]
-                 [#:start start redis-string/c "-"]
-                 [#:stop stop redis-string/c "+"]
+                 [#:reverse? reverse? boolean? #f]
+                 [#:start start (or/c 'first-item 'last-item redis-string/c)]
+                 [#:stop stop (or/c 'first-item 'last-item redis-string/c)]
                  [#:limit limit (or/c false/c exact-positive-integer?)]) (listof redis-stream-entry?))]{
 
   Returns at most @racket[limit] entries between @racket[start] and
   @racket[stop] from the stream at @racket[key].  If @racket[limit] is
   @racket[#f], then all the entries are returned.
+
+  @racket[start] and @racket[stop] accept a stream entry id or one of
+  the special values @racket['first-item] and @racket['last-item],
+  which map to the special ids @racket["-"] and @racket["+"],
+  respectively, which mean the very first and the very last item in
+  the stream.
+
+  When @racket[reverse?] is @racket[#t] the entries are returned in
+  reverse order and @racket[start] and @racket[stop] are swapped.
 }
 
 @defcmd[
@@ -957,6 +967,18 @@ Each client represents a single TCP connection to the Redis server.
 
   Removes the entries represented by each @racket[id] from the stream
   at @racket[key], returning the total number of removed entries.
+}
+
+@defcmd[
+  ((XTRIM)
+   (stream-trim! [key redis-key/c]
+                 [#:max-length max-length exact-positive-integer?]
+                 [#:max-length/approximate max-length/approximate exact-positive-integer?]) exact-nonnegative-integer?)]{
+
+  Trims the stream at @racket[key] to either @racket[max-length] or
+  @racket[max-length/approximate].  Usually, you will want to use the
+  latter for performance.  Either keyword argument must be provided
+  but not both.
 }
 
 
