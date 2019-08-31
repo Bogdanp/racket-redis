@@ -1,21 +1,10 @@
 #lang racket/base
 
-(require racket/contract
-         racket/match)
+(require racket/match)
 
 (provide
- redis-value/c
  redis-write
  redis-read)
-
-
-;; common ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(define redis-value/c
-  (make-flat-contract
-   #:name 'redis-value/c
-   #:first-order (lambda (v)
-                   ((or/c bytes? exact-integer? (listof redis-value/c) false/c) v))))
 
 
 ;; write ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

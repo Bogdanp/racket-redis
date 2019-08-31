@@ -20,8 +20,13 @@
  redis-connected?
  redis-connect!
  redis-disconnect!
-
  redis-value/c)
+
+(define redis-value/c
+  (make-flat-contract
+   #:name 'redis-value/c
+   #:first-order (lambda (v)
+                   ((or/c false/c bytes? exact-integer? (listof redis-value/c)) v))))
 
 (struct redis (host port timeout custodian in out response-ch response-reader)
   #:mutable)
