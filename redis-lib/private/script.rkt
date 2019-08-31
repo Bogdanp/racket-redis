@@ -26,12 +26,3 @@
     (redis-script-eval-sha! client script-sha1
                             #:keys keys
                             #:args args)))
-
-(module+ test
-  (require rackunit)
-
-  (define c (make-redis #:host (or (getenv "REDIS_HOST") "127.0.0.1")))
-  (define s1 (make-redis-script c "return 1"))
-  (define s2 (make-redis-script c "return {ARGV[1], ARGV[2], 3}"))
-  (check-equal? (s1 c) 1)
-  (check-equal? (s2 c #:args '("a" "b")) '(#"a" #"b" 3)))
