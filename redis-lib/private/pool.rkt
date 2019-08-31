@@ -19,7 +19,7 @@
 (define/contract (make-redis-pool #:client-name [client-name "racket-redis"]
                                   #:host [host "127.0.0.1"]
                                   #:port [port 6379]
-                                  #:timeout [timeout 5]
+                                  #:timeout [timeout 5000]
                                   #:db [db 0]
                                   #:password [password #f]
                                   #:pool-size [pool-size 4]

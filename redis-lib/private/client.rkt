@@ -21,9 +21,7 @@
  redis-connect!
  redis-disconnect!
 
- redis-value/c
- redis-null?
- redis-null)
+ redis-value/c)
 
 (struct redis (host port timeout custodian in out response-ch response-reader)
   #:mutable)
@@ -31,7 +29,7 @@
 (define/contract (make-redis #:client-name [client-name "racket-redis"]
                              #:host [host "127.0.0.1"]
                              #:port [port 6379]
-                             #:timeout [timeout 5]
+                             #:timeout [timeout 5000]
                              #:db [db 0]
                              #:password [password #f])
   (->* ()
@@ -100,24 +98,32 @@
     (flush-output)))
 
 (define (take-response! client timeout)
-  (match (sync/timeout timeout (redis-response-ch client))
-    [#f
-     (raise (exn:fail:redis:timeout
-             "timed out while waiting for response from Redis"
-             (current-continuation-marks)))]
+  (sync
+   (choice-evt
+    (handle-evt
+     (redis-response-ch client)
+     (match-lambda
+       [(cons 'err message)
+        (cond
+          [(string-prefix? message "ERR")
+           (raise (exn:fail:redis (substring message 4) (current-continuation-marks)))]
 
-    [(cons 'err message)
-     (cond
-       [(string-prefix? message "ERR")
-        (raise (exn:fail:redis (substring message 4) (current-continuation-marks)))]
+          [(string-prefix? message "WRONGTYPE")
+           (raise (exn:fail:redis (substring message 10) (current-continuation-marks)))]
 
-       [(string-prefix? message "WRONGTYPE")
-        (raise (exn:fail:redis (substring message 10) (current-continuation-marks)))]
+          [else
+           (raise (exn:fail:redis message (current-continuation-marks)))])]
 
-       [else
-        (raise (exn:fail:redis message (current-continuation-marks)))])]
+       [response response]))
 
-    [response response]))
+    (if timeout
+        (handle-evt
+         (alarm-evt (+ (current-inexact-milliseconds) timeout))
+         (lambda _
+           (raise (exn:fail:redis:timeout
+                   "timed out while waiting for response from Redis"
+                   (current-continuation-marks)))))
+        never-evt))))
 
 (define (redis-emit! client command
                      #:timeout [timeout (redis-timeout client)]
@@ -909,7 +915,7 @@
        "an even number of key-or-ids entries"
        (even? (length key-or-ids))
 
-       [result (or/c redis-null? (listof (list/c bytes? (listof redis-stream-entry?))))])
+       [result (or/c false/c (listof (list/c bytes? (listof redis-stream-entry?))))])
 
   (define timeout/read (if (> timeout 0) (add1 timeout) #f))
 

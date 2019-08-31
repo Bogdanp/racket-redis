@@ -88,8 +88,8 @@ Each client represents a single TCP connection to the Redis server.
 
   Creates a Redis client and immediately attempts to connect to the
   database at @racket[host] and @racket[port].  The @racket[timeout]
-  parameter controls the maximum amount of time the client will wait
-  for any individual response from the database.
+  parameter controls the maximum amount of time (in milliseconds) the
+  client will wait for any individual response from the database.
 
   Each client maps to an individual connection, therefore clients
   @emph{are not} thread safe!  See @secref["pooling"].
@@ -116,18 +116,8 @@ Each client represents a single TCP connection to the Redis server.
   disconnected.
 }
 
-@defparam[redis-null value any/c #:value 'null]{
-  The parameter that holds the value that represents "null" values
-  from Redis.
-}
-
-@defproc[(redis-null? [v any/c]) boolean?]{
-  Returns @racket[#t] if @racket[v] is @racket[equal?] to
-  @racket[(redis-null)].
-}
-
 @defthing[
-  redis-value/c (or/c bytes? string? exact-integer? (listof redis-value/c) redis-null?)]{
+  redis-value/c (or/c false/c bytes? string? exact-integer? (listof redis-value/c))]{
 
   The contract for Redis response values.
 }
@@ -161,7 +151,7 @@ Each client represents a single TCP connection to the Redis server.
 @defproc[(make-redis-pool [#:client-name client-name non-empty-string? "racket-redis"]
                           [#:host host non-empty-string? "127.0.0.1"]
                           [#:port port (integer-in 0 65536) 6379]
-                          [#:timeout timeout exact-nonnegative-integer? 5]
+                          [#:timeout timeout exact-nonnegative-integer? 5000]
                           [#:db db (integer-in 0 15) 0]
                           [#:password password (or/c false/c non-empty-string?) #f]
                           [#:pool-size pool-size exact-positive-integer? 4]
@@ -428,9 +418,9 @@ Each client represents a single TCP connection to the Redis server.
 
 @defcmd[
   ((RANDOMKEY)
-   (random-key) (or/c redis-null? string?))]{
+   (random-key) (or/c false/c string?))]{
 
-  Returns a random key from the database or @racket[(redis-null)].
+  Returns a random key from the database or @racket[#f].
 }
 
 @defcmd[
@@ -615,7 +605,7 @@ Each client represents a single TCP connection to the Redis server.
   ((LINDEX)
    (list-ref [key string?] [index exact-integer?]) redis-value/c)]{
 
-  Returns the item at @racket[index] in @racket[key] or @racket[(redis-null)].
+  Returns the item at @racket[index] in @racket[key] or @racket[#f].
 }
 
 @defcmd[
@@ -728,7 +718,7 @@ Each client represents a single TCP connection to the Redis server.
 
 @defcmd[
   ((CLIENT_GETNAME)
-   (client-name) (or/c redis-null? string?))]{
+   (client-name) (or/c false/c string?))]{
 
   Returns the current client name.
 }
@@ -890,7 +880,7 @@ Each client represents a single TCP connection to the Redis server.
 All Redis strings are sequences of bytes, so whereas most of the
 following functions accept both @racket[bytes?] and @racket[string?]
 values, when a key is retrieved from the server, its value will always
-be either @racket[(redis-null)] or @racket[bytes?].
+be either @racket[#f] or @racket[bytes?].
 
 @defcmd[
   ((APPEND)
@@ -965,7 +955,7 @@ be either @racket[(redis-null)] or @racket[bytes?].
 
 @defcmd[
   ((GET MGET)
-   (bytes-get [key string?] ...+) (or/c redis-null? bytes?))]{
+   (bytes-get [key string?] ...+) (or/c false/c bytes?))]{
 
   Retrieves one or more @racket[key]s from the database.
 }

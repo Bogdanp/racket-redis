@@ -1,30 +1,21 @@
 #lang racket/base
 
 (require racket/contract
-         racket/function
          racket/match)
 
 (provide
  redis-value/c
- redis-null
- redis-null?
  redis-write
  redis-read)
 
 
 ;; common ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define redis-null
-  (make-parameter 'null))
-
-(define (redis-null? v)
-  (equal? (redis-null) v))
-
 (define redis-value/c
   (make-flat-contract
    #:name 'redis-value/c
    #:first-order (lambda (v)
-                   ((or/c bytes? exact-integer? (listof redis-value/c) redis-null?) v))))
+                   ((or/c bytes? exact-integer? (listof redis-value/c) false/c) v))))
 
 
 ;; write ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -52,7 +43,8 @@
   (display "*" out)
   (display (length l) out)
   (display "\r\n" out)
-  (for-each (curryr redis-write out) l))
+  (for ([item (in-list l)])
+    (redis-write item out)))
 
 
 ;; read ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -79,8 +71,7 @@
 
 (define (redis-read-bulk-string in)
   (match (regexp-match bulk-string-prefix-re in)
-    [(list _ #"-1" _)
-     (redis-null)]
+    [(list _ #"-1" _) #f]
 
     [(list _ n:str _)
      (begin0 (read-bytes (string->number (bytes->string/utf-8 n:str)) in)
@@ -97,8 +88,7 @@
 
 (define (redis-read-array in)
   (match (regexp-match array-re in)
-    [(list _ #"-1" _)
-     (redis-null)]
+    [(list _ #"-1" _) #f]
 
     [(list _ n:str _)
      (for/list ([_ (in-range (string->number (bytes->string/utf-8 n:str)))])

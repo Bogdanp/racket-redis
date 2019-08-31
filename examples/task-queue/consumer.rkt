@@ -56,12 +56,11 @@
                               #:timeout 60000))
 
   (cond
-    [(redis-null? entries/by-stream)
-     (loop last-id)]
-
-    [else
+    [entries/by-stream
      (for* ([pair (in-list entries/by-stream)]
             [entry (in-list (cadr pair))])
        (handle entry)
        (redis-stream-ack! client stream-name group (redis-stream-entry-id entry)))
-     (loop ">")]))
+     (loop ">")]
+
+    [else (loop last-id)]))

@@ -32,7 +32,7 @@
     (test-suite
      "redis-read-bulk-string"
 
-     (check-equal? (redis-read (open-input-string "$-1\r\n\r\n")) (redis-null))
+     (check-false (redis-read (open-input-string "$-1\r\n\r\n")))
      (check-equal? (redis-read (open-input-string "$0\r\n\r\n")) #"")
      (check-equal? (redis-read (open-input-string "$5\r\nhello\r\n")) #"hello"))
 
@@ -51,8 +51,7 @@
     (test-suite
      "redis-read-array"
 
-     (check-equal? (redis-read (open-input-string "*-1\r\n\r\n"))
-                   (redis-null))
+     (check-false (redis-read (open-input-string "*-1\r\n\r\n")))
 
      (check-equal? (redis-read (open-input-string "*2\r\n$3\r\nfoo\r\n$3\r\nbar\r\n"))
                    (list #"foo" #"bar"))

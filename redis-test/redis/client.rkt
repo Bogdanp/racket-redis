@@ -43,11 +43,14 @@
      (redis-bytes-bitwise-and! test-client "c" "a" "b")
      (check-equal? (redis-bytes-get test-client "c") #"\x00"))
 
-   (test-commands "client"
-     (check-not-false (redis-client-id test-client))
-     (check-equal? (redis-client-name test-client) "racket-redis")
-     (check-true (redis-set-client-name! test-client "custom-name"))
-     (check-equal? (redis-client-name test-client) "custom-name"))
+   (test-suite
+    "client"
+
+    (test-commands "CLIENT ID, CLIENT GETNAME, CLIENT SETNAME"
+      (check-not-false (redis-client-id test-client))
+      (check-equal? (redis-client-name test-client) "racket-redis")
+      (check-true (redis-set-client-name! test-client "custom-name"))
+      (check-equal? (redis-client-name test-client) "custom-name")))
 
    (test-commands "DBSIZE"
      (check-equal? (redis-key-count test-client) 0)
@@ -94,17 +97,17 @@
      (check-equal? (redis-hash-get test-client "simple-hash") (hash))
 
      (check-true (redis-hash-set! test-client "alist-hash" '(("a" . "1")
-                                                        ("b" . "2")
-                                                        ("c" . "3"))))
+                                                             ("b" . "2")
+                                                             ("c" . "3"))))
      (check-equal? (redis-hash-get test-client "alist-hash") (hash #"a" #"1"
-                                                              #"b" #"2"
-                                                              #"c" #"3"))
+                                                                   #"b" #"2"
+                                                                   #"c" #"3"))
      (check-equal? (redis-hash-get test-client "alist-hash" "a") #"1")
      (check-equal? (redis-hash-get test-client "alist-hash" "a" "b") (hash #"a" #"1"
-                                                                      #"b" #"2"))
+                                                                           #"b" #"2"))
      (check-equal? (redis-hash-get test-client "alist-hash" "a" "d" "b") (hash #"a" #"1"
-                                                                          #"b" #"2"
-                                                                          #"d" (redis-null)))
+                                                                               #"b" #"2"
+                                                                               #"d" #f))
 
      (check-equal? (redis-hash-length test-client "notahash") 0)
      (check-equal? (redis-hash-length test-client "alist-hash") 3)
@@ -145,7 +148,7 @@
      (check-equal? (redis-list-pop-left! test-client "a") #"3")
      (check-equal? (redis-list-pop-left! test-client "a") #"2")
      (check-equal? (redis-list-pop-left! test-client "a") #"1")
-     (check-equal? (redis-list-pop-left! test-client "a") (redis-null))
+     (check-false (redis-list-pop-left! test-client "a"))
 
      (check-exn
       exn:fail:contract?
@@ -212,7 +215,7 @@
      (check-equal? (redis-list-append! test-client "a" "2") 2)
      (check-equal? (redis-list-pop-right! test-client "a") #"2")
      (check-equal? (redis-list-pop-right! test-client "a") #"1")
-     (check-equal? (redis-list-pop-right! test-client "a") (redis-null))
+     (check-false (redis-list-pop-right! test-client "a"))
 
      (check-exn
       exn:fail:contract?
