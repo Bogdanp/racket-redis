@@ -209,6 +209,19 @@ Each client represents a single TCP connection to the Redis server.
 }
 
 
+@subsection[#:tag "transactions"]{Transactions}
+
+You may notice that transaction-related commands are conspicuously
+missing from this library.  That's intentional!  Redis transactions
+were created before the introduction of lua scripting and the
+guarantees they offer are weaker than the guarantees offered by script
+execution, therefore I have decided to forego implementing the
+transaction commands for the time being.
+
+Check out @secref["scripts"] for a nice bridge between the lua
+scripting world and Racket.
+
+
 @subsection[#:tag "commands"]{Supported Commands}
 
 
@@ -440,11 +453,15 @@ Each client represents a single TCP connection to the Redis server.
 }
 
 @defcmd[
-  ((DEL)
-   (remove! [key redis-key/c] ...+) exact-nonnegative-integer?)]{
+  ((DEL UNLINK)
+   (remove! [key redis-key/c] ...+
+            [#:async? async? boolean? #f]) exact-nonnegative-integer?)]{
 
   Removes each @racket[key] from the database and returns the number
   of keys that were removed.
+
+  When @racket[async?] is @racket[#t] the command returns immediately
+  and the keys are removed asynchronously.
 }
 
 @defcmd[

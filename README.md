@@ -36,7 +36,6 @@ The commands below are yet to be implemented:
 * [ ]  BZPOPMIN
 * [ ]  CLIENT KILL
 * [ ]  CLIENT LIST
-* [ ]  CLIENT PAUSE
 * [ ]  CLIENT REPLY
 * [ ]  CLIENT UNBLOCK
 * [ ]  CLUSTER ADDSLOTS
@@ -58,19 +57,6 @@ The commands below are yet to be implemented:
 * [ ]  CLUSTER SETSLOT
 * [ ]  CLUSTER SLAVES
 * [ ]  CLUSTER SLOTS
-* [ ]  COMMAND
-* [ ]  COMMAND COUNT
-* [ ]  COMMAND GETKEYS
-* [ ]  COMMAND INFO
-* [ ]  CONFIG GET
-* [ ]  CONFIG RESETSTAT
-* [ ]  CONFIG REWRITE
-* [ ]  CONFIG SET
-* [ ]  DEBUG OBJECT
-* [ ]  DEBUG SEGFAULT
-* [ ]  DISCARD
-* [ ]  DUMP
-* [ ]  EXEC
 * [ ]  GEOADD
 * [ ]  GEODIST
 * [ ]  GEOHASH
@@ -85,20 +71,11 @@ The commands below are yet to be implemented:
 * [ ]  HSCAN
 * [ ]  HSETNX
 * [ ]  HSTRLEN
-* [ ]  INFO
-* [ ]  LASTSAVE
 * [ ]  LPUSHX
-* [ ]  MEMORY DOCTOR
-* [ ]  MEMORY HELP
-* [ ]  MEMORY MALLOC-STATS
-* [ ]  MEMORY PURGE
-* [ ]  MEMORY STATS
-* [ ]  MEMORY USAGE
 * [ ]  MIGRATE
 * [ ]  MONITOR
 * [ ]  MSET
 * [ ]  MSETNX
-* [ ]  MULTI
 * [ ]  OBJECT
 * [ ]  PSETEX
 * [ ]  PSUBSCRIBE
@@ -107,9 +84,6 @@ The commands below are yet to be implemented:
 * [ ]  PUNSUBSCRIBE
 * [ ]  READONLY
 * [ ]  READWRITE
-* [ ]  REPLICAOF
-* [ ]  RESTORE
-* [ ]  ROLE
 * [ ]  RPOPLPUSH
 * [ ]  RPUSHX
 * [ ]  SADD
@@ -126,8 +100,6 @@ The commands below are yet to be implemented:
 * [ ]  SINTER
 * [ ]  SINTERSTORE
 * [ ]  SISMEMBER
-* [ ]  SLAVEOF
-* [ ]  SLOWLOG
 * [ ]  SMEMBERS
 * [ ]  SMOVE
 * [ ]  SORT
@@ -139,12 +111,8 @@ The commands below are yet to be implemented:
 * [ ]  SUBSCRIBE
 * [ ]  SUNION
 * [ ]  SUNIONSTORE
-* [ ]  SYNC
-* [ ]  UNLINK
 * [ ]  UNSUBSCRIBE
-* [ ]  UNWATCH
 * [ ]  WAIT
-* [ ]  WATCH
 * [ ]  XCLAIM
 * [ ]  XPENDING
 * [ ]  XREAD

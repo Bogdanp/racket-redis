@@ -182,8 +182,8 @@
 (define-syntax (define-simple-command stx)
   (syntax-parse stx
     ([_ (name:id arg:arg ...)
-        (~optional (~seq #:command-name command-name:expr) #:defaults ([command-name (stx->command #'name)]))
-        (~optional (~seq #:result-contract res-contract:expr) #:defaults ([res-contract #'any/c]))
+        (~optional (~seq #:command (command:expr ...+)) #:defaults ([(command 1) (list (stx->command #'name))]))
+        (~optional (~seq #:result-contract res-contract:expr) #:defaults ([res-contract #'redis-value/c]))
         (~optional (~seq #:result-name res-name:id) #:defaults ([res-name #'res]))
         (~optional (~seq e:expr ...+) #:defaults ([(e 1) (list #'res)]))]
      (with-syntax ([fn-name (format-id #'name "redis-~a" #'name)])
@@ -191,15 +191,15 @@
            (-> redis? arg.contract ... res-contract)
 
            (define res-name
-             (redis-emit! client command-name arg.e ...))
+             (redis-emit! client command ... arg.e ...))
 
            e ...)))))
 
 (define-syntax (define-variadic-command stx)
   (syntax-parse stx
     ([_ (name:id arg:arg ... . vararg:arg)
-        (~optional (~seq #:command-name command-name:expr) #:defaults ([command-name (stx->command #'name)]))
-        (~optional (~seq #:result-contract res-contract:expr) #:defaults ([res-contract #'any/c]))
+        (~optional (~seq #:command (command:expr ...+)) #:defaults ([(command 1) (list (stx->command #'name))]))
+        (~optional (~seq #:result-contract res-contract:expr) #:defaults ([res-contract #'redis-value/c]))
         (~optional (~seq #:result-name res-name:id) #:defaults ([res-name #'res]))
         (~optional (~seq e:expr ...+) #:defaults ([(e 1) (list #'res)]))]
      (with-syntax ([fn-name (format-id #'name "redis-~a" #'name)])
@@ -209,7 +209,7 @@
                 res-contract)
 
            (define res-name
-             (apply redis-emit! client command-name arg.e ... vararg.e))
+             (apply redis-emit! client command ... arg.e ... vararg.e))
 
            e ...)))))
 
@@ -234,7 +234,7 @@
 ;; APPEND key value
 (define-simple-command (bytes-append! [key redis-key/c]
                                       [value redis-string/c])
-  #:command-name "APPEND"
+  #:command ("APPEND")
   #:result-contract exact-nonnegative-integer?)
 
 ;; AUTH password
@@ -286,14 +286,43 @@
   (-> redis? string?)
   (bytes->string/utf-8 (redis-emit! client "CLIENT" "GETNAME")))
 
+;; CLIENT PAUSE timeout
+(define-simple-command/ok (clients-pause! [timeout exact-nonnegative-integer? #:converter number->string])
+  #:command ("CLIENT PAUSE"))
+
 ;; CLIENT SETNAME connection-name
 (define/contract/provide (redis-set-client-name! client name)
   (-> redis? redis-string/c boolean?)
   (ok? (redis-emit! client "CLIENT" "SETNAME" name)))
 
+;; COMMAND
+(define-simple-command (commands)
+  #:command ("COMMAND"))
+
+;; COMMAND COUNT
+(define-simple-command (command-count)
+  #:command ("COMMAND" "COUNT")
+  #:result-contract exact-nonnegative-integer?)
+
+;; CONFIG GET parameter
+(define-simple-command (config-ref [parameter redis-string/c])
+  #:command ("CONFIG" "GET"))
+
+;; CONFIG RESETSTAT
+(define-simple-command/ok (config-reset-stats!)
+  #:command ("CONFIG" "RESETSTAT"))
+
+;; CONFIG REWRITE
+(define-simple-command/ok (config-rewrite!)
+  #:command ("CONFIG" "REWRITE"))
+
+;; CONFIG SET parameter value
+(define-simple-command/ok (config-set! [parameter redis-string/c] [value redis-string/c])
+  #:command ("CONFIG" "SET"))
+
 ;; DBSIZE
 (define-simple-command (key-count)
-  #:command-name "DBSIZE"
+  #:command ("DBSIZE")
   #:result-contract exact-integer?)
 
 ;; DECR key
@@ -307,9 +336,15 @@
                               [else    (list "DECRBY" key (number->string n))])))
 
 ;; DEL key [key ...]
-(define-variadic-command (remove! [key redis-key/c] . [keys redis-key/c])
-  #:command-name "DEL"
-  #:result-contract exact-nonnegative-integer?)
+;; UNLINK key [key ...]
+(define/contract/provide (redis-remove! client key
+                                        #:async? [async? #f]
+                                        . keys)
+  (->* (redis? redis-key/c)
+       (#:async? boolean?)
+       #:rest (listof redis-key/c)
+       exact-nonnegative-integer?)
+  (apply redis-emit! client (if async? "UNLINK" "DEL") key keys))
 
 ;; ECHO message
 (define-simple-command (echo [message string?])
@@ -339,10 +374,10 @@
 
 ;; EXISTS key [key ...]
 (define-simple-command/1 (has-key? [key redis-key/c])
-  #:command-name "EXISTS")
+  #:command ("EXISTS"))
 
 (define-variadic-command (count-keys . [key redis-key/c])
-  #:command-name "EXISTS"
+  #:command ("EXISTS")
   #:result-contract exact-nonnegative-integer?)
 
 ;; FLUSHALL
@@ -361,17 +396,16 @@
 
 ;; HDEL key field [field ...]
 (define-variadic-command (hash-remove! [key redis-key/c] [fld redis-string/c] . [flds redis-string/c])
-  #:command-name "HDEL"
+  #:command ("HDEL")
   #:result-contract exact-nonnegative-integer?)
 
 ;; HEXISTS key field
 (define-simple-command/1 (hash-has-key? [key redis-key/c] [fld redis-string/c])
-  #:command-name "HEXISTS")
+  #:command ("HEXISTS"))
 
 ;; HGET key field
 (define-simple-command (hash-ref [key redis-key/c] [fld redis-string/c])
-  #:command-name "HGET"
-  #:result-contract redis-value/c)
+  #:command ("HGET"))
 
 ;; HGETALL key
 ;; HMGET key field [field ...]
@@ -394,12 +428,12 @@
 
 ;; HKEYS key
 (define-simple-command (hash-keys [key redis-key/c])
-  #:command-name "HKEYS"
+  #:command ("HKEYS")
   #:result-contract (listof bytes?))
 
 ;; HLEN key
 (define-simple-command (hash-length [key redis-key/c])
-  #:command-name "HLEN"
+  #:command ("HLEN")
   #:result-contract exact-nonnegative-integer?)
 
 ;; HSET key field value
@@ -426,7 +460,7 @@
 
 ;; HVALS key
 (define-simple-command (hash-values [key redis-key/c])
-  #:command-name "HVALS"
+  #:command ("HVALS")
   #:result-contract (listof bytes?))
 
 ;; INCR key
@@ -446,14 +480,22 @@
       (bytes->string/utf-8 res)
       res))
 
+;; INFO
+(define-simple-command (info [section redis-string/c]))
+
 ;; KEYS pattern
 (define-simple-command (keys [pattern redis-string/c])
   #:result-contract (listof bytes?))
 
+;; LASTSAVE
+(define-simple-command (last-save-time)
+  #:command ("LASTSAVE")
+  #:result-contract exact-nonnegative-integer?)
+
 ;; LINDEX key index
-(define-simple-command (list-ref [key redis-key/c] [index exact-integer? #:converter number->string])
-  #:command-name "LINDEX"
-  #:result-contract redis-value/c)
+(define-simple-command (list-ref [key redis-key/c]
+                                 [index exact-integer? #:converter number->string])
+  #:command ("LINDEX"))
 
 ;; LINSERT key AFTER pivot value
 ;; LINSERT key BEFORE pivot value
@@ -482,7 +524,7 @@
 
 ;; LLEN key
 (define-simple-command (list-length [key redis-key/c])
-  #:command-name "LLEN"
+  #:command ("LLEN")
   #:result-contract exact-nonnegative-integer?)
 
 ;; LPOP key
@@ -516,7 +558,7 @@
 
 ;; LPUSH key value [value ...]
 (define-variadic-command (list-prepend! [key redis-key/c] . [value redis-string/c])
-  #:command-name "LPUSH"
+  #:command ("LPUSH")
   #:result-contract exact-nonnegative-integer?)
 
 ;; LRANGE key value start stop
@@ -537,12 +579,12 @@
 (define-simple-command (list-remove! [key redis-key/c]
                                      [count exact-integer?]
                                      [value redis-string/c])
-  #:command-name "LREM"
+  #:command ("LREM")
   #:result-contract exact-nonnegative-integer?)
 
 ;; LSET key index value
 (define-simple-command/ok (list-set! [key redis-key/c] [index exact-integer?] [value redis-string/c])
-  #:command-name "LSET")
+  #:command ("LSET"))
 
 ;; LTRIM key value start stop
 (define/contract/provide (redis-list-trim! client key
@@ -556,41 +598,41 @@
 
 ;; MOVE key db
 (define-simple-command/1 (move-key! [key redis-key/c] [db (integer-in 0 16) #:converter number->string])
-  #:command-name "MOVE")
+  #:command ("MOVE"))
 
 ;; PERSIST key
 (define-simple-command/1 (persist! [key redis-key/c]))
 
 ;; PEXPIRE key milliseconds
 (define-simple-command/1 (expire-in! [key redis-key/c] [ms exact-nonnegative-integer? #:converter number->string])
-  #:command-name "PEXPIRE")
+  #:command ("PEXPIRE"))
 
 ;; PEXPIREAT key milliseconds-timestamp
 (define-simple-command/1 (expire-at! [key redis-key/c] [ms exact-nonnegative-integer? #:converter number->string])
-  #:command-name "PEXPIREAT")
+  #:command ("PEXPIREAT"))
 
 ;; PFADD key elt [elt ...]
 (define-variadic-command (hll-add! [key redis-key/c] [elt redis-string/c] . [elts redis-string/c])
-  #:command-name "PFADD"
+  #:command ("PFADD")
   #:result-contract boolean?
   #:result-name res
   (= res 1))
 
 ;; PFCOUNT key [key ...]
 (define-variadic-command (hll-count [key redis-key/c] . [keys redis-key/c])
-  #:command-name "PFCOUNT"
+  #:command ("PFCOUNT")
   #:result-contract exact-nonnegative-integer?)
 
 ;; PFMERGE dest key [key ...]
 (define-variadic-command (hll-merge! [dest redis-key/c] [key redis-key/c] . [keys redis-key/c])
-  #:command-name "PFMERGE"
+  #:command ("PFMERGE")
   #:result-contract boolean?
   #:result-name res
   (ok? res))
 
 ;; PTTL key
 (define-simple-command (key-ttl [key redis-key/c])
-  #:command-name "PTTL"
+  #:command ("PTTL")
   #:result-contract (or/c 'missing 'persisted exact-nonnegative-integer?)
   #:result-name res
   (case res
@@ -624,10 +666,21 @@
                     src
                     dest)))
 
-;; BRPOP key [key ...] timeout
-;; BRPOPLPUSH src dest timeout
+;; REPLICAOF NO ONE
+;; REPLICAOF host port
+(define-simple-command (make-replica-of! [host redis-string/c] [port (integer-in 0 65536) #:converter number->string])
+  #:command ("REPLICAOF"))
+
+(define-simple-command (stop-replication!)
+  #:command ("REPLICAOF" "NO" "ONE"))
+
+;; ROLE
+(define-simple-command (role))
+
 ;; RPOP key
 ;; RPOPLPUSH src dest
+;; BRPOP key [key ...] timeout
+;; BRPOPLPUSH src dest timeout
 (define/contract/provide (redis-list-pop-right! client key
                                                 #:dest [dest #f]
                                                 #:block? [block? #f]
@@ -677,7 +730,7 @@
 
 ;; RPUSH key value [value ...]
 (define-variadic-command (list-append! [key redis-key/c] . [value redis-string/c])
-  #:command-name "RPUSH"
+  #:command ("RPUSH")
   #:result-contract exact-nonnegative-integer?)
 
 ;; SCRIPT EXISTS sha1 [sha1 ...]
@@ -707,7 +760,7 @@
 
 ;; SELECT db
 (define-simple-command/ok (select-db! [db (integer-in 0 16) #:converter number->string])
-  #:command-name "SELECT")
+  #:command ("SELECT"))
 
 ;; SET key value [EX seconds | PX milliseconds] [NX|XX]
 (define/contract/provide (redis-bytes-set! client key value
@@ -731,10 +784,23 @@
                                      (list "XX")
                                      (list))))))))
 
+;; SLOWLOG GET count
+(define-simple-command (slowlog-get [count exact-positive-integer? #:converter number->string])
+  #:command ("SLOWLOG" "GET"))
+
+;; SLOWLOG LEN
+(define-simple-command (slowlog-length)
+  #:command ("SLOWLOG" "LEN")
+  #:result-contract exact-nonnegative-integer?)
+
+;; SLOWLOG RESET
+(define-simple-command/ok (slowlog-reset!)
+  #:command ("SLOWLOG" "RESET"))
+
 ;; SWAPDB a b
 (define-simple-command/ok (swap-dbs! [a (integer-in 0 16) #:converter number->string]
                                      [b (integer-in 0 16) #:converter number->string])
-  #:command-name "SWAPDB")
+  #:command ("SWAPDB"))
 
 ;; TIME
 (define-simple-command (time)
@@ -750,7 +816,7 @@
 
 ;; TYPE key
 (define-simple-command (key-type [key redis-key/c])
-  #:command-name "TYPE"
+  #:command ("TYPE")
   #:result-contract (or/c 'none 'string 'list 'set 'zset 'hash 'stream)
   #:result-name res
   (string->symbol res))
@@ -783,7 +849,7 @@
 
 ;; XACK key group id [id ...]
 (define-variadic-command (stream-ack! [key redis-key/c] [group redis-string/c] [id redis-string/c] . [ids redis-string/c])
-  #:command-name "XACK"
+  #:command ("XACK")
   #:result-contract exact-nonnegative-integer?)
 
 ;; XADD key MAXLEN ~ n id field value [field value ...]
@@ -829,7 +895,7 @@
 
 ;; XDEL key id [id ...]
 (define-variadic-command (stream-remove! [key redis-key/c] [id redis-string/c] . [ids redis-string/c])
-  #:command-name "XDEL"
+  #:command ("XDEL")
   #:result-contract exact-nonnegative-integer?)
 
 ;; XGROUP CREATE key group id
@@ -891,7 +957,7 @@
 
 ;; XLEN key
 (define-simple-command (stream-length [key redis-key/c])
-  #:command-name "XLEN"
+  #:command ("XLEN")
   #:result-contract exact-nonnegative-integer?)
 
 ;; XRANGE key start stop [COUNT count]
