@@ -768,7 +768,7 @@ scripting world and Racket.
 
 @defcmd[
   ((SAVE)
-   (save!) #t)] {
+   (save!) #t)]{
 
   Initiates a save to disk of the database.
 }
