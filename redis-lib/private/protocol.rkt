@@ -2,8 +2,7 @@
 
 (require racket/contract
          racket/function
-         racket/match
-         racket/port)
+         racket/match)
 
 (provide
  redis-value/c
@@ -41,11 +40,6 @@
   (display "$" out)
   (display (bytes-length s) out)
   (display "\r\n" out)
-  (display s out)
-  (display "\r\n" out))
-
-(define (redis-write-simple-string s out)
-  (display "+" out)
   (display s out)
   (display "\r\n" out))
 
