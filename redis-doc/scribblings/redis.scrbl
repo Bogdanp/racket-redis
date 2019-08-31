@@ -116,8 +116,18 @@ Each client represents a single TCP connection to the Redis server.
   disconnected.
 }
 
+@defthing[redis-key/c (or/c bytes? string?)]{
+  The contract for valid Redis keys.
+}
+
+@defthing[redis-string/c (or/c bytes? string?)]{
+  The contract for valid Redis byte strings.  Anywhere you see this
+  contract, keep in mind that any string value you provide will be
+  converted to @racket[bytes?] via @racket[string->bytes/utf-8].
+}
+
 @defthing[
-  redis-value/c (or/c false/c bytes? string? exact-integer? (listof redis-value/c))]{
+  redis-value/c (or/c false/c bytes? exact-integer? (listof redis-value/c))]{
 
   The contract for Redis response values.
 }
@@ -127,15 +137,15 @@ Each client represents a single TCP connection to the Redis server.
 @subsection[#:tag "scripts"]{Scripts}
 
 @defthing[redis-script/c (->* (redis?)
-                              (#:keys (listof string?)
-                               #:args (listof string?))
+                              (#:keys (listof redis-key/c)
+                               #:args (listof redis-string/c))
                               redis-value/c)]{
 
   The contract for lua-backed Redis scripts.
 }
 
 @defproc[(make-redis-script [client redis?]
-                            [lua-script string?]) redis-script/c]{
+                            [lua-script redis-string/c]) redis-script/c]{
 
   Returns a function that will execute @racket[lua-script] via
   @exec{EVALSHA} every time it's called.
@@ -207,7 +217,7 @@ Each client represents a single TCP connection to the Redis server.
 
 @defcmd[
   ((AUTH)
-   (auth! [password string?]) string?)]{
+   (auth! [password redis-string/c]) boolean?)]{
 
   @exec{AUTH}s the current connection using @racket[password].  Raises
   an exception if authentication is not set up or if the password is
@@ -256,9 +266,9 @@ Each client represents a single TCP connection to the Redis server.
 
 @defcmd*[
   ((HGET HGETALL HMGET)
-   ([(redis-hash-get [client redis?] [key string?] [fld string?]) redis-value/c]
-    [(redis-hash-get [client redis?] [key string?]) hash?]
-    [(redis-hash-get [client redis?] [key string?] [fld string?] ...+) hash?]))]{
+   ([(redis-hash-get [client redis?] [key redis-key/c] [fld redis-string/c]) redis-value/c]
+    [(redis-hash-get [client redis?] [key redis-key/c]) hash?]
+    [(redis-hash-get [client redis?] [key redis-key/c] [fld redis-string/c] ...+) hash?]))]{
 
   The first form grabs a single field value from the hash at
   @racket[key].
@@ -271,8 +281,8 @@ Each client represents a single TCP connection to the Redis server.
 
 @defcmd[
   ((HEXISTS)
-   (hash-has-key? [key string?]
-                  [fld (or/c bytes? string?)]) boolean?)]{
+   (hash-has-key? [key redis-key/c]
+                  [fld redis-string/c]) boolean?)]{
 
   Returns @racket[#t] when the hash at @racket[key] has a key named
   @racket[fld].
@@ -280,22 +290,22 @@ Each client represents a single TCP connection to the Redis server.
 
 @defcmd[
   ((HKEYS)
-   (hash-keys [key string?]) (listof bytes?))]{
+   (hash-keys [key redis-key/c]) (listof bytes?))]{
 
   Returns all the keys belonging to the hash at @racket[key].
 }
 
 @defcmd[
   ((HLEN)
-   (hash-length [key string?]) exact-nonnegative-integer?)]{
+   (hash-length [key redis-key/c]) exact-nonnegative-integer?)]{
 
   Returns the length of the hash at @racket[key].
 }
 
 @defcmd[
   ((HDEL)
-   (hash-remove! [key string?]
-                 [fld (or/c bytes? string?)] ...+) exact-nonnegative-integer?)]{
+   (hash-remove! [key redis-key/c]
+                 [fld redis-string/c] ...+) exact-nonnegative-integer?)]{
 
   Removes one or more @racket[fld]s from the hash at @racket[key] and
   returns the total number of fields that were removed.
@@ -303,9 +313,9 @@ Each client represents a single TCP connection to the Redis server.
 
 @defcmd*[
   ((HSET HMSET)
-   ([(redis-hash-set! [client redis?] [key string?] [fld (or/c bytes? string?)] [value (or/c bytes? string?)]) boolean?]
-    [(redis-hash-set! [client redis?] [key string?] [fld-or-value (or/c bytes? string?)] ...+) boolean?]
-    [(redis-hash-set! [client redis?] [key string?] [d dict?]) boolean?]))]{
+   ([(redis-hash-set! [client redis?] [key redis-key/c] [fld redis-string/c] [value redis-string/c]) boolean?]
+    [(redis-hash-set! [client redis?] [key redis-key/c] [fld-or-value redis-string/c] ...+) boolean?]
+    [(redis-hash-set! [client redis?] [key redis-key/c] [d dict?]) boolean?]))]{
 
   The first form sets @racket[fld] to @racket[value] within the hash
   at @racket[key].
@@ -319,7 +329,7 @@ Each client represents a single TCP connection to the Redis server.
 
 @defcmd[
   ((HVALS)
-   (hash-values [key string?]) (listof bytes?))]{
+   (hash-values [key redis-key/c]) (listof bytes?))]{
 
   Returns all the values of the hash at @racket[key].
 }
@@ -330,8 +340,8 @@ Each client represents a single TCP connection to the Redis server.
 
 @defcmd[
   ((PFADD)
-   (hll-add! [key string?]
-             [value (or/c string? bytes?)] ...+) boolean?)]{
+   (hll-add! [key redis-key/c]
+             [value redis-string/c] ...+) boolean?)]{
 
   Adds all the @racket[value]s to the HyperLogLog struct at
   @racket[key].
@@ -339,7 +349,7 @@ Each client represents a single TCP connection to the Redis server.
 
 @defcmd[
   ((PFCOUNT)
-   (hll-count [key string?] ...+) exact-nonnegative-integer?)]{
+   (hll-count [key redis-key/c] ...+) exact-nonnegative-integer?)]{
 
   Returns the appromixated cardinality of the union of the given
   HyperLogLog structs at each @racket[key].
@@ -347,8 +357,8 @@ Each client represents a single TCP connection to the Redis server.
 
 @defcmd[
   ((PFMERGE)
-   (hll-merge! [dest string?]
-               [key string?] ...+) boolean?)]{
+   (hll-merge! [dest redis-key/c]
+               [key redis-key/c] ...+) boolean?)]{
 
   Writes the union of the given HyperLogLog structs at each
   @racket[key] into the @racket[dest] key.
@@ -360,7 +370,7 @@ Each client represents a single TCP connection to the Redis server.
 
 @defcmd[
   ((EXISTS)
-   (count-keys [key string?] ...) exact-nonnegative-integer?)]{
+   (count-keys [key redis-key/c] ...) exact-nonnegative-integer?)]{
 
   Returns how many of the given @racket[key]s exist.  Keys are counted
   as many times as they are provided.
@@ -368,7 +378,7 @@ Each client represents a single TCP connection to the Redis server.
 
 @defcmd[
   ((PEXPIREAT)
-   (expire-at! [key string?]
+   (expire-at! [key redis-key/c]
                [ms exact-nonnegative-integer?]) boolean?)]{
 
   Marks @racket[key] so that it will expire at the UNIX timestamp
@@ -378,7 +388,7 @@ Each client represents a single TCP connection to the Redis server.
 
 @defcmd[
   ((PEXPIRE)
-   (expire-in! [key string?]
+   (expire-in! [key redis-key/c]
                [ms exact-nonnegative-integer?]) boolean?)]{
 
   Marks @racket[key] so that it will expire in @racket[ms]
@@ -388,14 +398,14 @@ Each client represents a single TCP connection to the Redis server.
 
 @defcmd[
   ((EXISTS)
-   (has-key? [key string?]) boolean?)]{
+   (has-key? [key redis-key/c]) boolean?)]{
 
   Returns @racket[#t] when @racket[key] is in the database.
 }
 
 @defcmd[
   ((KEYS)
-   (keys [pattern string?]) (listof string?))]{
+   (keys [pattern redis-string/c]) (listof bytes?))]{
 
   Returns a list of all the keys in the database that match the given
   @racket[pattern].
@@ -403,7 +413,7 @@ Each client represents a single TCP connection to the Redis server.
 
 @defcmd[
   ((MOVE)
-   (move-key! [key string?]
+   (move-key! [key redis-key/c]
               [db (integer-in 0 16)]) boolean?)]{
 
   Move @racket[key] from the current database into @racket[db].
@@ -411,21 +421,21 @@ Each client represents a single TCP connection to the Redis server.
 
 @defcmd[
   ((PERSIST)
-   (persist! [key string?]) boolean?)]{
+   (persist! [key redis-key/c]) boolean?)]{
 
   Removes @racket[key]'s expiration.
 }
 
 @defcmd[
   ((RANDOMKEY)
-   (random-key) (or/c false/c string?))]{
+   (random-key) bytes?)]{
 
   Returns a random key from the database or @racket[#f].
 }
 
 @defcmd[
   ((DEL)
-   (remove! [key string?] ...+) exact-nonnegative-integer?)]{
+   (remove! [key redis-key/c] ...+) exact-nonnegative-integer?)]{
 
   Removes each @racket[key] from the database and returns the number
   of keys that were removed.
@@ -433,8 +443,8 @@ Each client represents a single TCP connection to the Redis server.
 
 @defcmd[
   ((RENAME)
-   (rename! [src string?]
-            [dest string?]
+   (rename! [src redis-key/c]
+            [dest redis-key/c]
             [#:unless-exists? unless-exists? boolean? #f]) boolean?)]{
 
   Renames @racket[src] to @racket[dest].
@@ -445,7 +455,7 @@ Each client represents a single TCP connection to the Redis server.
 
 @defcmd[
   ((TOUCH)
-   (touch! [key string?] ...+) exact-nonnegative-integer?)]{
+   (touch! [key redis-key/c] ...+) exact-nonnegative-integer?)]{
 
   Updates the last modification time for each @racket[key] and returns
   the number of keys that were updated.
@@ -453,7 +463,7 @@ Each client represents a single TCP connection to the Redis server.
 
 @defcmd[
   ((PTTL)
-   (key-ttl [key string?]) (or/c 'missing 'persisted exact-nonnegative-integer?))]{
+   (key-ttl [key redis-key/c]) (or/c 'missing 'persisted exact-nonnegative-integer?))]{
 
   Returns the number of milliseconds before @racket[key] expires.
 
@@ -466,7 +476,7 @@ Each client represents a single TCP connection to the Redis server.
 
 @defcmd[
   ((TYPE)
-   (key-type [key string?]) (or/c 'none 'string 'list 'set 'zset 'hash 'stream))]{
+   (key-type [key redis-key/c]) (or/c 'none 'string 'list 'set 'zset 'hash 'stream))]{
 
   Returns @racket[key]'s type.
 }
@@ -477,8 +487,8 @@ Each client represents a single TCP connection to the Redis server.
 
 @defcmd[
   ((RPUSH)
-   (list-append! [key string?]
-                 [value (or/c bytes? string?)]) (or/c false/c exact-nonnegative-integer?))]{
+   (list-append! [key redis-key/c]
+                 [value redis-string/c]) (or/c false/c exact-nonnegative-integer?))]{
 
   Appends @racket[value] to the list at @racket[key], returning the
   new length of the list.
@@ -486,7 +496,7 @@ Each client represents a single TCP connection to the Redis server.
 
 @defcmd[
   ((LRANGE)
-   (list-get [key string?]) redis-value/c)]{
+   (list-get [key redis-key/c]) redis-value/c)]{
 
   An alias for @racket[redis-sublist] that retrieves the whole list at
   @racket[key].
@@ -494,10 +504,10 @@ Each client represents a single TCP connection to the Redis server.
 
 @defcmd[
   ((LINSERT)
-   (list-insert! [key string?]
-                 [value (or/c bytes? string?)]
-                 [#:after pivot/after (or/c bytes? string?)]
-                 [#:before pivot/before (or/c bytes? string?)]) (or/c false/c exact-nonnegative-integer?))]{
+   (list-insert! [key redis-key/c]
+                 [value redis-string/c]
+                 [#:after pivot/after redis-string/c]
+                 [#:before pivot/before redis-string/c]) (or/c false/c exact-nonnegative-integer?))]{
 
   Inserts @racket[value] into the list at @racket[key]
   @racket[#:before] or @racket[#:after] the first occurrence of
@@ -512,14 +522,14 @@ Each client represents a single TCP connection to the Redis server.
 
 @defcmd[
   ((LLEN)
-   (list-length [key string?]) exact-nonnegative-integer?)]{
+   (list-length [key redis-key/c]) exact-nonnegative-integer?)]{
 
   Returns the length of the list at @racket[key].
 }
 
 @defcmd[
   ((LPOP BLPOP)
-   (list-pop-left! [key string?] ...+
+   (list-pop-left! [key redis-key/c] ...+
                    [#:block? block? boolean? #f]
                    [#:timeout timeout exact-nonnegative-integer? 0]) redis-value/c)]{
 
@@ -546,8 +556,8 @@ Each client represents a single TCP connection to the Redis server.
 
 @defcmd[
   ((RPOP RPOPLPUSH BRPOP BRPOPLPUSH)
-   (list-pop-right! [key string?] ...+
-                    [#:dest dest string? #f]
+   (list-pop-right! [key redis-key/c] ...+
+                    [#:dest dest redis-key/c #f]
                     [#:block? block? boolean? #f]
                     [#:timeout timeout exact-nonnegative-integer? 0]) redis-value/c)]{
 
@@ -594,8 +604,8 @@ Each client represents a single TCP connection to the Redis server.
 
 @defcmd[
   ((LPUSH)
-   (list-prepend! [key string?]
-                  [value (or/c bytes? string?)]) (or/c false/c exact-nonnegative-integer?))]{
+   (list-prepend! [key redis-key/c]
+                  [value redis-string/c]) (or/c false/c exact-nonnegative-integer?))]{
 
   Prepends @racket[value] to the list at @racket[key], returning the
   new length of the list.
@@ -603,16 +613,16 @@ Each client represents a single TCP connection to the Redis server.
 
 @defcmd[
   ((LINDEX)
-   (list-ref [key string?] [index exact-integer?]) redis-value/c)]{
+   (list-ref [key redis-key/c] [index exact-integer?]) redis-value/c)]{
 
   Returns the item at @racket[index] in @racket[key] or @racket[#f].
 }
 
 @defcmd[
   ((LREM)
-   (list-remove! [key string?]
+   (list-remove! [key redis-key/c]
                  [count exact-integer?]
-                 [value (or/c bytes? string?)]) exact-nonnegative-integer?)]{
+                 [value redis-string/c]) exact-nonnegative-integer?)]{
 
   Removes up to @racket[count] @racket[value]s from the list at
   @racket[key] and returns the total number of items that were
@@ -621,7 +631,9 @@ Each client represents a single TCP connection to the Redis server.
 
 @defcmd[
   ((LSET)
-   (list-set! [key string?] [index exact-integer?] [value (or/c bytes? string?)]) boolean?)]{
+   (list-set! [key redis-key/c]
+              [index exact-integer?]
+              [value redis-string/c]) boolean?)]{
 
   Sets the value at @racket[index] in the list at @racket[key] to
   @racket[value].
@@ -629,7 +641,7 @@ Each client represents a single TCP connection to the Redis server.
 
 @defcmd[
   ((LTRIM)
-   (list-trim! [key string?]
+   (list-trim! [key redis-key/c]
                [#:start start exact-integer? 0]
                [#:stop stop exact-integer? -1]) boolean?)]{
 
@@ -639,7 +651,7 @@ Each client represents a single TCP connection to the Redis server.
 
 @defcmd[
   ((LRANGE)
-   (sublist [key string?]
+   (sublist [key redis-key/c]
             [#:start start exact-integer? 0]
             [#:stop stop exact-integer? -1]) redis-value/c)]{
 
@@ -653,21 +665,29 @@ Each client represents a single TCP connection to the Redis server.
 
 @defcmd[
   ((EVAL)
-   (script-eval! [lua-script string?]
-                 [#:keys keys (listof string?) null]
-                 [#:args args (listof string?) null]) redis-value/c)]{
+   (script-eval! [lua-script redis-string/c]
+                 [#:keys keys (listof redis-key/c) null]
+                 [#:args args (listof redis-string/c) null]) redis-value/c)]{
 
   Evaluate the @racket[lua-script] on the fly within the database.
 }
 
 @defcmd[
   ((EVALSHA)
-   (script-eval-sha! [script-sha1 string?]
-                     [#:keys keys (listof string?) null]
-                     [#:args args (listof string?) null]) redis-value/c)]{
+   (script-eval-sha! [script-sha1 redis-string/c]
+                     [#:keys keys (listof redis-key/c) null]
+                     [#:args args (listof redis-string/c) null]) redis-value/c)]{
 
   Evaluate the lua script represented by the given
   @racket[script-sha1] on the fly within the database.
+}
+
+@defcmd[
+  ((SCRIPT_EXISTS)
+   (script-exists? [sha redis-string/c]) boolean?)]{
+
+  Returns @racket[#t] when a script with the given @racket[sha] has
+  previously been registered with the server.
 }
 
 @defcmd[
@@ -686,7 +706,7 @@ Each client represents a single TCP connection to the Redis server.
 
 @defcmd[
   ((SCRIPT_LOAD)
-   (script-load! [script string?]) string?)]{
+   (script-load! [script redis-string/c]) string?)]{
 
   Registers the given lua script with the server, returning its sha-1 hash.
 }
@@ -725,7 +745,7 @@ Each client represents a single TCP connection to the Redis server.
 
 @defcmd[
   ((CLIENT_SETNAME)
-   (set-client-name! [name string?]) boolean?)]{
+   (set-client-name! [name redis-string/c]) boolean?)]{
 
   Sets the current client name on the server.
 }
@@ -795,9 +815,9 @@ Each client represents a single TCP connection to the Redis server.
 
 @defcmd[
   ((XACK)
-   (stream-ack! [key string?]
-                [group (or/c bytes? string?)]
-                [id (or/c bytes? string?)] ...+) exact-nonnegative-integer?)]{
+   (stream-ack! [key redis-key/c]
+                [group redis-string/c]
+                [id redis-string/c] ...+) exact-nonnegative-integer?)]{
 
   Acknowledges all of the messages represented by the given
   @racket[ids] within the @racket[group] belonging to the stream at
@@ -806,9 +826,9 @@ Each client represents a single TCP connection to the Redis server.
 
 @defcmd[
   ((XADD)
-   (stream-add! [key string?]
-                [flds-and-vals (or/c bytes? string?)] ...+
-                [#:id id (or/c bytes? string?) "*"]
+   (stream-add! [key redis-key/c]
+                [flds-and-vals redis-string/c] ...+
+                [#:id id redis-string/c "*"]
                 [#:max-length max-length exact-positive-integer?]
                 [#:max-length/approximate max-length/approximate exact-positive-integer?]) bytes?)]{
 
@@ -824,8 +844,8 @@ Each client represents a single TCP connection to the Redis server.
 
 @defcmd[
   ((XINFO_CONSUMERS)
-   (stream-consumers [key string?]
-                     [group (or/c bytes? string?)]) (listof redis-stream-consumer?))]{
+   (stream-consumers [key redis-key/c]
+                     [group redis-string/c]) (listof redis-stream-consumer?))]{
 
   Returns all of the consumers belonging to the @racket[group] of the
   stream at @racket[key].
@@ -833,30 +853,30 @@ Each client represents a single TCP connection to the Redis server.
 
 @defcmd[
   ((XINFO_GROUPS)
-   (stream-groups [key string?]) (listof redis-stream-group?))]{
+   (stream-groups [key redis-key/c]) (listof redis-stream-group?))]{
 
   Returns all of the groups belonging to the stream at @racket[key].
 }
 
 @defcmd[
   ((XINFO_STREAM)
-   (stream-get [key string?]) redis-stream-info?)]{
+   (stream-get [key redis-key/c]) redis-stream-info?)]{
 
   Returns information about the stream at @racket[key].
 }
 
 @defcmd[
   ((XLEN)
-   (stream-length [key string?]) exact-nonnegative-integer?)]{
+   (stream-length [key redis-key/c]) exact-nonnegative-integer?)]{
 
   Returns the lenth of the stream at @racket[key].
 }
 
 @defcmd[
   ((XRANGE)
-   (stream-range [key string?]
-                 [#:start start (or/c bytes? string?) "-"]
-                 [#:stop stop (or/c bytes? string?) "+"]
+   (stream-range [key redis-key/c]
+                 [#:start start redis-string/c "-"]
+                 [#:stop stop redis-string/c "+"]
                  [#:limit limit (or/c false/c exact-positive-integer?)]) (listof redis-stream-entry?))]{
 
   Returns at most @racket[limit] entries between @racket[start] and
@@ -866,8 +886,8 @@ Each client represents a single TCP connection to the Redis server.
 
 @defcmd[
   ((XDEL)
-   (stream-remove! [key string?]
-                   [id (or/c bytes? string?)] ...+) exact-nonnegative-integer?)]{
+   (stream-remove! [key redis-key/c]
+                   [id redis-string/c] ...+) exact-nonnegative-integer?)]{
 
   Removes the entries represented by each @racket[id] from the stream
   at @racket[key], returning the total number of removed entries.
@@ -880,12 +900,12 @@ Each client represents a single TCP connection to the Redis server.
 All Redis strings are sequences of bytes, so whereas most of the
 following functions accept both @racket[bytes?] and @racket[string?]
 values, when a key is retrieved from the server, its value will always
-be either @racket[#f] or @racket[bytes?].
+be either @racket[#f] (if it doesn't exist) or @racket[bytes?].
 
 @defcmd[
   ((APPEND)
-   (bytes-append! [key string?]
-                  [value (or/c bytes? string?)]) exact-nonnegative-integer?)]{
+   (bytes-append! [key redis-key/c]
+                  [value redis-string/c]) exact-nonnegative-integer?)]{
 
   @exec{APPEND}s @racket[value] to the byte string at @racket[key] if
   it exists and returns the new length of @racket[key].
@@ -893,7 +913,7 @@ be either @racket[#f] or @racket[bytes?].
 
 @defcmd[
   ((BITCOUNT)
-   (bytes-bitcount [key string?]
+   (bytes-bitcount [key redis-key/c]
                    [#:start start exact-integer? 0]
                    [#:stop stop exact-integer? -1]) exact-nonnegative-integer?)]{
 
@@ -903,8 +923,8 @@ be either @racket[#f] or @racket[bytes?].
 
 @defcmd[
   ((BITOP)
-   (bytes-bitwise-and! [dst string?]
-                       [src string?] ...) exact-nonnegative-integer?)]{
+   (bytes-bitwise-and! [dst redis-key/c]
+                       [src redis-key/c] ...) exact-nonnegative-integer?)]{
 
   @exec{AND}s all the @racket[src] byte strings together and saves the
   result into @racket[dst], returning the length of the resulting byte
@@ -913,8 +933,8 @@ be either @racket[#f] or @racket[bytes?].
 
 @defcmd[
   ((BITOP)
-   (bytes-bitwise-not! [src string?]
-                       [dst string? src]) exact-nonnegative-integer?)]{
+   (bytes-bitwise-not! [src redis-key/c]
+                       [dst redis-key/c src]) exact-nonnegative-integer?)]{
 
   Flips all the bits in the byte string at @racket[src] and stores the
   result in @racket[dst], returning the length of the resulting byte
@@ -923,8 +943,8 @@ be either @racket[#f] or @racket[bytes?].
 
 @defcmd[
   ((BITOP)
-   (bytes-bitwise-or! [dst string?]
-                      [src string?] ...) exact-nonnegative-integer?)]{
+   (bytes-bitwise-or! [dst redis-key/c]
+                      [src redis-key/c] ...) exact-nonnegative-integer?)]{
 
   @exec{OR}s all the @racket[src] byte strings together and saves the
   result into @racket[dst], returning the length of the resulting byte
@@ -933,8 +953,8 @@ be either @racket[#f] or @racket[bytes?].
 
 @defcmd[
   ((BITOP)
-   (bytes-bitwise-xor! [dst string?]
-                       [src string?] ...) exact-nonnegative-integer?)]{
+   (bytes-bitwise-xor! [dst redis-key/c]
+                       [src redis-key/c] ...) exact-nonnegative-integer?)]{
 
   @exec{XOR}s all the @racket[src] byte strings together and saves the
   result into @racket[dst], returning the length of the resulting byte
@@ -943,7 +963,7 @@ be either @racket[#f] or @racket[bytes?].
 
 @defcmd[
   ((DECR DECRBY)
-   (bytes-decr! [key string?]
+   (bytes-decr! [key redis-key/c]
                 [amt exact-integer? 1]) exact-integer?)]{
 
   Decrements the numeric value of the byte string at @racket[key] by
@@ -955,15 +975,15 @@ be either @racket[#f] or @racket[bytes?].
 
 @defcmd[
   ((GET MGET)
-   (bytes-get [key string?] ...+) (or/c false/c bytes?))]{
+   (bytes-get [key redis-key/c] ...+) (or/c false/c bytes?))]{
 
   Retrieves one or more @racket[key]s from the database.
 }
 
 @defcmd[
   ((INCR INCRBY INCRBYFLOAT)
-   (bytes-incr! [key string?]
-                 [amt (or/c exact-integer? rational?)]) (or/c string? exact-integer?))]{
+   (bytes-incr! [key redis-key/c]
+                [amt (or/c exact-integer? rational?)]) (or/c string? exact-integer?))]{
 
   Increments the value at @racket[key] by @racket[amt].  If the
   resulting value is a float, then a string is returned rather than an
@@ -975,8 +995,8 @@ be either @racket[#f] or @racket[bytes?].
 
 @defcmd[
   ((SET)
-   (bytes-set! [key string?]
-               [value (or/c bytes? string?)]
+   (bytes-set! [key redis-key/c]
+               [value redis-string/c]
                [#:expires-in expires-in (or/c false/c exact-nonnegative-integer?) #f]
                [#:unless-exists? unless-exists? boolean? #f]
                [#:when-exists? when-exists? boolean? #f]) boolean?)]{
