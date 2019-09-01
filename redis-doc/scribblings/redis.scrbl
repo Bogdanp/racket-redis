@@ -157,6 +157,12 @@ Each client represents a single TCP connection to the Redis server.
   whenever a new connection is initiated.
 }
 
+@defproc[(redis-pool-shutdown! [pool redis-pool?]) void?]{
+
+  Shuts down @racket[pool] and closes any of its open connections.
+  Once shut down, a pool can no longer be used.
+}
+
 @defproc[(call-with-redis-client [pool redis-pool?]
                                  [proc (-> redis? any)]
                                  [#:timeout timeout (or/c false/c exact-nonnegative-integer?) #f]) any]{

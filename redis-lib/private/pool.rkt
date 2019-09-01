@@ -12,9 +12,10 @@
  redis-pool?
  redis-pool-take!
  redis-pool-release!
+ redis-pool-shutdown!
  call-with-redis-client)
 
-(struct redis-pool (clients))
+(struct redis-pool (custodian clients))
 
 (define/contract (make-redis-pool #:client-name [client-name "racket-redis"]
                                   #:host [host "127.0.0.1"]
@@ -43,6 +44,7 @@
                 #:db db
                 #:password password))
 
+  (define custodian (make-custodian))
   (define clients
     (make-async-channel pool-size))
 
@@ -51,26 +53,27 @@
                        (let ([client #f]
                              [deadline #f])
                          (lambda ()
-                           (define the-client
-                             (cond
-                               [(and deadline (or (not (redis-connected? client))
-                                                  (> (current-inexact-milliseconds) deadline)))
-                                (begin0 client
-                                  (redis-disconnect! client)
-                                  (redis-connect! client))]
+                           (parameterize ([current-custodian custodian])
+                             (define the-client
+                               (cond
+                                 [(and deadline (or (not (redis-connected? client))
+                                                    (> (current-inexact-milliseconds) deadline)))
+                                  (begin0 client
+                                    (redis-disconnect! client)
+                                    (redis-connect! client))]
 
-                               [client
-                                client]
+                                 [client
+                                  client]
 
-                               [else
-                                (define client* (make-client (~a client-name "-" id)))
-                                (begin0 client*
-                                  (set! client client*))]))
+                                 [else
+                                  (define client* (make-client (~a client-name "-" id)))
+                                  (begin0 client*
+                                    (set! client client*))]))
 
-                           (begin0 the-client
-                             (set! deadline (+ (current-inexact-milliseconds) idle-ttl)))))))
+                             (begin0 the-client
+                               (set! deadline (+ (current-inexact-milliseconds) idle-ttl))))))))
 
-  (redis-pool clients))
+  (redis-pool custodian clients))
 
 (define/contract (redis-pool-take! pool [timeout #f])
   (->* (redis-pool?)
@@ -83,6 +86,10 @@
 (define/contract (redis-pool-release! pool client-fn)
   (-> redis-pool? (-> redis?) void?)
   (async-channel-put (redis-pool-clients pool) client-fn))
+
+(define/contract (redis-pool-shutdown! pool)
+  (-> redis-pool? void?)
+  (custodian-shutdown-all (redis-pool-custodian pool)))
 
 (define/contract (call-with-redis-client
                    pool proc
