@@ -100,10 +100,7 @@
 
 (define/contract (redis-disconnect! client)
   (-> redis? void?)
-  (parameterize ([current-custodian (redis-custodian client)])
-    (kill-thread (redis-response-reader client))
-    (tcp-abandon-port (redis-in client))
-    (tcp-abandon-port (redis-out client))))
+  (custodian-shutdown-all (redis-custodian client)))
 
 (define ((make-response-reader in ->out))
   (let loop ()
