@@ -53,8 +53,6 @@ The commands below are yet to be implemented:
 
 ### Hashes
 
-* [ ]  HINCRBY
-* [ ]  HINCRBYFLOAT
 * [ ]  HSCAN
 * [ ]  HSETNX
 * [ ]  HSTRLEN

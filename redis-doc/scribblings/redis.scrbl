@@ -296,6 +296,16 @@ scripting world and Racket.
 }
 
 @defcmd[
+  ((HINCRBY HINCRBYFLOAT)
+   (hash-incr! [key redis-key/c]
+               [fld redis-string/c]
+               [amt real?]) real?)]{
+
+  Increments the field @racket[fld] belonging to the hash at
+  @racket[key] by @racket[amt] and returns the result.
+}
+
+@defcmd[
   ((HKEYS)
    (hash-keys [key redis-key/c]) (listof bytes?))]{
 
@@ -1140,14 +1150,10 @@ be either @racket[#f] (if it doesn't exist) or @racket[bytes?].
 @defcmd[
   ((INCR INCRBY INCRBYFLOAT)
    (bytes-incr! [key redis-key/c]
-                [amt (or/c exact-integer? rational?)]) (or/c string? exact-integer?))]{
+                [amt real?]) real?)]{
 
-  Increments the value at @racket[key] by @racket[amt].  If the
-  resulting value is a float, then a string is returned rather than an
-  integer.
-
-  If the value at @racket[key] is not a number, then the function will
-  raise an @racket[exn:fail:redis] error.
+  Increments the value at @racket[key] by @racket[amt] and returns the
+  result.
 }
 
 @defcmd[

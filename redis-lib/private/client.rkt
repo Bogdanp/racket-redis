@@ -439,6 +439,19 @@
                              name)
                          (cons value items))))]))
 
+;; HINCRBY key field amount
+;; HINCRBYFLOAT key field amount
+(define/contract/provide (redis-hash-incr! client key fld [n 1])
+  (->* (redis? redis-key/c redis-string/c) (real?) real?)
+  (define res
+    (apply redis-emit! client (cond
+                                [(exact-integer? n) (list "HINCRBY"      key fld (number->string n))]
+                                [else               (list "HINCRBYFLOAT" key fld (number->string n))])))
+
+  (if (bytes? res)
+      (string->number (bytes->string/utf-8 res))
+      res))
+
 ;; HKEYS key
 (define-simple-command (hash-keys [key redis-key/c])
   #:command ("HKEYS")
@@ -480,17 +493,15 @@
 ;; INCRBY key increment
 ;; INCRBYFLOAT key increment
 (define/contract/provide (redis-bytes-incr! client key [n 1])
-  (->* (redis? redis-key/c)
-       ((or/c exact-integer? rational?))
-       (or/c string? exact-integer?))
+  (->* (redis? redis-key/c) (real?) real?)
   (define res
     (apply redis-emit! client (cond
-                                [(= n 1)            (list "INCR" key)]
-                                [(exact-integer? n) (list "INCRBY" key (number->string n))]
+                                [(= n 1)            (list "INCR"        key)]
+                                [(exact-integer? n) (list "INCRBY"      key (number->string n))]
                                 [else               (list "INCRBYFLOAT" key (number->string n))])))
 
   (if (bytes? res)
-      (bytes->string/utf-8 res)
+      (string->number (bytes->string/utf-8 res))
       res))
 
 ;; INFO

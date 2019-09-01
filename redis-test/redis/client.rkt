@@ -87,38 +87,46 @@
                                        #:args '("b" "c"))
                    '(#"a" #"b" #"c")))
 
-   (test-commands "HEXISTS, HSET, HMSET, HGETALL, HDEL, HLEN, HKEYS, HVALS"
-     (check-false (redis-hash-has-key? test-client "notahash" "a"))
-     (check-true (redis-hash-set! test-client "simple-hash" "a" "1"))
-     (check-true (redis-hash-has-key? test-client "simple-hash" "a"))
-     (check-equal? (redis-hash-get test-client "simple-hash") (hash #"a" #"1"))
-     (check-equal? (redis-hash-ref test-client "simple-hash" "a") #"1")
-     (check-equal? (redis-hash-remove! test-client "simple-hash" "a") 1)
-     (check-equal? (redis-hash-get test-client "simple-hash") (hash))
+   (test-suite
+    "hashes"
 
-     (check-true (redis-hash-set! test-client "alist-hash" '(("a" . "1")
-                                                             ("b" . "2")
-                                                             ("c" . "3"))))
-     (check-equal? (redis-hash-get test-client "alist-hash") (hash #"a" #"1"
-                                                                   #"b" #"2"
-                                                                   #"c" #"3"))
-     (check-equal? (redis-hash-ref test-client "alist-hash" "a") #"1")
-     (check-equal? (redis-hash-get test-client "alist-hash" "a" "b") (hash #"a" #"1"
-                                                                           #"b" #"2"))
-     (check-equal? (redis-hash-get test-client "alist-hash" "a" "d" "b") (hash #"a" #"1"
-                                                                               #"b" #"2"
-                                                                               #"d" #f))
+    (test-commands "basic hash commands"
+      (check-false (redis-hash-has-key? test-client "notahash" "a"))
+      (check-true (redis-hash-set! test-client "simple-hash" "a" "1"))
+      (check-true (redis-hash-has-key? test-client "simple-hash" "a"))
+      (check-equal? (redis-hash-get test-client "simple-hash") (hash #"a" #"1"))
+      (check-equal? (redis-hash-ref test-client "simple-hash" "a") #"1")
+      (check-equal? (redis-hash-remove! test-client "simple-hash" "a") 1)
+      (check-equal? (redis-hash-get test-client "simple-hash") (hash))
 
-     (check-equal? (redis-hash-length test-client "notahash") 0)
-     (check-equal? (redis-hash-length test-client "alist-hash") 3)
+      (check-true (redis-hash-set! test-client "alist-hash" '(("a" . "1")
+                                                              ("b" . "2")
+                                                              ("c" . "3"))))
+      (check-equal? (redis-hash-get test-client "alist-hash") (hash #"a" #"1"
+                                                                    #"b" #"2"
+                                                                    #"c" #"3"))
+      (check-equal? (redis-hash-ref test-client "alist-hash" "a") #"1")
+      (check-equal? (redis-hash-get test-client "alist-hash" "a" "b") (hash #"a" #"1"
+                                                                            #"b" #"2"))
+      (check-equal? (redis-hash-get test-client "alist-hash" "a" "d" "b") (hash #"a" #"1"
+                                                                                #"b" #"2"
+                                                                                #"d" #f))
 
-     (check-equal? (redis-hash-keys test-client "notahash") null)
-     (check-equal? (sort (redis-hash-keys test-client "alist-hash") bytes<?)
-                   (sort'(#"a" #"b" #"c") bytes<?))
+      (check-equal? (redis-hash-length test-client "notahash") 0)
+      (check-equal? (redis-hash-length test-client "alist-hash") 3)
 
-     (check-equal? (redis-hash-values test-client "notahash") null)
-     (check-equal? (sort (redis-hash-values test-client "alist-hash") bytes<?)
-                   (sort '(#"1" #"2" #"3") bytes<?)))
+      (check-equal? (redis-hash-keys test-client "notahash") null)
+      (check-equal? (sort (redis-hash-keys test-client "alist-hash") bytes<?)
+                    (sort'(#"a" #"b" #"c") bytes<?))
+
+      (check-equal? (redis-hash-values test-client "notahash") null)
+      (check-equal? (sort (redis-hash-values test-client "alist-hash") bytes<?)
+                    (sort '(#"1" #"2" #"3") bytes<?)))
+
+    (test-commands "HINCR*"
+      (check-equal? (redis-hash-incr! test-client "a" "f") 1)
+      (check-equal? (redis-hash-incr! test-client "a" "f" 10) 11)
+      (check-equal? (redis-hash-incr! test-client "a" "f" 2.5) 13.5)))
 
    (test-commands "{M,}GET and SET"
      (check-false (redis-has-key? test-client "a"))
@@ -136,7 +144,7 @@
      (check-equal? (redis-bytes-incr! test-client "a") 1)
      (check-equal? (redis-bytes-incr! test-client "a") 2)
      (check-equal? (redis-bytes-incr! test-client "a" 3) 5)
-     (check-equal? (redis-bytes-incr! test-client "a" 1.5) "6.5")
+     (check-equal? (redis-bytes-incr! test-client "a" 1.5) 6.5)
      (check-equal? (redis-key-type test-client "a") 'string))
 
    (test-commands "LINDEX, LLEN, LPUSH, LPOP, BLPOP"
