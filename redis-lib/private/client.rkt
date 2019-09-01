@@ -839,6 +839,10 @@
  (contract-out
   [struct redis-stream-entry ([id bytes?]
                               [fields (hash/c bytes? bytes?)])]
+  [struct redis-stream-entry/pending ([id bytes?]
+                                      [consumer bytes?]
+                                      [elapsed-time exact-nonnegative-integer?]
+                                      [delivery-count exact-positive-integer?])]
   [struct redis-stream-info ([length exact-nonnegative-integer?]
                              [radix-tree-keys exact-nonnegative-integer?]
                              [radix-tree-nodes exact-nonnegative-integer?]
@@ -854,6 +858,7 @@
                                  [pending exact-positive-integer?])]))
 
 (struct redis-stream-entry (id fields) #:transparent)
+(struct redis-stream-entry/pending (id consumer elapsed-time delivery-count) #:transparent)
 (struct redis-stream-info (length radix-tree-keys radix-tree-nodes groups last-generated-id first-entry last-entry) #:transparent)
 (struct redis-stream-group (name consumers pending) #:transparent)
 (struct redis-stream-consumer (name idle pending) #:transparent)
@@ -889,20 +894,17 @@
        "flds-and-vals must contain an even number of field and value pairs"
        (even? (length flds-and-vals))
 
-       [result non-empty-string?])
+       [result bytes?])
 
-  (define message-id
-    (cond
-      [max-length/approximate
-       (apply redis-emit! client "XADD" key "MAXLEN" "~" (number->string max-length/approximate) id fld val flds-and-vals)]
+  (cond
+    [max-length/approximate
+     (apply redis-emit! client "XADD" key "MAXLEN" "~" (number->string max-length/approximate) id fld val flds-and-vals)]
 
-      [max-length
-       (apply redis-emit! client "XADD" key "MAXLEN" (number->string max-length) id fld val flds-and-vals)]
+    [max-length
+     (apply redis-emit! client "XADD" key "MAXLEN" (number->string max-length) id fld val flds-and-vals)]
 
-      [else
-       (apply redis-emit! client "XADD" key id fld val flds-and-vals)]))
-
-  (bytes->string/utf-8 message-id))
+    [else
+     (apply redis-emit! client "XADD" key id fld val flds-and-vals)]))
 
 ;; XDEL key id [id ...]
 (define-variadic-command (stream-remove! [key redis-key/c] [id redis-string/c] . [ids redis-string/c])
@@ -971,21 +973,44 @@
   #:command ("XLEN")
   #:result-contract exact-nonnegative-integer?)
 
-;; XRANGE key start stop [COUNT count]
-;; XREVRANGE key stop start [COUNT count]
+;; XPENDING key group [start stop count] [consumer]
 (define stream-range-position/c
-  (or/c 'first-item 'last-item redis-string/c))
+  (or/c 'first-entry 'last-entry redis-string/c))
 
 (define (stream-range-position->string p)
   (match p
-    ['first-item #"-"]
-    ['last-item  #"+"]
-    [p             p ]))
+    ['first-entry #"-"]
+    ['last-entry  #"+"]
+    [p            p]))
 
+(define/contract/provide (redis-stream-group-range client key group [consumer #f]
+                                                   #:start [start 'first-entry]
+                                                   #:stop [stop 'last-entry]
+                                                   #:limit [limit 10])
+  (->* (redis? redis-key/c redis-string/c)
+       (redis-string/c
+        #:start stream-range-position/c
+        #:stop stream-range-position/c
+        #:limit exact-positive-integer?)
+       (listof redis-stream-entry/pending?))
+  (map list->entry/pending
+       (apply redis-emit! client "XPENDING" key group
+              (stream-range-position->string start)
+              (stream-range-position->string stop)
+              (number->string limit)
+              (if consumer
+                  (list consumer)
+                  (list)))))
+
+(define (list->entry/pending l)
+  (apply redis-stream-entry/pending l))
+
+;; XRANGE key start stop [COUNT count]
+;; XREVRANGE key stop start [COUNT count]
 (define/contract/provide (redis-stream-range client key
                                              #:reverse? [reverse? #f]
-                                             #:start [start 'first-item]
-                                             #:stop [stop 'last-item]
+                                             #:start [start 'first-entry]
+                                             #:stop [stop 'last-entry]
                                              #:limit [limit #f])
   (->* (redis? redis-key/c)
        (#:reverse? boolean?
@@ -1005,43 +1030,38 @@
                   (list)))))
 
 ;; XREADGROUP GROUP group consumer [COUNT count] [BLOCK milliseconds] [NOACK] STREAMS key [key ...] id [id ...]
+(define stream-group-position/c
+  (or/c 'new-entries redis-string/c))
+
+(define (stream-group-position->string p)
+  (match p
+    ['new-entries #">"]
+    [p            p]))
+
 (define/contract/provide (redis-stream-group-read! client
+                                                   #:streams streams
                                                    #:group group
                                                    #:consumer consumer
                                                    #:limit [limit #f]
                                                    #:block? [block? #f]
                                                    #:timeout [timeout 0]
-                                                   #:no-ack? [no-ack? #f]
-                                                   key id . key-or-ids)
-  (->i ([client redis?]
-        #:group [group redis-string/c]
-        #:consumer [consumer redis-string/c]
-        [key redis-key/c]
-        [id redis-string/c])
-       (#:limit [limit (or/c false/c exact-positive-integer?)]
-        #:block? [block? boolean?]
-        #:timeout [timeout exact-nonnegative-integer?]
-        #:no-ack? [no-ack? boolean?])
-       #:rest [key-or-ids (listof redis-string/c)]
-
-       #:pre/name (key-or-ids)
-       "an even number of key-or-ids entries"
-       (even? (length key-or-ids))
-
-       [result (or/c false/c (listof (list/c bytes? (listof redis-stream-entry?))))])
+                                                   #:no-ack? [no-ack? #f])
+  (->* (redis?
+        #:streams (non-empty-listof (cons/c redis-key/c stream-group-position/c))
+        #:group redis-string/c
+        #:consumer redis-string/c)
+       (#:limit (or/c false/c exact-positive-integer?)
+        #:block? boolean?
+        #:timeout exact-nonnegative-integer?
+        #:no-ack? boolean?)
+       (or/c false/c (listof (list/c bytes? (listof redis-stream-entry?)))))
 
   (define timeout/read (if (> timeout 0) (add1 timeout) #f))
 
   (define-values (keys ids)
-    (let loop ([keys (list key)]
-               [ids (list id)]
-               [remaining key-or-ids])
-      (match remaining
-        [(list)
-         (values (reverse keys)
-                 (reverse ids))]
-        [(list key id remaining ...)
-         (values (cons key keys) (cons id ids) remaining)])))
+    (for/lists (keys ids)
+               ([pair (in-list streams)])
+      (values (car pair) (stream-group-position->string (cdr pair)))))
 
   (let* ([args (cons "STREAMS" (append keys ids))]
          [args (if no-ack? (cons "NOACK" args) args)]

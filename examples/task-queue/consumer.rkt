@@ -48,7 +48,8 @@
 ;; process the entries
 (let loop ([last-id "0"])
   (define entries/by-stream
-    (redis-stream-group-read! client stream-name last-id
+    (redis-stream-group-read! client
+                              #:streams (list (cons stream-name last-id))
                               #:group group
                               #:consumer consumer
                               #:limit 1000

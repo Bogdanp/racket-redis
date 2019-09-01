@@ -257,20 +257,54 @@
     "streams"
 
     (test-commands "XADD, XDEL, XINFO, XLEN and XRANGE"
-      (define first-id (redis-stream-add! test-client "a" "message" "hello"))
-      (define second-id (redis-stream-add! test-client "a" "message" "goodbye"))
+      (define id-1 (redis-stream-add! test-client "a" "message" "hello"))
+      (define id-2 (redis-stream-add! test-client "a" "message" "goodbye"))
       (check-equal? (redis-stream-length test-client "a") 2)
+
       (define info (redis-stream-get test-client "a"))
       (check-equal? (redis-stream-info-length info) 2)
       (check-equal? (redis-stream-range test-client "a")
                     (list (redis-stream-info-first-entry info)
                           (redis-stream-info-last-entry info)))
-      (check-equal? (redis-stream-remove! test-client "a" first-id) 1)
-      (check-equal? (redis-stream-remove! test-client "a" first-id) 0)
-      (check-equal? (redis-stream-range test-client "a")
-                    (list (redis-stream-info-last-entry info)))))
 
-   (check-equal? (redis-quit! test-client) (void))))
+      (check-equal? (redis-stream-remove! test-client "a" id-1) 1)
+      (check-equal? (redis-stream-remove! test-client "a" id-1) 0)
+      (check-equal? (redis-stream-range test-client "a")
+                    (list (redis-stream-info-last-entry info))))
+
+    (test-commands "XGROUP, XREADGROUP"
+      (define id-1 (redis-stream-add! test-client "a" "message" "hi!"))
+      (define id-2 (redis-stream-add! test-client "a" "message" "bye!"))
+
+      (check-true (redis-stream-group-create! test-client "a" "group-1"))
+
+      (define entries/by-stream
+        (redis-stream-group-read! test-client
+                                  #:streams '(("a" . new-entries))
+                                  #:group "group-1"
+                                  #:consumer "consumer-1"
+                                  #:limit 1
+                                  #:block? #t
+                                  #:timeout 1000))
+
+      (define entry-1 (redis-stream-entry id-1 (hash #"message" #"hi!")))
+      (define entry-2 (redis-stream-entry id-2 (hash #"message" #"bye!")))
+
+      (check-equal? entries/by-stream (list (list #"a" (list entry-1))))
+
+      (define pending-entries
+        (redis-stream-group-range test-client "a" "group-1"))
+
+      (check-equal? (length pending-entries) 1)
+      (check-equal? (redis-stream-entry/pending-id (car pending-entries)) id-1)
+      (check-equal? (redis-stream-entry/pending-consumer (car pending-entries)) #"consumer-1")
+
+      (check-equal? (redis-stream-ack! test-client "a" "group-1" id-1) 1)
+      (check-equal? (redis-stream-group-range test-client "a" "group-1") null)))
+
+   (test-commands "QUIT"
+     (check-equal? (redis-quit! test-client) (void))
+     (check-false (redis-connected? test-client)))))
 
 (module+ test
   (require rackunit/text-ui)

@@ -102,7 +102,6 @@ The commands below are yet to be implemented:
 ### Streams
 
 * [ ]  XCLAIM
-* [ ]  XPENDING
 * [ ]  XREAD
 
 ### Sorted Sets

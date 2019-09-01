@@ -827,6 +827,14 @@ scripting world and Racket.
   A struct representing individual entries within a stream.
 }
 
+@defstruct[redis-stream-entry/pending ([id bytes?]
+                                       [consumer bytes?]
+                                       [elapsed-time exact-nonnegative-integer?]
+                                       [delivery-count exact-positive-integer?])]{
+
+  A struct representing pending entries within a stream group.
+}
+
 @defstruct[redis-stream-info ([length exact-nonnegative-integer?]
                               [radix-tree-keys exact-nonnegative-integer?]
                               [radix-tree-nodes exact-nonnegative-integer?]
@@ -918,24 +926,32 @@ scripting world and Racket.
 }
 
 @defcmd[
+  ((XPENDING)
+   (stream-group-range [key redis-key/c]
+                       [group redis-string/c]
+                       [#:start start (or/c 'first-entry 'last-entry redis-string/c) 'first-entry]
+                       [#:stop stop (or/c 'first-entry 'last-entry redis-string/c) 'last-entry]
+                       [#:limit limit exact-positive-integer? 10]) (listof redis-stream-entry/pending?))]{
+
+  Retrieves @racket[limit] pending entries for the @racket[group]
+  belonging to the stream at @racket[key] between @racket[start] and
+  @racket[stop].
+}
+
+@defcmd[
   ((XREADGROUP)
-   (stream-group-read! [#:group group redis-string/c]
+   (stream-group-read! [#:streams streams (non-empty-listof (cons/c redis-key/c redis-string/c))]
+                       [#:group group redis-string/c]
                        [#:consumer consumer redis-string/c]
                        [#:limit limit (or/c false/c exact-positive-integer?) #f]
                        [#:block? block? boolean? #f]
                        [#:timeout timeout exact-nonnegative-integer? 0]
-                       [#:no-ack? no-ack? boolean? #f]
-                       [key-and-id redis-string/c] ...+) (or/c false/c (listof (list/c bytes? (listof redis-stream-entry?)))))]{
+                       [#:no-ack? no-ack? boolean? #f]) (or/c false/c (listof (list/c bytes? (listof redis-stream-entry?)))))]{
 
   Reads entries from a stream group for every stream and id pair given
-  via @racket[key-and-id] and returns a list of lists where the
+  via the @racket[streams] alist and returns a list of lists where the
   @racket[first] element of sublist is the name of the stream and the
   @racket[second] is the list of entries retrieved for that stream.
-
-  An @racket[even?] number of @racket[key-and-id] items must be
-  provided.  The items make up a list of pairs where the first is a
-  key representing a stream and the second is the id within that
-  stream after which to start reading.
 }
 
 @defcmd[
@@ -975,8 +991,8 @@ scripting world and Racket.
   ((XRANGE)
    (stream-range [key redis-key/c]
                  [#:reverse? reverse? boolean? #f]
-                 [#:start start (or/c 'first-item 'last-item redis-string/c)]
-                 [#:stop stop (or/c 'first-item 'last-item redis-string/c)]
+                 [#:start start (or/c 'first-entry 'last-entry redis-string/c)]
+                 [#:stop stop (or/c 'first-entry 'last-entry redis-string/c)]
                  [#:limit limit (or/c false/c exact-positive-integer?)]) (listof redis-stream-entry?))]{
 
   Returns at most @racket[limit] entries between @racket[start] and
@@ -984,7 +1000,7 @@ scripting world and Racket.
   @racket[#f], then all the entries are returned.
 
   @racket[start] and @racket[stop] accept a stream entry id or one of
-  the special values @racket['first-item] and @racket['last-item],
+  the special values @racket['first-entry] and @racket['last-entry],
   which map to the special ids @racket["-"] and @racket["+"],
   respectively, which mean the very first and the very last item in
   the stream.
