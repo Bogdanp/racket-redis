@@ -937,7 +937,7 @@ scripting world and Racket.
 
 @defcmd[
   ((XREADGROUP)
-   (stream-group-read! [#:streams streams (non-empty-listof (cons/c redis-key/c redis-string/c))]
+   (stream-group-read! [#:streams streams (non-empty-listof (cons/c redis-key/c (or/c 'new-entries redis-string/c)))]
                        [#:group group redis-string/c]
                        [#:consumer consumer redis-string/c]
                        [#:limit limit (or/c false/c exact-positive-integer?) #f]
@@ -947,8 +947,13 @@ scripting world and Racket.
 
   Reads entries from a stream group for every stream and id pair given
   via the @racket[streams] alist and returns a list of lists where the
-  @racket[first] element of sublist is the name of the stream and the
-  @racket[second] is the list of entries retrieved for that stream.
+  @racket[first] element of each sublist is the name of the stream and
+  the @racket[second] is the list of entries retrieved for that
+  stream.
+
+  The special @racket['new-entries] id value maps to the special id
+  @racket[">"], meaning that only entries that haven't yet been
+  retrieved by this @racket[consumer] should be returned.
 }
 
 @defcmd[
@@ -1004,6 +1009,24 @@ scripting world and Racket.
 
   When @racket[reverse?] is @racket[#t] the entries are returned in
   reverse order and @racket[start] and @racket[stop] are swapped.
+}
+
+@defcmd[
+  ((XREAD)
+   (stream-read! [#:streams streams (non-empty-listof (cons/c redis-key/c (or/c 'new-entries redis-string/c)))]
+                 [#:limit limit (or/c false/c exact-positive-integer?) #f]
+                 [#:block? block? boolean? #f]
+                 [#:timeout timeout exact-nonnegative-integer? 0]) (or/c false/c (listof (list/c bytes? (listof redis-stream-entry?)))))]{
+
+  Reads entries from every stream and id pair given via the
+  @racket[streams] alist and returns a list of lists where the
+  @racket[first] element of each sublist is the name of the stream and
+  the @racket[second] is the list of entries retrieved for that
+  stream.
+
+  The special @racket['new-entries] id value maps to the special id
+  @racket["$"], meaning that only entries added after the read was
+  initiated should be retrieved.
 }
 
 @defcmd[

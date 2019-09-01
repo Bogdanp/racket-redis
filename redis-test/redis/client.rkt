@@ -256,7 +256,7 @@
    (test-suite
     "streams"
 
-    (test-commands "XADD, XDEL, XINFO, XLEN and XRANGE"
+    (test-commands "basic stream operations"
       (define id-1 (redis-stream-add! test-client "a" "message" "hello"))
       (define id-2 (redis-stream-add! test-client "a" "message" "goodbye"))
       (check-equal? (redis-stream-length test-client "a") 2)
@@ -267,12 +267,17 @@
                     (list (redis-stream-info-first-entry info)
                           (redis-stream-info-last-entry info)))
 
+      (check-equal? (redis-stream-read! test-client
+                                        #:streams '(("a" . "0"))
+                                        #:limit 1)
+                    (list (list #"a" (list (redis-stream-info-first-entry info)))))
+
       (check-equal? (redis-stream-remove! test-client "a" id-1) 1)
       (check-equal? (redis-stream-remove! test-client "a" id-1) 0)
       (check-equal? (redis-stream-range test-client "a")
                     (list (redis-stream-info-last-entry info))))
 
-    (test-commands "XGROUP, XREADGROUP"
+    (test-commands "group-related operations"
       (define id-1 (redis-stream-add! test-client "a" "message" "hi!"))
       (define id-2 (redis-stream-add! test-client "a" "message" "bye!"))
 

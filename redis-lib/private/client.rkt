@@ -974,11 +974,11 @@
 (define stream-range-position/c
   (or/c 'first-entry 'last-entry redis-string/c))
 
-(define (stream-range-position->string p)
-  (match p
+(define stream-range-position->string
+  (match-lambda
     ['first-entry #"-"]
     ['last-entry  #"+"]
-    [p            p]))
+    [posn         posn]))
 
 (define/contract/provide (redis-stream-group-range client key group [consumer #f]
                                                    #:start [start 'first-entry]
@@ -1026,14 +1026,49 @@
                   (list (number->string limit))
                   (list)))))
 
+;; XREAD [COUNT count] [BLOCK milliseconds] STREAMS key [key ...] id [id ...]
+(define stream-position/c
+  (or/c 'new-entries redis-string/c))
+
+(define stream-position->string
+  (match-lambda
+    ['new-entries #"$"]
+    [posn         posn]))
+
+(define/contract/provide (redis-stream-read! client
+                                             #:streams streams
+                                             #:limit [limit #f]
+                                             #:block? [block? #f]
+                                             #:timeout [timeout 0])
+  (->* (redis?
+        #:streams (non-empty-listof (cons/c redis-key/c stream-position/c)))
+       (#:limit (or/c false/c exact-positive-integer?)
+        #:block? boolean?
+        #:timeout exact-nonnegative-integer?)
+       (or/c false/c (listof (list/c bytes? (listof redis-stream-entry?)))))
+
+  (define timeout/read (if (> timeout 0) (add1 timeout) #f))
+
+  (define-values (keys ids)
+    (for/lists (keys ids)
+               ([pair (in-list streams)])
+      (values (car pair) (stream-position->string (cdr pair)))))
+
+  (let* ([args (cons "STREAMS" (append keys ids))]
+         [args (if block? (cons "BLOCK" (cons (number->string timeout) args)) args)]
+         [args (if limit (cons "COUNT" (cons (number->string limit) args)) args)]
+         [pairs (apply redis-emit! client "XREAD" args #:timeout timeout/read)])
+    (and pairs (for/list ([pair (in-list pairs)])
+                 (list (car pair) (map pair->entry (cadr pair)))))))
+
 ;; XREADGROUP GROUP group consumer [COUNT count] [BLOCK milliseconds] [NOACK] STREAMS key [key ...] id [id ...]
 (define stream-group-position/c
   (or/c 'new-entries redis-string/c))
 
-(define (stream-group-position->string p)
-  (match p
+(define stream-group-position->string
+  (match-lambda
     ['new-entries #">"]
-    [p            p]))
+    [posn         posn]))
 
 (define/contract/provide (redis-stream-group-read! client
                                                    #:streams streams
@@ -1063,10 +1098,10 @@
   (let* ([args (cons "STREAMS" (append keys ids))]
          [args (if no-ack? (cons "NOACK" args) args)]
          [args (if block? (cons "BLOCK" (cons (number->string timeout) args)) args)]
-         [args (if limit (cons "COUNT" (cons (number->string limit) args)) args)])
-    (for/list ([pair (in-list (apply redis-emit! client "XREADGROUP" "GROUP" group consumer args
-                                     #:timeout timeout/read))])
-      (list (car pair) (map pair->entry (cadr pair))))))
+         [args (if limit (cons "COUNT" (cons (number->string limit) args)) args)]
+         [pairs (apply redis-emit! client "XREADGROUP" "GROUP" group consumer args #:timeout timeout/read)])
+    (and pairs (for/list ([pair (in-list pairs)])
+                 (list (car pair) (map pair->entry (cadr pair)))))))
 
 ;; XTRIM key MAXLEN [~] count
 (define/contract/provide (redis-stream-trim! client key
