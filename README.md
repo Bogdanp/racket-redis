@@ -62,7 +62,6 @@ The commands below are yet to be implemented:
 ### Lists
 
 * [ ]  LPUSHX
-* [ ]  RPOPLPUSH
 * [ ]  RPUSHX
 
 ### Sets
@@ -98,10 +97,6 @@ The commands below are yet to be implemented:
 * [ ]  PUNSUBSCRIBE
 * [ ]  SUBSCRIBE
 * [ ]  UNSUBSCRIBE
-
-### Streams
-
-* [ ]  XCLAIM
 
 ### Sorted Sets
 

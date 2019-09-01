@@ -903,6 +903,35 @@
     [else
      (apply redis-emit! client "XADD" key id fld val flds-and-vals)]))
 
+;; XCLAIM key group consumer min-idle-time id [id ...] [IDLE ms] [TIME milliseconds] [RETRYCOUNT count] [FORCE] [JUSTID]
+(define/contract/provide (redis-stream-group-claim! client key
+                                                    #:group group
+                                                    #:consumer consumer
+                                                    #:min-idle-time min-idle-time
+                                                    #:new-idle-value [new-idle-value #f]
+                                                    #:new-time-value [new-time-value #f]
+                                                    #:new-retry-count [new-retry-count #f]
+                                                    #:force? [force? #f]
+                                                    . ids)
+  (->* (redis?
+        redis-key/c
+        #:group redis-string/c
+        #:consumer redis-string/c
+        #:min-idle-time exact-nonnegative-integer?)
+       (#:new-idle-value exact-nonnegative-integer?
+        #:new-time-value exact-nonnegative-integer?
+        #:new-retry-count exact-nonnegative-integer?
+        #:force? boolean?)
+       #:rest (non-empty-listof redis-string/c)
+       (non-empty-listof redis-stream-entry?))
+
+  (let* ([args (if force? (list "FORCE") (list))]
+         [args (if new-retry-count (cons "RETRYCOUNT" (cons (number->string new-retry-count) args)) args)]
+         [args (if new-time-value (cons "TIME" (cons (number->string new-time-value) args)) args)]
+         [args (if new-idle-value (cons "IDLE" (cons (number->string new-idle-value) args)) args)]
+         [pairs (apply redis-emit! client "XCLAIM" key group consumer min-idle-time (append ids args))])
+    (and pairs (map pair->entry pairs))))
+
 ;; XDEL key id [id ...]
 (define-variadic-command (stream-remove! [key redis-key/c] [id redis-string/c] . [ids redis-string/c])
   #:command ("XDEL")
