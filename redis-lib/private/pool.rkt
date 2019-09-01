@@ -74,9 +74,11 @@
 
 (define/contract (redis-pool-take! pool [timeout #f])
   (->* (redis-pool?)
-       ((or/c false/c (and/c real? (not/c negative?))))
+       ((or/c false/c exact-nonnegative-integer?))
        (or/c false/c (-> redis?)))
-  (sync/timeout timeout (redis-pool-clients pool)))
+  (sync/timeout
+   (and timeout (/ timeout 1000))
+   (redis-pool-clients pool)))
 
 (define/contract (redis-pool-release! pool client-fn)
   (-> redis-pool? (-> redis?) void?)
@@ -86,7 +88,7 @@
                    pool proc
                    #:timeout [timeout #f])
   (->* (redis-pool? (-> redis? any))
-       (#:timeout (or/c false/c (and/c real? (not/c negative?))))
+       (#:timeout (or/c false/c exact-nonnegative-integer?))
        any)
 
   (define client-fn #f)

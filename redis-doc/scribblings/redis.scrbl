@@ -169,8 +169,8 @@ Each client represents a single TCP connection to the Redis server.
   bad idea so don't do it.
 
   This function blocks until either a connection becomes available or
-  the @racket[timeout] is reached.  If @racket[timeout] is
-  @racket[#f], then the function will block indefinitely.  Upon
+  the @racket[timeout] (milliseconds) is reached.  If @racket[timeout]
+  is @racket[#f], then the function will block indefinitely.  Upon
   timeout an @racket[exn:fail:redis:pool:timeout] exception is raised.
 }
 
