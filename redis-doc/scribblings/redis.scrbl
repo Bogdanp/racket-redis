@@ -103,7 +103,7 @@ Each client represents a single TCP connection to the Redis server.
 }
 
 @defproc[(redis-connect! [client redis?]) void?]{
-  Initiales a connection to the database.  If one is already open,
+  Initiates a connection to the database.  If one is already open,
   then the client is first disconnected before the new connection is
   made.
 }
@@ -378,7 +378,7 @@ scripting world and Racket.
   ((PFCOUNT)
    (hll-count [key redis-key/c] ...+) exact-nonnegative-integer?)]{
 
-  Returns the appromixated cardinality of the union of the given
+  Returns the approximate cardinality of the union of the given
   HyperLogLog structs at each @racket[key].
 }
 
@@ -983,7 +983,7 @@ scripting world and Racket.
   ((XLEN)
    (stream-length [key redis-key/c]) exact-nonnegative-integer?)]{
 
-  Returns the lenth of the stream at @racket[key].
+  Returns the length of the stream at @racket[key].
 }
 
 @defcmd[
