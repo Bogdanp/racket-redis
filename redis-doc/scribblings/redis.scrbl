@@ -10,8 +10,7 @@
 
 @title{@exec{redis}: bindings for Redis}
 @author[(author+email "Bogdan Popa" "bogdan@defn.io")]
-
-@section[#:tag "intro"]{Introduction}
+@defmodule[redis]
 
 This package provides up-to-date bindings to the Redis database that
 are idiomatic and fast.  Every exposed function has a contract (some
@@ -56,10 +55,6 @@ cpu time: 562 real time: 655 gc time: 18
 Obviously, real world use cases will have different characteristics,
 but the point is that the library won't get in your way.
 
-
-@section[#:tag "reference"]{Reference}
-@defmodule[redis]
-
 The functions in this package are named differently from their Redis
 counterparts to avoid confusion as much as possible.  The rule is that
 when a function name is ambiguous with regards to the type of value it
@@ -76,7 +71,9 @@ the associated function's name is, simply search this documentation
 for that command.  The documentation for each function names the
 commands said function relies on.
 
-@subsection[#:tag "client"]{The Client}
+
+@;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+@section[#:tag "client"]{Clients}
 
 Each client represents a single TCP connection to the Redis server.
 
@@ -134,26 +131,8 @@ Each client represents a single TCP connection to the Redis server.
 }
 
 
-
-@subsection[#:tag "scripts"]{Scripts}
-
-@defthing[redis-script/c (->* (redis?)
-                              (#:keys (listof redis-key/c)
-                               #:args (listof redis-string/c))
-                              redis-value/c)]{
-
-  The contract for lua-backed Redis scripts.
-}
-
-@defproc[(make-redis-script [client redis?]
-                            [lua-script redis-string/c]) redis-script/c]{
-
-  Returns a function that will execute @racket[lua-script] via
-  @exec{EVALSHA} every time it's called.
-}
-
-
-@subsection[#:tag "pooling"]{Connection Pooling}
+@;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+@section[#:tag "pooling"]{Connection Pooling}
 
 @defproc[(redis-pool? [v any/c]) boolean?]{
   Returns @racket[#t] if @racket[v] is a pool of Redis connections.
@@ -196,7 +175,8 @@ Each client represents a single TCP connection to the Redis server.
 }
 
 
-@subsection[#:tag "exceptions"]{Exceptions}
+@;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+@section[#:tag "exceptions"]{Exceptions}
 
 @deftogether[
   (@defstruct[(exn:fail:redis exn:fail) ()]
@@ -210,7 +190,8 @@ Each client represents a single TCP connection to the Redis server.
 }
 
 
-@subsection[#:tag "transactions"]{Transactions}
+@;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+@section[#:tag "transactions"]{Transactions}
 
 You may notice that transaction-related commands are conspicuously
 missing from this library.  That's intentional!  Redis transactions
@@ -223,11 +204,27 @@ Check out @secref["scripts"] for a nice bridge between the lua
 scripting world and Racket.
 
 
-@subsection[#:tag "commands"]{Supported Commands}
+@;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+@section[#:tag "scripts"]{Scripts}
+
+@defthing[redis-script/c (->* (redis?)
+                              (#:keys (listof redis-key/c)
+                               #:args (listof redis-string/c))
+                              redis-value/c)]{
+
+  The contract for lua-backed Redis scripts.
+}
+
+@defproc[(make-redis-script [client redis?]
+                            [lua-script redis-string/c]) redis-script/c]{
+
+  Returns a function that will execute @racket[lua-script] via
+  @exec{EVALSHA} every time it's called.
+}
 
 
 @;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-@subsubsection{Connection Commands}
+@section{Connection Commands}
 
 @defcmd[
   ((AUTH)
@@ -276,7 +273,7 @@ scripting world and Racket.
 
 
 @;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-@subsubsection{Hash Commands}
+@section{Hash Commands}
 
 @defcmd*[
   ((HGETALL HMGET)
@@ -356,7 +353,7 @@ scripting world and Racket.
 
 
 @;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-@subsubsection{HyperLogLog Commands}
+@section{HyperLogLog Commands}
 
 @defcmd[
   ((PFADD)
@@ -386,7 +383,7 @@ scripting world and Racket.
 
 
 @;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-@subsubsection{Key Commands}
+@section{Key Commands}
 
 @defcmd[
   ((EXISTS)
@@ -508,7 +505,7 @@ scripting world and Racket.
 
 
 @;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-@subsubsection{List Commands}
+@section{List Commands}
 
 @defcmd[
   ((RPUSH)
@@ -686,7 +683,7 @@ scripting world and Racket.
 
 
 @;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-@subsubsection{Script Commands}
+@section{Script Commands}
 
 @defcmd[
   ((EVAL)
@@ -738,7 +735,7 @@ scripting world and Racket.
 
 
 @;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-@subsubsection{Server Commands}
+@section{Server Commands}
 
 @defcmd[
   ((CLIENT_ID)
@@ -819,7 +816,7 @@ scripting world and Racket.
 
 
 @;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-@subsubsection{Stream Commands}
+@section{Stream Commands}
 
 @defstruct[redis-stream-entry ([id bytes?]
                                [fields (hash/c bytes? bytes?)])]{
@@ -1032,7 +1029,7 @@ scripting world and Racket.
 
 
 @;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-@subsubsection{String/bytes Commands}
+@section{String/bytes Commands}
 
 All Redis strings are sequences of bytes, so whereas most of the
 following functions accept both @racket[bytes?] and @racket[string?]
