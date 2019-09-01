@@ -4,6 +4,7 @@
                      racket/contract
                      racket/dict
                      racket/serialize
+                     racket/string
                      redis)
           "redis.rkt")
 
@@ -447,9 +448,10 @@ scripting world and Racket.
 
 @defcmd[
   ((RANDOMKEY)
-   (random-key) bytes?)]{
+   (random-key) (or/c false/c bytes?))]{
 
-  Returns a random key from the database or @racket[#f].
+  Returns a random key from the database or @racket[#f] if the
+  database is empty.
 }
 
 @defcmd[
@@ -754,7 +756,7 @@ scripting world and Racket.
 
 @defcmd[
   ((REWRITEAOF)
-   (rewrite-aof/async!) #t)]{
+   (rewrite-aof) #t)]{
 
   Starts the AOF-rewrite process on the server.
 }

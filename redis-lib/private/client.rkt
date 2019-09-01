@@ -661,7 +661,8 @@
   (redis-disconnect! client))
 
 ;; RANDOMKEY
-(define-simple-command (random-key))
+(define-simple-command (random-key)
+  #:result-contract (or/c false/c bytes?))
 
 ;; RENAME{,NX} key newkey
 (define/contract/provide (redis-rename! client src dest
