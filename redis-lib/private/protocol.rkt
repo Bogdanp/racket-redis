@@ -26,7 +26,7 @@
     [(#\-) (cons 'err v)]
 
     [else
-     (raise-argument-error 'redis-read "a valid response prefix" p)]))
+     (raise-argument-error 'redis-read "(or/c #\\$ #\\* #\\+ #\\: #\\-)" p)]))
 
 
 ;; write ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
