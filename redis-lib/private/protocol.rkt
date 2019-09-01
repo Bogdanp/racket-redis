@@ -1,10 +1,37 @@
 #lang racket/base
 
-(require racket/match)
-
 (provide
- redis-write
- redis-read)
+ redis-read
+ redis-write)
+
+
+;; read ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define (redis-read [in (current-input-port)])
+  (case (read-char in)
+    [(#\$) (redis-read-bulk-string in)]
+    [(#\*) (redis-read-array in)]
+    [(#\:) (string->number (read-line in 'return-linefeed))]
+    [(#\+) (read-line in 'return-linefeed)]
+    [(#\-) (cons 'err (read-line in 'return-linefeed))]
+    [else  (raise-argument-error 'redis-read "a valid response from Redis" in)]))
+
+(define (redis-read-bulk-string in)
+  (define n:str (read-line in 'return-linefeed))
+  (cond
+    [(string=? n:str "-1") #f]
+
+    [else
+     (begin0 (read-bytes (string->number n:str) in)
+       (read-bytes 2 in))]))
+
+(define (redis-read-array in)
+  (define n:str (read-line in 'return-linefeed))
+  (cond
+    [(string=? n:str "-1") #f]
+    [else
+     (for/list ([_ (in-range (string->number n:str))])
+       (redis-read in))]))
 
 
 ;; write ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -34,58 +61,3 @@
   (display "\r\n" out)
   (for ([item (in-list l)])
     (redis-write item out)))
-
-
-;; read ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(define (redis-read [in (current-input-port)])
-  (case (peek-char in)
-    [(#\+) (redis-read-simple-string in)]
-    [(#\$) (redis-read-bulk-string in)]
-    [(#\:) (redis-read-integer in)]
-    [(#\*) (redis-read-array in)]
-    [(#\-) (redis-read-error in)]
-    [else  (raise-argument-error 'redis-read "a valid response from Redis" in)]))
-
-(define simple-string-re      #rx"^\\+([^\r]*)\r\n")
-(define bulk-string-prefix-re #rx"^\\$(\\-?(0|[1-9][0-9]*))\r\n")
-(define integer-re            #rx"^\\:(\\-?(0|[1-9][0-9]*))\r\n")
-(define array-re              #rx"^\\*(\\-?(0|[1-9][0-9]*))\r\n")
-(define error-re              #rx"^\\-([^\r]*)\r\n")
-
-(define (redis-read-simple-string in)
-  (match (regexp-match simple-string-re in)
-    [(list _ s) (bytes->string/utf-8 s)]
-    [#f (raise-argument-error 'redis-read-simple-string "a valid simple string response from Redis" in)]))
-
-(define (redis-read-bulk-string in)
-  (match (regexp-match bulk-string-prefix-re in)
-    [(list _ #"-1" _) #f]
-
-    [(list _ n:str _)
-     (begin0 (read-bytes (string->number (bytes->string/utf-8 n:str)) in)
-       (read-bytes 2 in))]
-
-    [#f (raise-argument-error 'redis-read-bulk-string "a valid bulk string response from Redis" in)]))
-
-(define (redis-read-integer in)
-  (match (regexp-match integer-re in)
-    [(list _ n:str _)
-     (string->number (bytes->string/utf-8 n:str))]
-
-    [#f (raise-argument-error 'redis-read-integer "a valid integer response from Redis" in)]))
-
-(define (redis-read-array in)
-  (match (regexp-match array-re in)
-    [(list _ #"-1" _) #f]
-
-    [(list _ n:str _)
-     (for/list ([_ (in-range (string->number (bytes->string/utf-8 n:str)))])
-       (redis-read in))]
-
-    [#f (raise-argument-error 'redis-read-array "a valid array response from Redis" in)]))
-
-(define (redis-read-error in)
-  (match (regexp-match error-re in)
-    [(list _ err) (cons 'err (bytes->string/utf-8 err))]
-    [#f (raise-argument-error 'redis-read-error "a valid error response from Redis" in)]))

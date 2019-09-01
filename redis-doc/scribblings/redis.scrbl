@@ -49,7 +49,7 @@ $ cat <<EOF >test.rkt
 EOF
 
 $ racket test.rkt
-cpu time: 562 real time: 655 gc time: 18
+cpu time: 516 real time: 598 gc time: 0
 }
 
 Obviously, real world use cases will have different characteristics,
