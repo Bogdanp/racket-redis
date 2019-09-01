@@ -933,19 +933,6 @@ scripting world and Racket.
 }
 
 @defcmd[
-  ((XPENDING)
-   (stream-group-range [key redis-key/c]
-                       [group redis-string/c]
-                       [#:start start (or/c 'first-entry 'last-entry redis-string/c) 'first-entry]
-                       [#:stop stop (or/c 'first-entry 'last-entry redis-string/c) 'last-entry]
-                       [#:limit limit exact-positive-integer? 10]) (listof redis-stream-entry/pending?))]{
-
-  Retrieves @racket[limit] pending entries for the @racket[group]
-  belonging to the stream at @racket[key] between @racket[start] and
-  @racket[stop].
-}
-
-@defcmd[
   ((XREADGROUP)
    (stream-group-read! [#:streams streams (non-empty-listof (cons/c redis-key/c (or/c 'new-entries redis-string/c)))]
                        [#:group group redis-string/c]
@@ -1000,28 +987,6 @@ scripting world and Racket.
 }
 
 @defcmd[
-  ((XRANGE)
-   (stream-range [key redis-key/c]
-                 [#:reverse? reverse? boolean? #f]
-                 [#:start start (or/c 'first-entry 'last-entry redis-string/c)]
-                 [#:stop stop (or/c 'first-entry 'last-entry redis-string/c)]
-                 [#:limit limit (or/c false/c exact-positive-integer?)]) (listof redis-stream-entry?))]{
-
-  Returns at most @racket[limit] entries between @racket[start] and
-  @racket[stop] from the stream at @racket[key].  If @racket[limit] is
-  @racket[#f], then all the entries are returned.
-
-  @racket[start] and @racket[stop] accept a stream entry id or one of
-  the special values @racket['first-entry] and @racket['last-entry],
-  which map to the special ids @racket["-"] and @racket["+"],
-  respectively, which mean the very first and the very last item in
-  the stream.
-
-  When @racket[reverse?] is @racket[#t] the entries are returned in
-  reverse order and @racket[start] and @racket[stop] are swapped.
-}
-
-@defcmd[
   ((XREAD)
    (stream-read! [#:streams streams (non-empty-listof (cons/c redis-key/c (or/c 'new-entries redis-string/c)))]
                  [#:limit limit (or/c false/c exact-positive-integer?) #f]
@@ -1058,6 +1023,41 @@ scripting world and Racket.
   @racket[max-length/approximate].  Usually, you will want to use the
   latter for performance.  Either keyword argument must be provided
   but not both.
+}
+
+@defcmd[
+  ((XRANGE)
+   (substream [key redis-key/c]
+              [#:reverse? reverse? boolean? #f]
+              [#:start start (or/c 'first-entry 'last-entry redis-string/c)]
+              [#:stop stop (or/c 'first-entry 'last-entry redis-string/c)]
+              [#:limit limit (or/c false/c exact-positive-integer?)]) (listof redis-stream-entry?))]{
+
+  Returns at most @racket[limit] entries between @racket[start] and
+  @racket[stop] from the stream at @racket[key].  If @racket[limit] is
+  @racket[#f], then all the entries are returned.
+
+  @racket[start] and @racket[stop] accept a stream entry id or one of
+  the special values @racket['first-entry] and @racket['last-entry],
+  which map to the special ids @racket["-"] and @racket["+"],
+  respectively, which mean the very first and the very last item in
+  the stream.
+
+  When @racket[reverse?] is @racket[#t] the entries are returned in
+  reverse order and @racket[start] and @racket[stop] are swapped.
+}
+
+@defcmd[
+  ((XPENDING)
+   (substream/group [key redis-key/c]
+                    [group redis-string/c]
+                    [#:start start (or/c 'first-entry 'last-entry redis-string/c) 'first-entry]
+                    [#:stop stop (or/c 'first-entry 'last-entry redis-string/c) 'last-entry]
+                    [#:limit limit exact-positive-integer? 10]) (listof redis-stream-entry/pending?))]{
+
+  Retrieves @racket[limit] pending entries for the @racket[group]
+  belonging to the stream at @racket[key] between @racket[start] and
+  @racket[stop].
 }
 
 

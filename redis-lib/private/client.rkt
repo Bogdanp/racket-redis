@@ -1050,10 +1050,10 @@
     ['last-entry  #"+"]
     [posn         posn]))
 
-(define/contract/provide (redis-stream-group-range client key group [consumer #f]
-                                                   #:start [start 'first-entry]
-                                                   #:stop [stop 'last-entry]
-                                                   #:limit [limit 10])
+(define/contract/provide (redis-substream/group client key group [consumer #f]
+                                                #:start [start 'first-entry]
+                                                #:stop [stop 'last-entry]
+                                                #:limit [limit 10])
   (->* (redis? redis-key/c redis-string/c)
        (redis-string/c
         #:start stream-range-position/c
@@ -1074,11 +1074,11 @@
 
 ;; XRANGE key start stop [COUNT count]
 ;; XREVRANGE key stop start [COUNT count]
-(define/contract/provide (redis-stream-range client key
-                                             #:reverse? [reverse? #f]
-                                             #:start [start 'first-entry]
-                                             #:stop [stop 'last-entry]
-                                             #:limit [limit #f])
+(define/contract/provide (redis-substream client key
+                                          #:reverse? [reverse? #f]
+                                          #:start [start 'first-entry]
+                                          #:stop [stop 'last-entry]
+                                          #:limit [limit #f])
   (->* (redis? redis-key/c)
        (#:reverse? boolean?
         #:start stream-range-position/c

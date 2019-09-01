@@ -1,6 +1,7 @@
 #lang racket/base
 
-(require (for-syntax racket/base
+(require (for-label redis)
+         (for-syntax racket/base
                      racket/list
                      racket/syntax
                      syntax/parse)
@@ -27,7 +28,7 @@
      (with-syntax ([fn-name (format-id #'name "redis-~a" #'name)]
                    [(command:str ...) (commands->strings #'(command ...))])
        #'(defproc
-           (fn-name arg ...)
+           (fn-name [client redis?] arg ...)
            res-contract
            pre-flow ...
            (para (emph "Commands used by this function: ") (exec command:str) ...)))]
