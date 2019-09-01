@@ -93,7 +93,15 @@
 
     (define response-ch (make-channel))
     (define response-reader
-      (thread (make-response-reader in response-ch)))
+      (thread
+       (lambda _
+         (with-handlers ([exn:fail?
+                          (lambda (e)
+                            (redis-disconnect! client)
+                            (raise e))])
+           (let loop ()
+             (channel-put response-ch (redis-read in))
+             (loop))))))
 
     (set-redis-response-ch! client response-ch)
     (set-redis-response-reader! client response-reader)))
@@ -101,11 +109,6 @@
 (define/contract (redis-disconnect! client)
   (-> redis? void?)
   (custodian-shutdown-all (redis-custodian client)))
-
-(define ((make-response-reader in ->out))
-  (let loop ()
-    (channel-put ->out (redis-read in))
-    (loop)))
 
 (define (send-request! client cmd [args null])
   (parameterize ([current-output-port (redis-out client)])
@@ -135,6 +138,7 @@
         (handle-evt
          (alarm-evt (+ (current-inexact-milliseconds) timeout))
          (lambda _
+           (redis-disconnect! client)
            (raise (exn:fail:redis:timeout
                    "timed out while waiting for response from Redis"
                    (current-continuation-marks)))))
@@ -143,7 +147,9 @@
 (define (redis-emit! client command
                      #:timeout [timeout (redis-timeout client)]
                      . args)
-  ;; TODO: reconnect here if disconnected.
+  (unless (redis-connected? client)
+    (redis-connect! client))
+
   (send-request! client command args)
   (take-response! client timeout))
 
