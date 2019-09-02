@@ -34,38 +34,38 @@
 (provide
  redis-write)
 
-(define string-prefix #"$")
-(define array-prefix #"*")
-(define integer-prefix #":")
-(define clrf #"\r\n")
+(define str-prefix #"$")
+(define arr-prefix #"*")
+(define int-prefix #":")
+(define crlf    #"\r\n")
 
 (define (redis-write v [out (current-output-port)])
   (cond
     [(string? v)
-     (display string-prefix out)
+     (display str-prefix out)
      (display (string-length v) out)
-     (display clrf out)
+     (display crlf out)
      (display v out)
-     (display clrf out)]
+     (display crlf out)]
 
     [(bytes? v)
-     (display string-prefix out)
+     (display str-prefix out)
      (display (bytes-length v) out)
-     (display clrf out)
+     (display crlf out)
      (display v out)
-     (display clrf out)]
+     (display crlf out)]
 
     [(list? v)
-     (display array-prefix out)
+     (display arr-prefix out)
      (display (length v) out)
-     (display clrf out)
+     (display crlf out)
      (for ([item (in-list v)])
        (redis-write item out))]
 
     [(integer? v)
-     (display integer-prefix out)
+     (display int-prefix out)
      (display v out)
-     (display clrf out)]
+     (display crlf out)]
 
     [else
      (raise-argument-error 'redis-write "(or/c bytes? string? list?)" v)]))
