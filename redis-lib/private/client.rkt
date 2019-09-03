@@ -436,6 +436,26 @@
   #:command ("HLEN")
   #:result-contract exact-nonnegative-integer?)
 
+;; HSCAN key cursor [MATCH pattern] [COUNT count]
+(define/contract/provide (redis-hash-scan client key
+                                          #:cursor [cursor 0]
+                                          #:pattern [pattern #f]
+                                          #:limit [limit #f])
+  (->* (redis? redis-key/c)
+       (#:cursor exact-nonnegative-integer?
+        #:pattern (or/c false/c non-empty-string?)
+        #:limit (or/c false/c exact-positive-integer?))
+       (values exact-nonnegative-integer? (listof redis-key/c)))
+
+  (let* ([args (if limit
+                   (list "COUNT" (number->string limit))
+                   (list))]
+         [args (if pattern
+                   (cons "MATCH" (cons pattern args))
+                   args)]
+         [res (apply redis-emit! client "HSCAN" key (number->string cursor) args)])
+    (values (string->number (bytes->string/utf-8 (car res))) (cadr res))))
+
 ;; HSET key field value
 ;; HMSET key field value [field value ...]
 (define/contract/provide redis-hash-set!

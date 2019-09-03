@@ -342,6 +342,21 @@ scripting world and Racket.
   returns the total number of fields that were removed.
 }
 
+@defcmd[
+  ((HSCAN)
+   (hash-scan [key redis-key/c]
+              [#:cursor cursor exact-nonnegative-integer? 0]
+              [#:pattern pattern (or/c false/c non-empty-string?) #f]
+              [#:limit limit (or/c false/c exact-positive-integer?) #f]) (values exact-nonnegative-integer? (listof redis-key/c)))]{
+
+  Efficiently iterates through the set of keys in the hash at
+  @racket[key].
+
+  The @racket[limit] parameter serves as a hint for the
+  implementation, but the server may return more items than
+  @racket[limit] per iteration.
+}
+
 @defcmd*[
   ((HSET HMSET)
    ([(redis-hash-set! [client redis?] [key redis-key/c] [fld redis-string/c] [value redis-string/c]) boolean?]
