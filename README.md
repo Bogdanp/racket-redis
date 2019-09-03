@@ -55,7 +55,6 @@ The commands below are yet to be implemented:
 
 * [ ]  HSCAN
 * [ ]  HSETNX
-* [ ]  HSTRLEN
 
 ### Lists
 

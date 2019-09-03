@@ -361,6 +361,15 @@ scripting world and Racket.
 }
 
 @defcmd[
+  ((HSTRLEN)
+   (hash-string-length [key redis-key/c]
+                       [fld redis-string/c]) exact-nonnegative-integer?)]{
+
+  Returns the length of the bytestring value of @racket[fld] belonging
+  to the hash at @racket[key].
+}
+
+@defcmd[
   ((HVALS)
    (hash-values [key redis-key/c]) (listof bytes?))]{
 

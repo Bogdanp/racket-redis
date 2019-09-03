@@ -458,6 +458,11 @@
                                                           ([(k v) (in-dict d)])
                                                   (cons k (cons v fields)))))]))
 
+;; HSTRLEN key field
+(define-simple-command (hash-string-length [key redis-key/c] [fld redis-string/c])
+  #:command ("HSTRLEN")
+  #:result-contract exact-nonnegative-integer?)
+
 ;; HVALS key
 (define-simple-command (hash-values [key redis-key/c])
   #:command ("HVALS")
