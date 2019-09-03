@@ -723,6 +723,107 @@ scripting world and Racket.
 
 
 @;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+@section{PubSub Commands}
+
+@(define (sync-tech . pre-content)
+   (apply tech #:doc '(lib "scribblings/reference/reference.scrbl") pre-content))
+
+@defproc[(make-redis-pubsub [client redis?]) redis-pubsub?]{
+  Puts @racket[client] into PubSub mode and returns a value that can
+  be used to subscribe to channels and receive messages.
+
+  PubSub values are @sync-tech{synchronizable events} whose
+  synchronization results are the messages received via the channels
+  the value is subscribed to.
+
+  Messages from channel subscriptions are represented as lists of two
+  elements, where the first element is the name of the channel and the
+  second the value of the message.
+
+  Messages from pattern subscriptions are represented as lists of three
+  elements, where the first element is the pattern, the second the
+  channel and the third the value of the message.
+
+  While in PubSub mode, any commands you try to send to the original
+  connection will fail.
+
+  Here's an example of how the pieces fit together:
+
+  @racketblock[
+    (require redis)
+
+    (define pool
+      (make-redis-pool))
+
+    (thread
+     (lambda _
+       (call-with-redis-client pool
+         (lambda (c)
+           (sleep 5)
+           (redis-pubsub-publish! c "a" "hello")
+           (sleep 5)
+           (redis-pubsub-publish! c "a" "goodbye")))))
+
+    (call-with-redis-client pool
+      (lambda (c)
+        (call-with-redis-pubsub c
+          (lambda (p)
+            (redis-pubsub-subscribe! p "a")
+            (displayln (~v (sync p)))
+            (displayln (~v (sync p)))))))
+  ]
+}
+
+@defproc[(call-with-redis-pubsub [client redis?]
+                                 [proc (-> redis-pubsub? any)]) any]{
+
+  Puts @racket[client] into PubSub mode and calls @racket[proc] with
+  the resulting value, ensuring that the @racket[client] is returned
+  to a non-PubSub state once @racket[proc] exits.
+}
+
+@defproc[(redis-pubsub? [v any/c]) boolean?]{
+  Returns @racket[#t] when @racket[v] is a pubsub value.
+}
+
+@defproc[(redis-pubsub-kill! [pubsub redis-pubsub?]) void?]{
+  Unsubscribes @racket[pubsub] from all channels and takes the
+  underlying connection out of PubSub mode.
+}
+
+@defcmd[
+  ((PUBLISH)
+   (pubsub-publish! [channel redis-string/c]
+                    [message redis-string/c]) exact-nonnegative-integer?)]{
+
+  Publishes @racket[message] to @racket[channel] and returns the total
+  number of clients that received that message.
+}
+
+@defproc[(redis-pubsub-subscribe! [pubsub redis-pubsub?]
+                                  [channel-or-pattern redis-string/c] ...+
+                                  [#:patterns? patterns? boolean? #f]) void?]{
+
+  Subscribes @racket[pubsub] to one or more @racket[channel-or-pattern]s.
+
+  When @racket[patterns?] is @racket[#t], @racket[channel-or-pattern]
+  values are treated as patterns, otherwise they're treated as
+  channels.
+}
+
+@defproc[(redis-pubsub-unsubscribe! [pubsub redis-pubsub?]
+                                    [channel-or-pattern redis-string/c] ...
+                                    [#:patterns? patterns? boolean? #f]) void?]{
+
+  Unsubscribes @racket[pubsub] from one or more @racket[channel-or-pattern]s.
+
+  When @racket[patterns?] is @racket[#t], @racket[channel-or-pattern]
+  values are treated as patterns, otherwise they're treated as
+  channels.
+}
+
+
+@;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 @section{Script Commands}
 
 @defcmd[

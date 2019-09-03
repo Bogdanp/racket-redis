@@ -3,10 +3,12 @@
 (require (for-syntax racket/base
                      racket/syntax
                      syntax/parse)
+         racket/async-channel
          racket/contract
          racket/dict
          racket/list
          racket/match
+         racket/set
          racket/string
          racket/tcp
          "error.rkt"
@@ -40,6 +42,8 @@
  redis-connected?
  redis-connect!
  redis-disconnect!)
+
+(define-logger redis)
 
 (struct redis (host port timeout custodian in out response-ch response-reader)
   #:mutable)
@@ -78,6 +82,7 @@
 (define/contract (redis-connect! client)
   (-> redis? void?)
   (when (redis-connected? client)
+    (log-redis-warning "client already connected; disconnecting...")
     (redis-disconnect! client))
 
   (define custodian (make-custodian))
@@ -100,7 +105,9 @@
                             (redis-disconnect! client)
                             (raise e))])
            (let loop ()
-             (channel-put response-ch (redis-read in))
+             (define response (redis-read in))
+             (log-redis-debug "received ~v" response)
+             (channel-put response-ch response)
              (loop))))))
 
     (set-redis-response-ch! client response-ch)
@@ -112,10 +119,12 @@
 
 (define (send-request! client cmd [args null])
   (parameterize ([current-output-port (redis-out client)])
-    (redis-write (cons cmd args))
+    (define request (cons cmd args))
+    (log-redis-debug "sending ~v" request)
+    (redis-write request)
     (flush-output)))
 
-(define (take-response! client timeout)
+(define (take-response! client [timeout #f])
   (sync
    (choice-evt
     (handle-evt
@@ -148,6 +157,7 @@
                      #:timeout [timeout (redis-timeout client)]
                      . args)
   (unless (redis-connected? client)
+    (log-redis-warning "client is not connected; reconnecting...")
     (redis-connect! client))
 
   (send-request! client command args)
@@ -739,6 +749,171 @@
 ;; RPUSH key value [value ...]
 (define-variadic-command (list-append! [key redis-key/c] . [value redis-string/c])
   #:command ("RPUSH")
+  #:result-contract exact-nonnegative-integer?)
+
+
+;; pubsub commands ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(provide
+ (contract-out
+  [redis-pubsub? (-> any/c boolean?)]))
+
+(struct redis-pubsub (client custodian listeners channel overseer)
+  #:property prop:evt (struct-field-index channel))
+
+(define/contract/provide (make-redis-pubsub client)
+  (-> redis? redis-pubsub?)
+  (define custodian (make-custodian (redis-custodian client)))
+  (parameterize ([current-custodian custodian])
+    (define listeners (mutable-set))
+    (define (broadcast message)
+      (for ([listener (in-set listeners)])
+        (async-channel-put listener message)))
+
+    (define channel (make-async-channel))
+    (define overseer
+      (thread
+       (lambda _
+         (let loop ()
+           (match (take-response! client)
+             [(list #"message" channel-name message)
+              (async-channel-put channel (list channel-name message))]
+
+             [(list #"pmessage" pattern channel-name message)
+              (async-channel-put channel (list pattern channel-name message))]
+
+             [(list #"subscribe" channel-name n)
+              (broadcast (list 'subscribe channel-name n))]
+
+             [(list #"unsubscribe" channel-name n)
+              (broadcast (list 'unsubscribe channel-name n))]
+
+             [(list #"psubscribe" pattern n)
+              (broadcast (list 'psubscribe pattern n))]
+
+             [(list #"punsubscribe" pattern n)
+              (broadcast (list 'punsubscribe pattern n))])
+
+           (loop)))))
+
+    (redis-pubsub client custodian listeners channel overseer)))
+
+(define/contract/provide (redis-pubsub-kill! pubsub)
+  (-> redis-pubsub? void?)
+  (call-with-pubsub-events pubsub
+    (lambda (events)
+      (send-request! (redis-pubsub-client pubsub) "UNSUBSCRIBE")
+      (send-request! (redis-pubsub-client pubsub) "PUNSUBSCRIBE")
+      (wait-until-unsubscribed/all events)
+      (wait-until-punsubscribed/all events)))
+
+  (custodian-shutdown-all (redis-pubsub-custodian pubsub)))
+
+(define/contract/provide (call-with-redis-pubsub client proc)
+  (-> redis? (-> redis-pubsub? any) any)
+  (define pubsub #f)
+  (dynamic-wind
+    (lambda _
+      (set! pubsub (make-redis-pubsub client)))
+    (lambda _
+      (proc pubsub))
+    (lambda _
+      (redis-pubsub-kill! pubsub))))
+
+(define (call-with-pubsub-events pubsub proc)
+  (define listener #f)
+  (dynamic-wind
+    (lambda _
+      (set! listener (make-async-channel))
+      (set-add! (redis-pubsub-listeners pubsub) listener))
+    (lambda _
+      (proc listener))
+    (lambda _
+      (set-remove! (redis-pubsub-listeners pubsub) listener))))
+
+(define ((make-pubsub-waiter proc) events remaining)
+  (let loop ([remaining (for/list ([item (in-list remaining)])
+                          (if (string? item)
+                              (string->bytes/utf-8 item)
+                              item))])
+    (unless (null? remaining)
+      (loop (proc (sync events) remaining)))))
+
+(define-syntax (define-pubsub-waiter stx)
+  (syntax-parse stx
+    [(_ event-name:id)
+     (with-syntax ([fn-name (format-id #'event-name "wait-until-~ad" #'event-name)])
+       #'(define fn-name
+           (make-pubsub-waiter (lambda (event remaining)
+                                 (match event
+                                   [(list 'event-name item _)
+                                    (remove item remaining)]
+
+                                   [_ remaining])))))]))
+
+(define-pubsub-waiter subscribe)
+(define-pubsub-waiter psubscribe)
+(define-pubsub-waiter unsubscribe)
+(define-pubsub-waiter punsubscribe)
+
+(define (wait-until-unsubscribed/all events)
+  (let loop ()
+    (match (sync events)
+      [(list 'unsubscribe #f _) (void)]
+      [(list 'unsubscribe _  0) (void)]
+      [_ (loop)])))
+
+(define (wait-until-punsubscribed/all events)
+  (let loop ()
+    (match (sync events)
+      [(list 'punsubscribe #f _) (void)]
+      [(list 'punsubscribe _  0) (void)]
+      [_ (loop)])))
+
+;; PSUBSCRIBE pattern [pattern ...]
+;; SUBSCRIBE channel [channel ...]
+(define/contract/provide (redis-pubsub-subscribe! pubsub
+                                                  #:patterns? [patterns? #f]
+                                                  channel-or-pattern . channel-or-patterns)
+  (->* (redis-pubsub? redis-string/c)
+       (#:patterns? boolean?)
+       #:rest (listof redis-string/c)
+       void?)
+  (call-with-pubsub-events pubsub
+    (lambda (events)
+      (let ([channel-or-patterns (cons channel-or-pattern channel-or-patterns)])
+        (send-request! (redis-pubsub-client pubsub)
+                       (if patterns?
+                           "PSUBSCRIBE"
+                           "SUBSCRIBE")
+                       channel-or-patterns)
+        (if patterns?
+            (wait-until-psubscribed events channel-or-patterns)
+            (wait-until-subscribed events channel-or-patterns))))))
+
+;; PUNSUBSCRIBE [pattern ...]
+;; UNSUBSCRIBE [channel ...]
+(define/contract/provide (redis-pubsub-unsubscribe! pubsub
+                                                    #:patterns? [patterns? #f]
+                                                    . channel-or-patterns)
+  (->* (redis-pubsub?)
+       (#:patterns? boolean?)
+       #:rest (listof redis-string/c)
+       void?)
+  (call-with-pubsub-events pubsub
+    (lambda (events)
+      (send-request! (redis-pubsub-client pubsub)
+                     (if patterns?
+                         "PUNSUBSCRIBE"
+                         "UNSUBSCRIBE")
+                     channel-or-patterns)
+      (if patterns?
+          (wait-until-punsubscribed events channel-or-patterns)
+          (wait-until-unsubscribed events channel-or-patterns)))))
+
+;; PUBLISH channel message
+(define-simple-command (pubsub-publish! [channel redis-string/c] [message redis-string/c])
+  #:command ("PUBLISH")
   #:result-contract exact-nonnegative-integer?)
 
 

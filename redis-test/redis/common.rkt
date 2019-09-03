@@ -6,6 +6,7 @@
 (provide
  test-host
  test-client
+ test-pool
  test-commands)
 
 (define test-host
@@ -13,6 +14,10 @@
 
 (define test-client
   (make-redis #:host test-host))
+
+(define test-pool
+  (make-redis-pool #:host test-host
+                   #:pool-size 2))
 
 (define-syntax-rule (test-commands message e0 e ...)
   (test-case message

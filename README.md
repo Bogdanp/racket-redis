@@ -86,15 +86,6 @@ The commands below are yet to be implemented:
 * [ ]  SUNION
 * [ ]  SUNIONSTORE
 
-### Pub/Sub
-
-* [ ]  PSUBSCRIBE
-* [ ]  PUBLISH
-* [ ]  PUBSUB
-* [ ]  PUNSUBSCRIBE
-* [ ]  SUBSCRIBE
-* [ ]  UNSUBSCRIBE
-
 ### Sorted Sets
 
 * [ ]  BZPOPMAX
