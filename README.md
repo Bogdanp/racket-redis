@@ -53,7 +53,6 @@ The commands below are yet to be implemented:
 
 ### Hashes
 
-* [ ]  HSCAN
 * [ ]  HSETNX
 
 ### Lists
