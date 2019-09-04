@@ -88,6 +88,23 @@
                    '(#"a" #"b" #"c")))
 
    (test-suite
+    "geo"
+
+    (test-commands "geo commands"
+      (check-equal? (redis-geo-add! test-client "Sicily" '(13.361389 38.115556 "Palermo") '(15.087269 37.502669 "Catania")) 2)
+
+      (check-equal? (redis-geo-hash test-client "Sicily" "a" "Palermo") (list #f #"sqc8b49rny0"))
+
+      (check-equal? (redis-geo-pos test-client "Sicily" "a") (list #f))
+      (check-= (car  (car (redis-geo-pos test-client "Sicily" "Palermo"))) 13.36 0.01)
+      (check-= (cadr (car (redis-geo-pos test-client "Sicily" "Palermo"))) 38.11 0.01)
+
+      (check-false (redis-geo-dist test-client "Sicily" "a" "b"))
+      (check-equal? (redis-geo-dist test-client "Sicily" "Palermo" "Catania") 166274.1516)
+      (check-equal? (redis-geo-dist test-client "Sicily" "Palermo" "Catania" #:unit 'km) 166.2742)
+      (check-equal? (redis-geo-dist test-client "Sicily" "Palermo" "Catania" #:unit 'mi) 103.3182)))
+
+   (test-suite
     "hashes"
 
     (test-commands "basic hash commands"

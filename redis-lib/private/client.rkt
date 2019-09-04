@@ -6,6 +6,7 @@
          racket/async-channel
          racket/contract
          racket/dict
+         racket/function
          racket/list
          racket/match
          racket/set
@@ -321,7 +322,7 @@
                                 [else               (list "INCRBYFLOAT" key (number->string n))])))
 
   (if (bytes? res)
-      (string->number (bytes->string/utf-8 res))
+      (bytes->number res)
       res))
 
 ;; SET key value [EX seconds | PX milliseconds] [NX|XX]
@@ -389,6 +390,68 @@
   #:command ("SWAPDB"))
 
 
+;; geo commands
+
+(provide
+ redis-latitude/c
+ redis-longitude/c
+ redis-geo/c
+ redis-geo-unit/c)
+
+(define redis-latitude/c
+  (real-in -90 90))
+
+(define redis-longitude/c
+  (real-in -180 180))
+
+(define redis-geo-pos/c
+  (list/c redis-longitude/c redis-latitude/c))
+
+(define redis-geo/c
+  (list/c redis-longitude/c redis-latitude/c redis-string/c))
+
+(define redis-geo-unit/c
+  (or/c 'm 'km 'mi 'ft))
+
+(define (flatten-geos geos)
+  (for/fold ([items null])
+            ([geo (in-list geos)])
+    (cons (number->string (first geo))
+          (cons (number->string (second geo))
+                (cons (third geo) items)))))
+
+;; GEOADD key long lat member [long lat member ...]
+(define/contract/provide (redis-geo-add! client key geo . geos)
+  (-> redis? redis-key/c redis-geo/c redis-geo/c ... exact-nonnegative-integer?)
+  (apply redis-emit! client "GEOADD" key (flatten-geos (cons geo geos))))
+
+;; GEODIST key member1 member2 [unit]
+(define/contract/provide (redis-geo-dist client key member1 member2
+                                         #:unit [unit #f])
+  (->* (redis? redis-key/c redis-string/c redis-string/c)
+       (#:unit (or/c false/c redis-geo-unit/c))
+       (or/c false/c real?))
+
+  (define res
+    (apply redis-emit! client "GEODIST" key member1 member2 (if unit
+                                                                (list (symbol->string unit))
+                                                                (list))))
+
+  (and res (bytes->number res)))
+
+;; GEOHASH key member [member ...]
+(define-variadic-command (geo-hash [key redis-key/c] [mem redis-string/c] . [mems redis-string/c])
+  #:command ("GEOHASH")
+  #:result-contract (listof (or/c false/c bytes?)))
+
+;; GEOPOS key member [member ...]
+(define/contract/provide (redis-geo-pos client key mem . mems)
+  (-> redis? redis-key/c redis-string/c redis-string/c ... (listof (or/c false/c (list/c redis-longitude/c redis-latitude/c))))
+  (for/list ([pair (in-list (apply redis-emit! client "GEOPOS" key mem mems))])
+    (and pair (list (bytes->number (car pair))
+                    (bytes->number (cadr pair))))))
+
+
 ;; hash commands ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; HDEL key field [field ...]
@@ -433,7 +496,7 @@
                                 [else               (list "HINCRBYFLOAT" key fld (number->string n))])))
 
   (if (bytes? res)
-      (string->number (bytes->string/utf-8 res))
+      (bytes->number res)
       res))
 
 ;; HKEYS key
@@ -464,7 +527,7 @@
                    (cons "MATCH" (cons pattern args))
                    args)]
          [res (apply redis-emit! client "HSCAN" key (number->string cursor) args)])
-    (values (string->number (bytes->string/utf-8 (car res))) (cadr res))))
+    (values (bytes->number (car res)) (cadr res))))
 
 ;; HSET key field value
 ;; HMSET key field value [field value ...]
@@ -1386,3 +1449,9 @@
 
     [max-length
      (apply redis-emit! client "XTRIM" key "MAXLEN" (number->string max-length))]))
+
+
+;; common helpers ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define bytes->number
+  (compose1 string->number bytes->string/utf-8))

@@ -279,6 +279,54 @@ scripting world and Racket.
 
 
 @;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+@section{Geo Commands}
+
+@deftogether[
+  (@defthing[redis-latitude/c (real-in -90 90)]
+   @defthing[redis-longitude/c (real-in -180 180)]
+   @defthing[redis-geo/c (list/c redis-longitude/c redis-latitude/c redis-string/c)]
+   @defthing[redis-geo-unit/c (or/c 'm 'km 'mi 'ft)])]{
+
+  The geo-related contracts.
+}
+
+@defcmd[
+  ((GEOADD)
+   (geo-add! [key redis-key/c]
+             [geo redis-geo/c] ...+) exact-nonnegative-integer?)]{
+
+  Adds the geohashes of each @racket[geo] to the geo hash set at
+  @racket[key] and returns the number of new items that were added.
+}
+
+@defcmd[
+  ((GEODIST)
+   (geo-dist [key redis-key/c]
+             [member1 redis-string/c]
+             [member2 redis-string/c]
+             [#:unit unit (or/c false/c redis-geo-unit/c) #f]) (or/c false/c real?))]{
+
+  Returns the geo distance between @racket[member1] and
+  @racket[member2].
+}
+
+@defcmd[
+  ((GEOHASH)
+   (geo-hash [key redis-key/c]
+             [mem redis-string/c] ...+) (listof (or/c false/c bytes/)))]{
+
+  Returns the geohash of each @racket[mem].
+}
+
+@defcmd[
+  ((GEOPOS)
+   (geo-pos [key redis-key/c]
+            [mem redis-string/c] ...+) (listof (or/c false/c (list/c redis-longitude/c redis-latitude/c))))]{
+
+  Returns the longitude and latitude of each @racket[mem].
+}
+
+@;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 @section{Hash Commands}
 
 @defcmd*[

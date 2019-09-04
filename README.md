@@ -44,10 +44,6 @@ The commands below are yet to be implemented:
 
 ### Geo
 
-* [ ]  GEOADD
-* [ ]  GEODIST
-* [ ]  GEOHASH
-* [ ]  GEOPOS
 * [ ]  GEORADIUS
 * [ ]  GEORADIUSBYMEMBER
 
