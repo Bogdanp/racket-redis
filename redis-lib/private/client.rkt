@@ -782,17 +782,8 @@
              [(list #"pmessage" pattern channel-name message)
               (async-channel-put channel (list pattern channel-name message))]
 
-             [(list #"subscribe" channel-name n)
-              (broadcast (list 'subscribe channel-name n))]
-
-             [(list #"unsubscribe" channel-name n)
-              (broadcast (list 'unsubscribe channel-name n))]
-
-             [(list #"psubscribe" pattern n)
-              (broadcast (list 'psubscribe pattern n))]
-
-             [(list #"punsubscribe" pattern n)
-              (broadcast (list 'punsubscribe pattern n))])
+             [(list type channel-name n)
+              (broadcast (list (string->symbol (bytes->string/utf-8 type)) channel-name n))])
 
            (loop)))))
 
@@ -841,12 +832,12 @@
 
 (define-syntax (define-pubsub-waiter stx)
   (syntax-parse stx
-    [(_ event-name:id)
-     (with-syntax ([fn-name (format-id #'event-name "wait-until-~ad" #'event-name)])
+    [(_ type:id)
+     (with-syntax ([fn-name (format-id #'type "wait-until-~ad" #'type)])
        #'(define fn-name
            (make-pubsub-waiter (lambda (event remaining)
                                  (match event
-                                   [(list 'event-name item _)
+                                   [(list 'type item _)
                                     (remove item remaining)]
 
                                    [_ remaining])))))]))
