@@ -313,7 +313,7 @@ scripting world and Racket.
 @defcmd[
   ((GEOHASH)
    (geo-hash [key redis-key/c]
-             [mem redis-string/c] ...+) (listof (or/c false/c bytes/)))]{
+             [mem redis-string/c] ...+) (listof (or/c false/c bytes?)))]{
 
   Returns the geohash of each @racket[mem].
 }
