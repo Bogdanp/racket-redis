@@ -942,7 +942,7 @@ scripting world and Racket.
 
 @defcmd[
   ((REWRITEAOF)
-   (rewrite-aof) #t)]{
+   (rewrite-aof!) #t)]{
 
   Starts the AOF-rewrite process on the server.
 }
