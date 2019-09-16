@@ -1125,6 +1125,76 @@
   (real->double-flonum (+ (* seconds 1000) (/ micros 1000))))
 
 
+;; set commands ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; SADD key val [val ...]
+(define-variadic-command (set-add! [key redis-key/c] [val redis-string/c] . [vals redis-string/c])
+  #:command ("SADD")
+  #:result-contract exact-nonnegative-integer?)
+
+;; SCARD key
+(define-simple-command (set-count [key redis-key/c])
+  #:command ("SCARD")
+  #:result-contract exact-nonnegative-integer?)
+
+;; SDIFF key [key ...]
+(define-variadic-command (set-difference [key redis-key/c] . [keys redis-key/c])
+  #:command ("SDIFF")
+  #:result-contract (listof bytes?))
+
+;; SDIFFSTORE target key [key ...]
+(define-variadic-command (set-difference! [target redis-key/c] [key redis-key/c] . [keys redis-key/c])
+  #:command ("SDIFFSTORE")
+  #:result-contract exact-nonnegative-integer?)
+
+;; SINTER key [key ...]
+(define-variadic-command (set-intersect [key redis-key/c] . [keys redis-key/c])
+  #:command ("SINTER")
+  #:result-contract (listof bytes?))
+
+;; SINTERSTORE target key [key ...]
+(define-variadic-command (set-intersect! [target redis-key/c] [key redis-key/c] . [keys redis-key/c])
+  #:command ("SINTERSTORE")
+  #:result-contract exact-nonnegative-integer?)
+
+;; SISMEMBER key val
+(define-simple-command/1 (set-member? [key redis-key/c] [val redis-string/c])
+  #:command ("SISMEMBER"))
+
+;; SMEMBERS key
+(define-simple-command (set-members [key redis-key/c])
+  #:command ("SMEMBERS")
+  #:result-contract (listof bytes?))
+
+;; SMOVE source destination member
+(define-simple-command/1 (set-move! [source redis-key/c] [destination redis-key/c] [val redis-string/c])
+  #:command ("SMOVE"))
+
+;; SPOP key [count]
+(define/contract/provide (redis-set-pop! client key #:count [cnt 1])
+  (->* (redis? redis-key/c)
+       (#:count exact-positive-integer?)
+       (listof bytes?))
+  (if (> cnt 1)
+      (redis-emit! client "SPOP" key (number->string cnt))
+      (redis-emit! client "SPOP" key)))
+
+;; SREM key val [val ...]
+(define-variadic-command (set-remove! [key redis-key/c] [val redis-string/c] . [vals redis-string/c])
+  #:command ("SREM")
+  #:result-contract exact-nonnegative-integer?)
+
+;; SUNION key [key ...]
+(define-variadic-command (set-union [key redis-key/c] . [keys redis-key/c])
+  #:command ("SUNION")
+  #:result-contract (listof bytes?))
+
+;; SUNIONSTORE target key [key ...]
+(define-variadic-command (set-union! [target redis-key/c] [key redis-key/c] . [keys redis-key/c])
+  #:command ("SUNIONSTORE")
+  #:result-contract exact-nonnegative-integer?)
+
+
 ;; stream commands ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (provide

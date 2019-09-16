@@ -41,6 +41,11 @@ The commands below are yet to be implemented:
 * [ ]  MSET
 * [ ]  MSETNX
 * [ ]  PSETEX
+* [ ]  SETBIT
+* [ ]  SETEX
+* [ ]  SETNX
+* [ ]  SETRANGE
+* [ ]  STRLEN
 
 ### Geo
 
@@ -55,31 +60,12 @@ The commands below are yet to be implemented:
 
 * [ ]  LPUSHX
 * [ ]  RPUSHX
+* [ ]  SORT
 
 ### Sets
 
-* [ ]  SADD
-* [ ]  SCAN
-* [ ]  SCARD
-* [ ]  SDIFF
-* [ ]  SDIFFSTORE
-* [ ]  SETBIT
-* [ ]  SETEX
-* [ ]  SETNX
-* [ ]  SETRANGE
-* [ ]  SINTER
-* [ ]  SINTERSTORE
-* [ ]  SISMEMBER
-* [ ]  SMEMBERS
-* [ ]  SMOVE
-* [ ]  SORT
-* [ ]  SPOP
 * [ ]  SRANDMEMBER
-* [ ]  SREM
 * [ ]  SSCAN
-* [ ]  STRLEN
-* [ ]  SUNION
-* [ ]  SUNIONSTORE
 
 ### Sorted Sets
 

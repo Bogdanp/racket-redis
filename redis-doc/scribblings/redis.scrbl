@@ -1005,6 +1005,119 @@ scripting world and Racket.
 
 
 @;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+@section{Set Commands}
+
+@defcmd[
+  ((SADD)
+   (set-add! [key redis-key/c]
+             [val redis-string/c] ...+) exact-nonnegative-integer?)]{
+
+  Adds @racket[val]s to the set at @racket[key].
+}
+
+@defcmd[
+  ((SCARD)
+   (set-count [key redis-key/c]) exact-nonnegative-integer?)]{
+
+  Returns the number of elements in the set at @racket[key].
+}
+
+@defcmd[
+  ((SDIFF)
+   (set-difference [key redis-key/c] ...+) (listof bytes?))]{
+
+  Returns the set difference between the sets represented by each
+  @racket[key].
+}
+
+@defcmd[
+  ((SDIFFSTORE)
+   (set-difference! [target redis-key/c] [key redis-key/c] ...+) exact-nonnegative-integer?)]{
+
+  Computes the set difference between the sets at each @racket[key]
+  and stores the result in @racket[target], returning the number of
+  elements in the result.
+}
+
+@defcmd[
+  ((SINTER)
+   (set-intersect [key redis-key/c] ...+) (listof bytes?))]{
+
+  Returns the set intersection between the sets represented by each
+  @racket[key].
+}
+
+@defcmd[
+  ((SINTERSTORE)
+   (set-intersect! [target redis-key/c] [key redis-key/c] ...+) exact-nonnegative-integer?)]{
+
+  Computes the set intersection between the sets at each @racket[key]
+  and stores the result in @racket[target], returning the number of
+  elements in the result.
+}
+
+@defcmd[
+  ((SMEMBER)
+   (set-member? [key redis-key/c] [val redis-string/c]) boolean?)]{
+
+  Returns @racket[#t] when @racket[val] is a member of the set at
+  @racket[key].
+}
+
+@defcmd[
+  ((SMEMBERS)
+   (set-members [key redis-key/c]) (listof bytes?))]{
+
+  Returns a list containing every member of the set at @racket[key].
+}
+
+@defcmd[
+  ((SMOVE)
+   (set-move! [src redis-key/c]
+              [dst redis-key/c]
+              [val redis-key/c]) boolean?)]{
+
+  Moves @racket[val] from the set at @racket[src] into the set at
+  @racket[dst], returning @racket[#t] on success.
+}
+
+@defcmd[
+  ((SPOP)
+   (set-pop! [key redis-key/c]
+             [#:count count exact-positive-integer? 1]) (listof bytes?))]{
+
+  Removes and subsequently returns at most @racket[count] elements
+  from the set at @racket[key].
+}
+
+@defcmd[
+  ((SREM)
+   (set-remove! [key redis-key/c]
+                [val redis-string/c] ...+) exact-nonnegative-integer?)]{
+
+  Removes each @racket[val] from the set at @racket[key], returning
+  the total number of removed elements.
+}
+
+@defcmd[
+  ((SUNION)
+   (set-union [key redis-key/c] ...+) (listof bytes?))]{
+
+  Returns the set union between the sets represented by each
+  @racket[key].
+}
+
+@defcmd[
+  ((SUNIONSTORE)
+   (set-union! [target redis-key/c] [key redis-key/c] ...+) exact-nonnegative-integer?)]{
+
+  Computes the set union between the sets at each @racket[key] and
+  stores the result in @racket[target], returning the number of
+  elements in the result.
+}
+
+
+@;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 @section{Stream Commands}
 
 @defstruct[redis-stream-entry ([id bytes?]
