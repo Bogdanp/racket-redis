@@ -18,5 +18,9 @@
 
 (module+ test
   (require rackunit/text-ui)
+
+  (parameterize ([current-redis-client test-client])
+    (run-tests easy-tests))
+
   (parameterize ([current-redis-pool test-pool])
     (run-tests easy-tests)))

@@ -5,8 +5,13 @@
                      syntax/stx)
          racket/contract
          "private/client.rkt"
+         "private/error.rkt"
          "private/pool.rkt"
          "private/script.rkt")
+
+(define/contract current-redis-client
+  (parameter/c (or/c false/c redis?))
+  (make-parameter #f))
 
 (define/contract current-redis-pool
   (parameter/c (or/c false/c redis-pool?))
@@ -15,13 +20,20 @@
 (define (compose-with-implicit-pool f)
   (make-keyword-procedure
    (lambda (kws kw-args . args)
-     (define pool (current-redis-pool))
-     (unless pool
-       (raise-user-error (object-name f) "no current redis pool"))
+     (cond
+       [(current-redis-client)
+        => (lambda (client)
+             (keyword-apply f kws kw-args client args))]
 
-     (call-with-redis-client pool
-       (lambda (client)
-         (keyword-apply f kw-args kws client args))))))
+       [else
+        (define pool (current-redis-pool))
+        (unless pool
+          (raise-user-error (object-name f) "no current redis pool or client"))
+
+        (call-with-redis-client pool
+          (lambda (client)
+            (parameterize ([current-redis-client client])
+              (keyword-apply f kws kw-args client args))))]))))
 
 (define-syntax easy-version-out
   (make-provide-pre-transformer
@@ -34,6 +46,7 @@
           (pre-expand-export #'(rename-out [wrapped-id id] ...) modes))]))))
 
 (provide
+ (all-from-out "private/error.rkt")
  (all-from-out "private/pool.rkt")
 
  make-redis
@@ -41,6 +54,8 @@
  redis-connected?
  redis-connect!
  redis-disconnect!
+
+ current-redis-client
  current-redis-pool
 
  (easy-version-out
