@@ -24,6 +24,14 @@ Fast, idiomatic redis bindings for Racket.
   (lambda (c)
     (redis-bytes-set! c "some-key" "hello, world!")
     (redis-bytes-get c "some-key")))
+
+;; or, using the simplified API:
+
+(require redis/easy)
+
+(current-redis-pool (make-redis-pool))
+(redis-bytes-set! "some-key" "hello, world!")
+(redis-bytes-get "some-key")
 ```
 
 ## Missing commands
