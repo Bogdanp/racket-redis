@@ -8,10 +8,6 @@
          "private/pool.rkt"
          "private/script.rkt")
 
-(provide
- (all-from-out "private/pool.rkt")
- current-redis-pool)
-
 (define/contract current-redis-pool
   (parameter/c (or/c false/c redis-pool?))
   (make-parameter #f))
