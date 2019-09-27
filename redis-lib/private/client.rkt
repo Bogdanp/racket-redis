@@ -1521,6 +1521,87 @@
      (apply redis-emit! client "XTRIM" key "MAXLEN" (number->string max-length))]))
 
 
+;; sorted set commands ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define (in-twos seq)
+  (make-do-sequence
+   (lambda _
+     (define seq* seq)
+     (define (take!)
+       (begin0 (car seq*)
+         (set! seq* (cdr seq*))))
+
+     (values
+      (lambda (pos) (values (take!) (take!)))
+      (lambda _ #f)
+      #f
+      #f
+      #f
+      (lambda _ (not (null? seq*)))))))
+
+;; ZADD key [NX|XX] [CH] [INCR] score member [score member ...]
+;; TODO: NX, XX, CH and INCR
+(define/contract/provide (redis-zset-add! client key . member-and-scores)
+  (->i ([client redis?]
+        [key redis-key/c])
+       #:rest [member-and-scores (non-empty-listof any/c)]
+       #:pre/name (member-and-scores)
+       "must contain an even number of member names and score real?s"
+       (even? (length member-and-scores))
+       [result exact-nonnegative-integer?])
+
+  (apply redis-emit! client "ZADD" key (for/fold ([res null])
+                                                 ([(mem score) (in-twos member-and-scores)])
+                                         (cons (number->string score) (cons mem res)))))
+
+;; ZCARD key
+;; ZCOUNT key min max
+;; TODO: min/exclusive?, max/exclusive?
+(define/contract/provide (redis-zset-count client key
+                                           #:min [min #f]
+                                           #:max [max #f])
+  (->i ([client redis?]
+        [key redis-key/c])
+       (#:min [min real?]
+        #:max [max real?])
+       #:pre/name (min max)
+       "both min and max need to be provided if either is"
+       (if (unsupplied-arg? min)
+           (unsupplied-arg? max)
+           (not (unsupplied-arg? max)))
+       [result exact-nonnegative-integer?])
+
+  (define (~n n)
+    (case n
+      [(-inf.0) "-inf"]
+      [(+inf.0) "+inf"]
+      [else (number->string n)]))
+
+  (cond
+    [(and min max)
+     (redis-emit! client "ZCOUNT" key (~n min) (~n max))]
+
+    [else
+     (redis-emit! client "ZCARD" key)]))
+
+;; ZINCRBY key increment member
+(define/contract/provide (redis-zset-incr! client key mem [n 1])
+  (->* (redis? redis-key/c redis-string/c) (real?) real?)
+  (bytes->number (redis-emit! client "ZINCRBY" key (number->string n) mem)))
+
+;; ZREM key member [member ...]
+(define-variadic-command (zset-remove! [key redis-key/c] [mem redis-string/c] . [mems redis-string/c])
+  #:command ("ZREM")
+  #:result-contract exact-nonnegative-integer?)
+
+;; ZSCORE key member
+(define-simple-command (zset-score [key redis-key/c] [mem redis-string/c])
+  #:command ("ZSCORE")
+  #:result-contract (or/c false/c real?)
+  #:result-name res
+  (and res (bytes->number res)))
+
+
 ;; common helpers ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define bytes->number

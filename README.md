@@ -25,7 +25,7 @@ Fast, idiomatic redis bindings for Racket.
     (redis-bytes-set! c "some-key" "hello, world!")
     (redis-bytes-get c "some-key")))
 
-;; or, using the simplified API:
+;; or, using the "easy" API:
 
 (require redis/easy)
 
@@ -79,10 +79,6 @@ The commands below are yet to be implemented:
 
 * [ ]  BZPOPMAX
 * [ ]  BZPOPMIN
-* [ ]  ZADD
-* [ ]  ZCARD
-* [ ]  ZCOUNT
-* [ ]  ZINCRBY
 * [ ]  ZINTERSTORE
 * [ ]  ZLEXCOUNT
 * [ ]  ZPOPMAX
@@ -91,7 +87,6 @@ The commands below are yet to be implemented:
 * [ ]  ZRANGEBYLEX
 * [ ]  ZRANGEBYSCORE
 * [ ]  ZRANK
-* [ ]  ZREM
 * [ ]  ZREMRANGEBYLEX
 * [ ]  ZREMRANGEBYRANK
 * [ ]  ZREMRANGEBYSCORE
@@ -100,7 +95,6 @@ The commands below are yet to be implemented:
 * [ ]  ZREVRANGEBYSCORE
 * [ ]  ZREVRANK
 * [ ]  ZSCAN
-* [ ]  ZSCORE
 * [ ]  ZUNIONSTORE
 
 ## Acknowledgements

@@ -161,6 +161,13 @@
   redis-set-union
   redis-set-union!
 
+  ;; sorted set commands
+  redis-zset-add!
+  redis-zset-count
+  redis-zset-incr!
+  redis-zset-remove!
+  redis-zset-score
+
   ;; stream commands
   redis-stream-ack!
   redis-stream-add!

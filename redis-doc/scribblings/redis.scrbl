@@ -408,17 +408,14 @@ scripting world and Racket.
 @defcmd*[
   ((HSET HMSET)
    ([(redis-hash-set! [client redis?] [key redis-key/c] [fld redis-string/c] [value redis-string/c]) boolean?]
-    [(redis-hash-set! [client redis?] [key redis-key/c] [fld-and-value redis-string/c] ...+) boolean?]
+    [(redis-hash-set! [client redis?] [key redis-key/c] [fld redis-string/c] [value redis-string/c] ...+ ...+) boolean?]
     [(redis-hash-set! [client redis?] [key redis-key/c] [d dict?]) boolean?]))]{
 
   The first form sets @racket[fld] to @racket[value] within the hash
   at @racket[key].
 
-  The second form sets each pair of @racket[fld-and-value] within the
-  hash at @racket[key].  A contract error is raised if an even number
-  of @racket[fld-and-value]s is not provided, the first value of each
-  "pair" representing the field and, the second, the value of that
-  field.
+  The second form sets each pair of @racket[fld] and @racket[value]s
+  within the hash at @racket[key].
 
   The third form stores @racket[d] at @racket[key].
 }
@@ -1114,6 +1111,58 @@ scripting world and Racket.
   Computes the set union between the sets at each @racket[key] and
   stores the result in @racket[target], returning the number of
   elements in the result.
+}
+
+
+@;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+@section{Sorted Set Commands}
+
+@defcmd[
+  ((ZADD)
+   (zset-add! [key redis-key/c]
+              [member redis-string/c]
+              [score real?]
+              ...+
+              ...+) exact-nonnegative-integer?)]{
+
+  Adds each @racket[member] with its associated @racket[score] to the
+  sorted set at @racket[key].
+}
+
+@defcmd[
+  ((ZCARD ZCOUNT)
+   (zset-count [key redis-key/c]
+               [#:min min real? #f]
+               [#:max max real? #f]) exact-nonnegative-integer?)]{
+
+  Counts the number of elements within the sorted set at @racket[key].
+}
+
+@defcmd[
+  ((ZINCRBY)
+   (zset-incr! [key redis-key/c]
+               [member redis-string/c]
+               [n real? 1]) real?)]{
+
+  Increments @racket[member]'s score within the sorted set at
+  @racket[key] by @racket[n].
+}
+
+@defcmd[
+  ((ZREM)
+   (zset-remove! [key redis-key/c]
+                 [member redis-string/c] ...+) exact-nonnegative-integer?)]{
+
+  Removes each @racket[member] from the sorted set at @racket[key].
+}
+
+@defcmd[
+  ((ZSCORE)
+   (zset-score [key redis-key/c]
+               [member redis-string/c]) (or/c false/c real?))]{
+
+  Returns the score of @racket[member] from the sorted set at
+  @racket[key] or @racket[#f] if @racket[member] isn't in the set.
 }
 
 
