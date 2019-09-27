@@ -165,6 +165,7 @@
   redis-zset-add!
   redis-zset-count
   redis-zset-incr!
+  redis-zset-rank
   redis-zset-remove!
   redis-zset-score
 

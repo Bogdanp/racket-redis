@@ -86,7 +86,6 @@ The commands below are yet to be implemented:
 * [ ]  ZRANGE
 * [ ]  ZRANGEBYLEX
 * [ ]  ZRANGEBYSCORE
-* [ ]  ZRANK
 * [ ]  ZREMRANGEBYLEX
 * [ ]  ZREMRANGEBYRANK
 * [ ]  ZREMRANGEBYSCORE

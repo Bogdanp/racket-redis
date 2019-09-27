@@ -1149,6 +1149,16 @@ scripting world and Racket.
 }
 
 @defcmd[
+  ((ZRANK)
+   (zset-rank [key redis-key/c]
+              [member redis-string/c]) (or/c false/c exact-nonnegative-integer?))]{
+
+  Returns the rank of @racket[member] within the sorted set at
+  @racket[key].  If @racket[member] is not in the set, then
+  @racket[#f] is returned.
+}
+
+@defcmd[
   ((ZREM)
    (zset-remove! [key redis-key/c]
                  [member redis-string/c] ...+) exact-nonnegative-integer?)]{

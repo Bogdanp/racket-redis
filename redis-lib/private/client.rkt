@@ -390,7 +390,7 @@
   #:command ("SWAPDB"))
 
 
-;; geo commands
+;; geo commands ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (provide
  redis-latitude/c
@@ -1588,6 +1588,11 @@
 (define/contract/provide (redis-zset-incr! client key mem [n 1])
   (->* (redis? redis-key/c redis-string/c) (real?) real?)
   (bytes->number (redis-emit! client "ZINCRBY" key (number->string n) mem)))
+
+;; ZRANK key member
+(define-simple-command (zset-rank [key redis-key/c] [mem redis-string/c])
+  #:command ("ZRANK")
+  #:result-contract (or/c false/c exact-nonnegative-integer?))
 
 ;; ZREM key member [member ...]
 (define-variadic-command (zset-remove! [key redis-key/c] [mem redis-string/c] . [mems redis-string/c])
