@@ -1194,6 +1194,18 @@
       (redis-emit! client "SPOP" key (number->string cnt))
       (redis-emit! client "SPOP" key)))
 
+;; SRANDMEMBER key [count]
+(define/contract/provide redis-set-random-ref
+  (case->
+   (-> redis? redis-key/c (or/c false/c bytes?))
+   (-> redis? redis-key/c exact-integer? (listof bytes?)))
+  (case-lambda
+    [(client key)
+     (redis-emit! client "SRANDMEMBER" key)]
+
+    [(client key cnt)
+     (redis-emit! client "SRANDMEMBER" key (number->string cnt))]))
+
 ;; SREM key val [val ...]
 (define-variadic-command (set-remove! [key redis-key/c] [val redis-string/c] . [vals redis-string/c])
   #:command ("SREM")

@@ -157,6 +157,7 @@
   redis-set-members
   redis-set-move!
   redis-set-pop!
+  redis-set-random-ref
   redis-set-remove!
   redis-set-union
   redis-set-union!

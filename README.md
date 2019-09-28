@@ -72,7 +72,6 @@ The commands below are yet to be implemented:
 
 ### Sets
 
-* [ ]  SRANDMEMBER
 * [ ]  SSCAN
 
 ### Sorted Sets

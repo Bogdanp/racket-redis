@@ -1088,6 +1088,17 @@ scripting world and Racket.
 }
 
 @defcmd[
+  ((SRANDMEMBER)
+   (set-random-ref [key redis-key/c]
+                   [count exact-integer? 1]) (or/c false/c bytes? (listof bytes?)))]{
+
+  Retrieves one or more random elements from the set at @racket[key].
+
+  When @racket[count] is provided, a list of results whose size is
+  @racket[(abs count)] or less will be returned.
+}
+
+@defcmd[
   ((SREM)
    (set-remove! [key redis-key/c]
                 [val redis-string/c] ...+) exact-nonnegative-integer?)]{
