@@ -534,7 +534,7 @@
 (define/contract/provide redis-hash-set!
   (case->
    (-> redis? redis-key/c redis-string/c redis-string/c boolean?)
-   (-> redis? redis-key/c redis-string/c redis-string/c #:rest redis-string/c boolean?)
+   (-> redis? redis-key/c redis-string/c redis-string/c #:rest (listof redis-string/c) boolean?)
    (-> redis? redis-key/c dict? boolean?))
   (case-lambda
     [(client key f v)
