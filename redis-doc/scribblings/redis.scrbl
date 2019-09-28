@@ -1604,3 +1604,10 @@ be either @racket[#f] (if it doesn't exist) or @racket[bytes?].
   When @racket[when-exists?] is @racket[#t], then the key will only be
   set if it already exists.
 }
+
+@defcmd[
+  ((STRLEN)
+   (bytes-length [key redis-key/c]) exact-nonnegative-integer?)]{
+
+  Returns the number of bytes in the string at @racket[key].
+}

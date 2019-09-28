@@ -55,7 +55,6 @@ The commands below are yet to be implemented:
 * [ ]  SETEX
 * [ ]  SETNX
 * [ ]  SETRANGE
-* [ ]  STRLEN
 
 ### Geo
 

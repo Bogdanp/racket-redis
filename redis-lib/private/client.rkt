@@ -347,6 +347,11 @@
                                      (list "XX")
                                      (list))))))))
 
+;; STRLEN key
+(define-simple-command (bytes-length [key redis-key/c])
+  #:command ("STRLEN")
+  #:result-contract exact-nonnegative-integer?)
+
 
 ;; cluster commands ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
