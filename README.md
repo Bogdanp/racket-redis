@@ -46,7 +46,6 @@ The commands below are yet to be implemented:
 * [ ]  BITFIELD
 * [ ]  BITPOS
 * [ ]  GETBIT
-* [ ]  GETRANGE
 * [ ]  GETSET
 * [ ]  MSET
 * [ ]  MSETNX

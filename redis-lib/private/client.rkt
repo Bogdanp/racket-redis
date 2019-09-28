@@ -310,6 +310,16 @@
       (redis-emit! client "GET" key)
       (apply redis-emit! client "MGET" key keys)))
 
+;; GETRANGE key start end
+(define/contract/provide (redis-subbytes client key
+                                         #:start [start 0]
+                                         #:stop [stop -1])
+  (->* (redis? redis-key/c)
+       (#:start exact-integer?
+        #:stop exact-integer?)
+       bytes?)
+  (redis-emit! client "GETRANGE" key (number->string start) (number->string stop)))
+
 ;; INCR key
 ;; INCRBY key increment
 ;; INCRBYFLOAT key increment

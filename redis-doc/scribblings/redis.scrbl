@@ -1611,3 +1611,13 @@ be either @racket[#f] (if it doesn't exist) or @racket[bytes?].
 
   Returns the number of bytes in the string at @racket[key].
 }
+
+@defcmd[
+  ((GETRANGE)
+   (subbytes [key redis-key/c]
+             [#:start start exact-integer? 0]
+             [#:stop stop exact-integer? -1]) bytes?)]{
+
+  Returns a substring between the indices @racket[start] and
+  @racket[stop] of the byte string at @racket[key].
+}

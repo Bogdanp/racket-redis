@@ -203,7 +203,8 @@
   redis-bytes-get
   redis-bytes-incr!
   redis-bytes-set!
-  redis-bytes-length)
+  redis-bytes-length
+  redis-subbytes)
 
  ;; pubsub functions
  redis-pubsub?
