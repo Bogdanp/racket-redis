@@ -164,10 +164,15 @@
   ;; sorted set commands
   redis-zset-add!
   redis-zset-count
+  redis-zset-count/lex
   redis-zset-incr!
+  redis-zset-intersect!
+  redis-zset-pop/max!
+  redis-zset-pop/min!
   redis-zset-rank
   redis-zset-remove!
   redis-zset-score
+  redis-zset-union!
 
   ;; stream commands
   redis-stream-ack!

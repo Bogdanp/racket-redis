@@ -77,12 +77,6 @@ The commands below are yet to be implemented:
 
 ### Sorted Sets
 
-* [ ]  BZPOPMAX
-* [ ]  BZPOPMIN
-* [ ]  ZINTERSTORE
-* [ ]  ZLEXCOUNT
-* [ ]  ZPOPMAX
-* [ ]  ZPOPMIN
 * [ ]  ZRANGE
 * [ ]  ZRANGEBYLEX
 * [ ]  ZRANGEBYSCORE
@@ -92,9 +86,7 @@ The commands below are yet to be implemented:
 * [ ]  ZREVRANGE
 * [ ]  ZREVRANGEBYLEX
 * [ ]  ZREVRANGEBYSCORE
-* [ ]  ZREVRANK
 * [ ]  ZSCAN
-* [ ]  ZUNIONSTORE
 
 ## Acknowledgements
 

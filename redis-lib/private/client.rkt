@@ -1589,10 +1589,146 @@
   (->* (redis? redis-key/c redis-string/c) (real?) real?)
   (bytes->number (redis-emit! client "ZINCRBY" key (number->string n) mem)))
 
+;; ZINTERSTORE destination numkeys key [key ...] [WEIGHTS weight [weight ...]] [AGGREGATE SUM|MIN|MAX]
+(define/contract/provide (redis-zset-intersect! client dest
+                                                #:weights [weights #f]
+                                                #:aggregate [aggregate #f]
+                                                . keys)
+  (->i ([client redis?]
+        [dest redis-key/c])
+       (#:weights [weights (non-empty-listof real?)]
+        #:aggregate [aggregate (or/c 'sum 'min 'max)])
+       #:rest [keys (non-empty-listof redis-key/c)]
+       #:pre/name (keys weights)
+       "a weight for each provided key"
+       (or (unsupplied-arg? weights)
+           (= (length weights)
+              (length keys)))
+       [result exact-nonnegative-integer?])
+
+  (apply redis-emit!
+         client
+         "ZINTERSTORE"
+         dest
+         (number->string (length keys))
+         (flatten
+          (list keys
+                (if weights (cons #"WEIGHTS" (map number->string weights)) null)
+                (if aggregate (list #"AGGREGATE" (string-upcase (symbol->string aggregate))) null)))))
+
+;; ZLEXCOUNT key min max
+(define/contract/provide (redis-zset-count/lex client key
+                                               #:min [min #"-"]
+                                               #:max [max #"+"])
+  (->* (redis? redis-key/c)
+       (#:min redis-string/c
+        #:max redis-string/c)
+       exact-nonnegative-integer?)
+
+  (redis-emit! client "ZLEXCOUNT" key min max))
+
+;; BZPOPMAX key [key ...] timeout
+;; ZPOPMAX key [count]
+(define/contract/provide (redis-zset-pop/max! client key
+                                              #:count [cnt #f]
+                                              #:block? [block? #f]
+                                              #:timeout [timeout 0]
+                                              . keys)
+  (->i ([client redis?]
+        [key redis-key/c])
+       (#:count [cnt exact-positive-integer?]
+        #:block? [block? boolean?]
+        #:timeout [timeout exact-nonnegative-integer?])
+       #:rest [keys (listof redis-key/c)]
+
+       #:pre/name (cnt block?)
+       "a count may only be provided if block? is #f"
+       (or (unsupplied-arg? cnt) (unsupplied-arg? block?) (not block?))
+
+       #:pre/name (keys block?)
+       "a list of keys may only be provided if block? is #t"
+       (or (null? keys) (equal? block? #t))
+
+       #:pre/name (block? timeout)
+       "a timeout may only be provided if block? is #t"
+       (or (unsupplied-arg? timeout) (equal? block? #t))
+
+       [result (or/c false/c
+                     (list/c bytes? bytes? real?)
+                     (listof (cons/c bytes? real?)))])
+
+  (cond
+    [block?
+     (define res
+       (apply redis-emit! client "BZPOPMAX" (cons key (append keys (list (number->string timeout))))))
+
+     (match res
+       [#f #f]
+       [(list key mem score)
+        (list key mem (bytes->number score))])]
+
+    [else
+     (for/list ([(mem score) (in-twos
+                              (apply redis-emit! client "ZPOPMAX" key (if cnt
+                                                                          (list (number->string cnt))
+                                                                          (list))))])
+       (cons mem (bytes->number score)))]))
+
+;; BZPOPMIN key [key ...] timeout
+;; ZPOPMIN key [count]
+(define/contract/provide (redis-zset-pop/min! client key
+                                              #:count [cnt #f]
+                                              #:block? [block? #f]
+                                              #:timeout [timeout 0]
+                                              . keys)
+  (->i ([client redis?]
+        [key redis-key/c])
+       (#:count [cnt exact-positive-integer?]
+        #:block? [block? boolean?]
+        #:timeout [timeout exact-nonnegative-integer?])
+       #:rest [keys (listof redis-key/c)]
+
+       #:pre/name (cnt block?)
+       "a count may only be provided if block? is #f"
+       (or (unsupplied-arg? cnt) (unsupplied-arg? block?) (not block?))
+
+       #:pre/name (keys block?)
+       "a list of keys may only be provided if block? is #t"
+       (or (null? keys) (equal? block? #t))
+
+       #:pre/name (block? timeout)
+       "a timeout may only be provided if block? is #t"
+       (or (unsupplied-arg? timeout) (equal? block? #t))
+
+       [result (or/c false/c
+                     (list/c bytes? bytes? real?)
+                     (listof (cons/c bytes? real?)))])
+
+  (cond
+    [block?
+     (define res
+       (apply redis-emit! client "BZPOPMIN" (cons key (append keys (list (number->string timeout))))))
+
+     (match res
+       [#f #f]
+       [(list key mem score)
+        (list key mem (bytes->number score))])]
+
+    [else
+     (for/list ([(mem score) (in-twos
+                              (apply redis-emit! client "ZPOPMIN" key (if cnt
+                                                                          (list (number->string cnt))
+                                                                          (list))))])
+       (cons mem (bytes->number score)))]))
+
 ;; ZRANK key member
-(define-simple-command (zset-rank [key redis-key/c] [mem redis-string/c])
-  #:command ("ZRANK")
-  #:result-contract (or/c false/c exact-nonnegative-integer?))
+(define/contract/provide (redis-zset-rank client key mem #:reverse? [reverse? #f])
+  (->* (redis? redis-key/c redis-string/c)
+       (#:reverse? boolean?)
+       (or/c false/c exact-nonnegative-integer?))
+  (if reverse?
+      (redis-emit! client "ZREVRANK" key mem)
+      (redis-emit! client "ZRANK"    key mem)))
 
 ;; ZREM key member [member ...]
 (define-variadic-command (zset-remove! [key redis-key/c] [mem redis-string/c] . [mems redis-string/c])
@@ -1605,6 +1741,33 @@
   #:result-contract (or/c false/c real?)
   #:result-name res
   (and res (bytes->number res)))
+
+;; ZUNIONSTORE destination numkeys key [key ...] [WEIGHTS weight [weight ...]] [AGGREGATE SUM|MIN|MAX]
+(define/contract/provide (redis-zset-union! client dest
+                                            #:weights [weights #f]
+                                            #:aggregate [aggregate #f]
+                                            . keys)
+  (->i ([client redis?]
+        [dest redis-key/c])
+       (#:weights [weights (non-empty-listof real?)]
+        #:aggregate [aggregate (or/c 'sum 'min 'max)])
+       #:rest [keys (non-empty-listof redis-key/c)]
+       #:pre/name (keys weights)
+       "a weight for each provided key"
+       (or (unsupplied-arg? weights)
+           (= (length weights)
+              (length keys)))
+       [result exact-nonnegative-integer?])
+
+  (apply redis-emit!
+         client
+         "ZUNIONSTORE"
+         dest
+         (number->string (length keys))
+         (flatten
+          (list keys
+                (if weights (cons #"WEIGHTS" (map number->string weights)) null)
+                (if aggregate (list #"AGGREGATE" (string-upcase (symbol->string aggregate))) null)))))
 
 
 ;; common helpers ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

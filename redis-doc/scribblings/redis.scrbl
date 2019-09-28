@@ -1120,10 +1120,8 @@ scripting world and Racket.
 @defcmd[
   ((ZADD)
    (zset-add! [key redis-key/c]
-              [member redis-string/c]
-              [score real?]
-              ...+
-              ...+) exact-nonnegative-integer?)]{
+              [member redis-string/c] ...+
+              [score real?] ...+) exact-nonnegative-integer?)]{
 
   Adds each @racket[member] with its associated @racket[score] to the
   sorted set at @racket[key].
@@ -1139,6 +1137,16 @@ scripting world and Racket.
 }
 
 @defcmd[
+  ((ZLEXCOUNT)
+   (zset-count/lex [key redis-key/c]
+                   [#:min min redis-string/c #"-"]
+                   [#:max max redis-string/c #"+"]) exact-nonnegative-integer?)]{
+
+  Counts the number of elements within the sorted set at @racket[key]
+  according to a lexicographic sort of the set members.
+}
+
+@defcmd[
   ((ZINCRBY)
    (zset-incr! [key redis-key/c]
                [member redis-string/c]
@@ -1149,13 +1157,70 @@ scripting world and Racket.
 }
 
 @defcmd[
-  ((ZRANK)
+  ((ZINTERSTORE)
+   (zset-intersect! [dest redis-key/c]
+                    [key redis-key/c] ...+
+                    [#:weights weights (non-empty-listof real?) #f]
+                    [#:aggregate aggregate (or/c 'sum 'min 'max) 'sum]) exact-nonnegative-integer?)]{
+
+  Stores the intersection of all the sorted sets at the given
+  @racket[key]s into @racket[dest].
+}
+
+@defcmd[
+  ((BZPOPMAX ZPOPMAX)
+   (zset-pop/max! [key redis-key/c] ...
+                  [#:count count exact-positive-integer? 1]
+                  [#:block? block? boolean? #f]
+                  [#:timeout timeout exact-nonnegative-integer? 0])
+   (or/c false/c
+         (list/c bytes? bytes? real?)
+         (listof (cons/c bytes? real?))))]{
+
+  When @racket[block?] is @racket[#t], a @racket[count] cannot be
+  provided and the result will either be @racket[#f] in case the
+  @racket[timeout] was reached or a list containing the name of the
+  key that was popped, the name of the member and the member's score.
+
+  When @racket[block?] is @racket[#f], a single @racket[key] may be
+  provided, but @racket[count] can be positive.  The result will be an
+  association list containing each popped member and its associated
+  score.
+}
+
+@defcmd[
+  ((BZPOPMIN ZPOPMIN)
+   (zset-pop/min! [key redis-key/c] ...
+                  [#:count count exact-positive-integer? 1]
+                  [#:block? block? boolean? #f]
+                  [#:timeout timeout exact-nonnegative-integer? 0])
+   (or/c false/c
+         (list/c bytes? bytes? real?)
+         (listof (cons/c bytes? real?))))]{
+
+  When @racket[block?] is @racket[#t], a @racket[count] cannot be
+  provided and the result will either be @racket[#f] in case the
+  @racket[timeout] was reached or a list containing the name of the
+  key that was popped, the name of the member and the member's score.
+
+  When @racket[block?] is @racket[#f], a single @racket[key] may be
+  provided, but @racket[count] can be positive.  The result will be an
+  association list containing each popped member and its associated
+  score.
+}
+
+@defcmd[
+  ((ZRANK ZREVRANK)
    (zset-rank [key redis-key/c]
-              [member redis-string/c]) (or/c false/c exact-nonnegative-integer?))]{
+              [member redis-string/c]
+              [#:reverse? reverse? boolean? #f]) (or/c false/c exact-nonnegative-integer?))]{
 
   Returns the rank of @racket[member] within the sorted set at
   @racket[key].  If @racket[member] is not in the set, then
   @racket[#f] is returned.
+
+  If @racket[reverse?] is @racket[#t], then the reverse rank of
+  @racket[member] is returned.
 }
 
 @defcmd[
@@ -1173,6 +1238,17 @@ scripting world and Racket.
 
   Returns the score of @racket[member] from the sorted set at
   @racket[key] or @racket[#f] if @racket[member] isn't in the set.
+}
+
+@defcmd[
+  ((ZUNIONSTORE)
+   (zset-union! [dest redis-key/c]
+                [key redis-key/c] ...+
+                [#:weights weights (non-empty-listof real?) #f]
+                [#:aggregate aggregate (or/c 'sum 'min 'max) 'sum]) exact-nonnegative-integer?)]{
+
+  Stores the union of all the sorted sets at the given @racket[key]s
+  into @racket[dest].
 }
 
 
