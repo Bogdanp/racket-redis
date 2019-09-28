@@ -9,7 +9,7 @@ Fast, idiomatic redis bindings for Racket.
     $ raco pkg install redis-rkt  # NOT "redis", that's a different, older package!
     $ raco doc redis
 
-## Basic Usage
+## Usage
 
 ```racket
 (require redis)
