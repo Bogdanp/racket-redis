@@ -1280,6 +1280,21 @@ scripting world and Racket.
   mapping members to their scores.
 }
 
+@defcmd[
+  ((ZRANGEBYLEX ZREVRANGEBYLEX)
+   (subzset/lex [key redis-key/c]
+                [#:reverse? reverse? boolean? #f]
+                [#:min min redis-string/c #"-"]
+                [#:max max redis-string/c #"+"]
+                [#:limit limit exact-positive-integer? #f]
+                [#:offset offset exact-nonnegative-integer? 0]) (listof bytes?))]{
+
+  Retrieves the lexicographically-sorted set of members between
+  @racket[min] and @racket[max] from the sorted set at @racket[key].
+  If @racket[reverse?] is @racket[#t], then the elements are sorted in
+  reverse before retrieval.
+}
+
 
 @;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 @section{Stream Commands}

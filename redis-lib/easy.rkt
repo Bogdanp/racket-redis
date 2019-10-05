@@ -175,6 +175,7 @@
   redis-zset-score
   redis-zset-union!
   redis-subzset
+  redis-subzset/lex
 
   ;; stream commands
   redis-stream-ack!

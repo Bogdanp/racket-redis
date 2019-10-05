@@ -1772,6 +1772,34 @@
         (cons mem (bytes->number score)))
       res))
 
+;; ZRANGEBYLEX key min max [LIMIT offset count]
+;; ZREVRANGEBYLEX key min max [LIMIT offset count]
+(define/contract/provide (redis-subzset/lex client key
+                                            #:reverse? [reverse? #f]
+                                            #:min [min (if reverse? #"+" #"-")]
+                                            #:max [max (if reverse? #"-" #"+")]
+                                            #:limit [limit #f]
+                                            #:offset [offset 0])
+  (->i ([client redis?]
+        [key redis-key/c])
+       (#:reverse? [reverse? boolean?]
+        #:min [min redis-string/c]
+        #:max [max redis-string/c]
+        #:limit [limit exact-positive-integer?]
+        #:offset [offset exact-nonnegative-integer?])
+
+       #:pre/name (limit offset)
+       "an offset may only be provided if limit is"
+       (if (unsupplied-arg? limit)
+           (unsupplied-arg? offset)
+           offset)
+
+       [result (listof bytes?)])
+
+  (define command (if reverse? "ZREVRANGEBYLEX" "ZRANGEBYLEX"))
+  (define args (if limit (list "LIMIT" (number->string offset) (number->string limit)) null))
+  (apply redis-emit! client command key min max args))
+
 ;; ZRANK key member
 (define/contract/provide (redis-zset-rank client key mem #:reverse? [reverse? #f])
   (->* (redis? redis-key/c redis-string/c)

@@ -103,7 +103,13 @@
                                   #:reverse? #t
                                   #:include-scores? #t
                                   #:start 2)
-                   '((#"a" . 1))))))
+                   '((#"a" . 1)))
+
+     (redis-zset-add! test-client "a" "aa" 1 "ab" 1 "bb" 2 "cc" 3)
+     (check-equal? (redis-subzset/lex test-client "a") '(#"a" #"aa" #"ab" #"b" #"bb" #"c" #"cc"))
+     (check-equal? (redis-subzset/lex test-client "a" #:limit 1) '(#"a"))
+     (check-equal? (redis-subzset/lex test-client "a" #:reverse? #t #:limit 1) '(#"cc"))
+     (check-equal? (redis-subzset/lex test-client "a" #:reverse? #t #:limit 1 #:offset 1) '(#"c")))))
 
 (module+ test
   (require rackunit/text-ui)
