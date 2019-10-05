@@ -147,7 +147,7 @@ Each client represents a single TCP connection to the Redis server.
                           [#:pool-size pool-size exact-positive-integer? 4]
                           [#:idle-ttl idle-ttl exact-nonnegative-integer? 3600]) redis-pool?]{
 
-  Create a lazy pool of Redis connections that will contain at most
+  Creates a lazy pool of Redis connections that will contain at most
   @racket[pool-size] connections.
 
   Connections that have been idle for more than @racket[idle-ttl]
