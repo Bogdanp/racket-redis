@@ -1800,6 +1800,50 @@
   (define args (if limit (list "LIMIT" (number->string offset) (number->string limit)) null))
   (apply redis-emit! client command key min max args))
 
+;; ZRANGEBYSCORE key min max [WITHSCORES] [LIMIT offset count]
+;; ZREVRANGEBYSCORE key min max [WITHSCORES] [LIMIT offset count]
+(define/contract/provide (redis-subzset/score client key
+                                            #:reverse? [reverse? #f]
+                                            #:include-scores? [scores? #f]
+                                            #:start [start (if reverse? +inf.0 -inf.0)]
+                                            #:stop [stop (if reverse? -inf.0 +inf.0)]
+                                            #:limit [limit #f]
+                                            #:offset [offset 0])
+  (->i ([client redis?]
+        [key redis-key/c])
+       (#:reverse? [reverse? boolean?]
+        #:include-scores? [scores? boolean?]
+        #:start [start real?]
+        #:stop [stop real?]
+        #:limit [limit exact-positive-integer?]
+        #:offset [offset exact-nonnegative-integer?])
+
+       #:pre/name (limit offset)
+       "an offset may only be provided if limit is"
+       (if (unsupplied-arg? limit)
+           (unsupplied-arg? offset)
+           offset)
+
+       [result (or/c (listof bytes?)
+                     (listof (cons/c bytes? real?)))])
+
+  (define (~n n)
+    (case n
+      [(-inf.0) "-inf"]
+      [(+inf.0) "+inf"]
+      [else (number->string n)]))
+
+  (define command (if reverse? "ZREVRANGEBYSCORE" "ZRANGEBYSCORE"))
+  (define args (flatten (list (if scores? (list "WITHSCORES") null)
+                              (if limit (list "LIMIT" (number->string offset) (number->string limit)) null))))
+  (define res
+    (apply redis-emit! client command key (~n start) (~n stop) args))
+
+  (if scores?
+      (for/list ([(mem score) (in-twos res)])
+        (cons mem (bytes->number score)))
+      res))
+
 ;; ZRANK key member
 (define/contract/provide (redis-zset-rank client key mem #:reverse? [reverse? #f])
   (->* (redis? redis-key/c redis-string/c)

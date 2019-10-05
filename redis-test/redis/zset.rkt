@@ -109,7 +109,37 @@
      (check-equal? (redis-subzset/lex test-client "a") '(#"a" #"aa" #"ab" #"b" #"bb" #"c" #"cc"))
      (check-equal? (redis-subzset/lex test-client "a" #:limit 1) '(#"a"))
      (check-equal? (redis-subzset/lex test-client "a" #:reverse? #t #:limit 1) '(#"cc"))
-     (check-equal? (redis-subzset/lex test-client "a" #:reverse? #t #:limit 1 #:offset 1) '(#"c")))))
+     (check-equal? (redis-subzset/lex test-client "a" #:reverse? #t #:limit 1 #:offset 1) '(#"c"))
+
+     (check-equal? (redis-subzset/score test-client "a") '(#"a" #"aa" #"ab" #"b" #"bb" #"c" #"cc"))
+     (check-equal? (redis-subzset/score test-client "a"
+                                        #:include-scores? #t)
+                   '((#"a"  . 1)
+                     (#"aa" . 1)
+                     (#"ab" . 1)
+                     (#"b"  . 2)
+                     (#"bb" . 2)
+                     (#"c"  . 3)
+                     (#"cc" . 3)))
+     (check-equal? (redis-subzset/score test-client "a"
+                                        #:reverse? #t
+                                        #:include-scores? #t)
+                   '((#"cc" . 3)
+                     (#"c"  . 3)
+                     (#"bb" . 2)
+                     (#"b"  . 2)
+                     (#"ab" . 1)
+                     (#"aa" . 1)
+                     (#"a"  . 1)))
+     (check-equal? (redis-subzset/score test-client "a"
+                                        #:reverse? #t
+                                        #:start 2
+                                        #:include-scores? #t)
+                   '((#"bb" . 2)
+                     (#"b"  . 2)
+                     (#"ab" . 1)
+                     (#"aa" . 1)
+                     (#"a"  . 1))))))
 
 (module+ test
   (require rackunit/text-ui)

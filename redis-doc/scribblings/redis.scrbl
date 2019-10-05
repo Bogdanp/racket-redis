@@ -1295,6 +1295,26 @@ scripting world and Racket.
   reverse before retrieval.
 }
 
+@defcmd[
+  ((ZRANGEBYSCORE ZREVRANGEBYSCORE)
+   (subzset/score [key redis-key/c]
+                  [#:reverse? reverse? boolean? #f]
+                  [#:include-scores? scores? boolean? #f]
+                  [#:start start real? -inf.0]
+                  [#:stop stop real? +inf.0]
+                  [#:limit limit exact-positive-integer? #f]
+                  [#:offset offset exact-nonnegative-integer? 0]) (or/c (listof bytes?)
+                                                                        (listof (cons/c bytes? real?))))]{
+
+  Retrieves the of members whose scores are between @racket[start] and
+  @racket[stop] from the sorted set at @racket[key].  When
+  @racket[reverse?] is @racket[#t], then the elements are sorted in
+  reverse before retrieval.
+
+  When @racket[scores?] is @racket[#t], the result contains an alist
+  mapping members to their scores.
+}
+
 
 @;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 @section{Stream Commands}
