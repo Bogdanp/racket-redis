@@ -36,6 +36,8 @@ Fast, idiomatic redis bindings for Racket.
 (redis-bytes-get "some-key")
 ```
 
+Additional documentation is available on [docs.racket-lang.org][docs].
+
 ## Missing commands
 
 The commands below are yet to be implemented.  If you need any of
@@ -88,4 +90,6 @@ rolling by creating a PR.
 This project was originally based on [rackdis], but has since been
 rewritten from the ground up for increased performance and safety.
 
+
+[docs]: https://docs.racket-lang.org/redis@redis-doc/index.html
 [rackdis]: https://github.com/eu90h/rackdis
