@@ -85,7 +85,25 @@
 
      (redis-zset-add! test-client "a" "a" 1 "b" 2 "c" 3)
      (check-equal? (redis-zset-pop/max! test-client "a" #:block? #t) (list #"a" #"c" 3))
-     (check-equal? (redis-zset-pop/min! test-client "a" #:block? #t) (list #"a" #"a" 1)))))
+     (check-equal? (redis-zset-pop/min! test-client "a" #:block? #t) (list #"a" #"a" 1)))
+
+   (test-commands "sorted set ranges"
+     (redis-zset-add! test-client "a" "a" 1 "b" 2 "c" 3)
+     (check-equal? (redis-subzset test-client "a") '(#"a" #"b" #"c"))
+     (check-equal? (redis-subzset test-client "a" #:reverse? #t) '(#"c" #"b" #"a"))
+     (check-equal? (redis-subzset test-client "a" #:include-scores? #t)
+                   '((#"a" . 1)
+                     (#"b" . 2)
+                     (#"c" . 3)))
+     (check-equal? (redis-subzset test-client "a"
+                                  #:include-scores? #t
+                                  #:start 2)
+                   '((#"c" . 3)))
+     (check-equal? (redis-subzset test-client "a"
+                                  #:reverse? #t
+                                  #:include-scores? #t
+                                  #:start 2)
+                   '((#"a" . 1))))))
 
 (module+ test
   (require rackunit/text-ui)

@@ -76,13 +76,11 @@ The commands below are yet to be implemented:
 
 ### Sorted Sets
 
-* [ ]  ZRANGE
 * [ ]  ZRANGEBYLEX
 * [ ]  ZRANGEBYSCORE
 * [ ]  ZREMRANGEBYLEX
 * [ ]  ZREMRANGEBYRANK
 * [ ]  ZREMRANGEBYSCORE
-* [ ]  ZREVRANGE
 * [ ]  ZREVRANGEBYLEX
 * [ ]  ZREVRANGEBYSCORE
 * [ ]  ZSCAN

@@ -1748,6 +1748,30 @@
                                                                           (list))))])
        (cons mem (bytes->number score)))]))
 
+;; ZRANGE key start stop [WITHSCORES]
+;; ZREVRANGE key start stop [WITHSCORES]
+(define/contract/provide (redis-subzset client key
+                                        #:reverse? [reverse? #f]
+                                        #:start [start 0]
+                                        #:stop [stop -1]
+                                        #:include-scores? [scores? #f])
+  (->* (redis? redis-key/c)
+       (#:reverse? boolean?
+        #:start exact-integer?
+        #:stop exact-integer?
+        #:include-scores? boolean?)
+       (or/c (listof bytes?)
+             (listof (cons/c bytes? real?))))
+
+  (define command (if reverse? "ZREVRANGE" "ZRANGE"))
+  (define args (if scores? (list "WITHSCORES") null))
+  (define res (apply redis-emit! client command key (number->string start) (number->string stop) args))
+
+  (if scores?
+      (for/list ([(mem score) (in-twos res)])
+        (cons mem (bytes->number score)))
+      res))
+
 ;; ZRANK key member
 (define/contract/provide (redis-zset-rank client key mem #:reverse? [reverse? #f])
   (->* (redis? redis-key/c redis-string/c)

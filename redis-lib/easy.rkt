@@ -174,6 +174,7 @@
   redis-zset-remove!
   redis-zset-score
   redis-zset-union!
+  redis-subzset
 
   ;; stream commands
   redis-stream-ack!
