@@ -26,7 +26,10 @@
      (check-equal? (sort (redis-set-union test-client "a" "b") bytes<?) '(#"1" #"2"))
      (check-equal? (sort (redis-set-intersect test-client "a" "b") bytes<?) '(#"1"))
      (check-equal? (sort (redis-set-difference test-client "a" "b") bytes<?) '())
-     (check-equal? (sort (redis-set-difference test-client "b" "a") bytes<?) '(#"2")))))
+     (check-equal? (sort (redis-set-difference test-client "b" "a") bytes<?) '(#"2"))
+
+     (let-values ([(cursor members) (redis-set-scan test-client "b")])
+       (check-equal? members '(#"1" #"2"))))))
 
 (module+ test
   (require rackunit/text-ui)

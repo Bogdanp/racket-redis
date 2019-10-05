@@ -1108,6 +1108,21 @@ scripting world and Racket.
 }
 
 @defcmd[
+  ((SSCAN)
+   (set-scan [key redis-key/c]
+             [#:cursor cursor exact-nonnegative-integer? 0]
+             [#:pattern pattern (or/c false/c non-empty-string?) #f]
+             [#:limit limit (or/c false/c exact-positive-integer?) #f]) (values exact-nonnegative-integer? (listof redis-string/c)))]{
+
+  Efficiently iterates through the set of values in the set at
+  @racket[key].
+
+  The @racket[limit] parameter serves as a hint for the
+  implementation, but the server may return more items than
+  @racket[limit] per iteration.
+}
+
+@defcmd[
   ((SUNION)
    (set-union [key redis-key/c] ...+) (listof bytes?))]{
 
@@ -1240,6 +1255,21 @@ scripting world and Racket.
                  [member redis-string/c] ...+) exact-nonnegative-integer?)]{
 
   Removes each @racket[member] from the sorted set at @racket[key].
+}
+
+@defcmd[
+  ((ZSCAN)
+   (zset-scan [key redis-key/c]
+              [#:cursor cursor exact-nonnegative-integer? 0]
+              [#:pattern pattern (or/c false/c non-empty-string?) #f]
+              [#:limit limit (or/c false/c exact-positive-integer?) #f]) (values exact-nonnegative-integer? (listof (cons/c redis-string/c real?))))]{
+
+  Efficiently iterates through the members and their associated scores
+  in the sorted set at @racket[key].
+
+  The @racket[limit] parameter serves as a hint for the
+  implementation, but the server may return more items than
+  @racket[limit] per iteration.
 }
 
 @defcmd[

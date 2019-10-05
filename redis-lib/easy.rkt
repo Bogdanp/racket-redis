@@ -159,6 +159,7 @@
   redis-set-pop!
   redis-set-random-ref
   redis-set-remove!
+  redis-set-scan
   redis-set-union
   redis-set-union!
 
@@ -172,6 +173,7 @@
   redis-zset-pop/min!
   redis-zset-rank
   redis-zset-remove!
+  redis-zset-scan
   redis-zset-score
   redis-zset-union!
   redis-subzset

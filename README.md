@@ -132,7 +132,6 @@ rolling by creating a PR.
 * [ ] `ZREMRANGEBYLEX key min max`
 * [ ] `ZREMRANGEBYRANK key start stop`
 * [ ] `ZREMRANGEBYSCORE key min max`
-* [ ] `ZSCAN key cursor [MATCH pattern] [COUNT count]`
 
 
 ## Acknowledgements

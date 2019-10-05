@@ -139,7 +139,16 @@
                      (#"b"  . 2)
                      (#"ab" . 1)
                      (#"aa" . 1)
-                     (#"a"  . 1))))))
+                     (#"a"  . 1)))
+
+     (let-values ([(cursor items) (redis-zset-scan test-client "a")])
+       (check-equal? items '((#"a"  . 1)
+                             (#"aa" . 1)
+                             (#"ab" . 1)
+                             (#"b"  . 2)
+                             (#"bb" . 2)
+                             (#"c"  . 3)
+                             (#"cc" . 3)))))))
 
 (module+ test
   (require rackunit/text-ui)

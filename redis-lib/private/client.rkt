@@ -1236,7 +1236,7 @@
        (#:cursor exact-nonnegative-integer?
         #:pattern (or/c false/c non-empty-string?)
         #:limit (or/c false/c exact-positive-integer?))
-       (values exact-nonnegative-integer? (listof redis-key/c)))
+       (values exact-nonnegative-integer? (listof redis-string/c)))
 
   (define res
     (apply redis-emit! client "SSCAN" key (number->string cursor) (optionals
@@ -1244,7 +1244,6 @@
                                                                    [limit "COUNT" (number->string limit)])))
 
   (values (bytes->number (car res)) (cadr res)))
-
 
 ;; SUNION key [key ...]
 (define-variadic-command (set-union [key redis-key/c] . [keys redis-key/c])
@@ -1902,6 +1901,26 @@
 (define-variadic-command (zset-remove! [key redis-key/c] [mem redis-string/c] . [mems redis-string/c])
   #:command ("ZREM")
   #:result-contract exact-nonnegative-integer?)
+
+;; ZSCAN key cursor [MATCH pattern] [COUNT count]
+(define/contract/provide (redis-zset-scan client key
+                                          #:cursor [cursor 0]
+                                          #:pattern [pattern #f]
+                                          #:limit [limit #f])
+  (->* (redis? redis-key/c)
+       (#:cursor exact-nonnegative-integer?
+        #:pattern (or/c false/c non-empty-string?)
+        #:limit (or/c false/c exact-positive-integer?))
+       (values exact-nonnegative-integer? (listof (cons/c redis-string/c real?))))
+
+  (define res
+    (apply redis-emit! client "ZSCAN" key (number->string cursor) (optionals
+                                                                   [pattern "MATCH" pattern]
+                                                                   [limit "COUNT" (number->string limit)])))
+
+  (values (bytes->number (car res))
+          (for/list ([(mem score) (in-twos (cadr res))])
+            (cons mem (bytes->number score)))))
 
 ;; ZSCORE key member
 (define-simple-command (zset-score [key redis-key/c] [mem redis-string/c])
