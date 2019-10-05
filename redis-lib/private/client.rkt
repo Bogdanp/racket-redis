@@ -139,6 +139,9 @@
           [(string-prefix? message "WRONGTYPE")
            (raise (exn:fail:redis (substring message 10) (current-continuation-marks)))]
 
+          [(string-prefix? message "NOSCRIPT")
+           (raise (exn:fail:redis:script:missing (substring message 9) (current-continuation-marks)))]
+
           [else
            (raise (exn:fail:redis message (current-continuation-marks)))])]
 

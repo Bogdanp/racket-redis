@@ -2,6 +2,7 @@
 
 (require racket/contract
          "client.rkt"
+         "error.rkt"
          "protocol.rkt")
 
 (provide
@@ -20,9 +21,13 @@
   (lambda (client
            #:keys [keys null]
            #:args [args null])
-    (unless (redis-script-exists? client script-sha1)
-      (redis-script-load! client lua-script))
-
-    (redis-script-eval-sha! client script-sha1
-                            #:keys keys
-                            #:args args)))
+    (let loop ([attempts 0])
+      (with-handlers ([(lambda (e)
+                         (and (exn:fail:redis:script:missing? e)
+                              (zero? attempts)))
+                       (lambda _
+                         (redis-script-load! client lua-script)
+                         (loop (add1 attempts)))])
+        (redis-script-eval-sha! client script-sha1
+                                #:keys keys
+                                #:args args)))))
