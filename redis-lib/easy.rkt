@@ -104,7 +104,9 @@
   redis-random-key
   redis-remove!
   redis-rename!
+  redis-scan
   redis-touch!
+  in-redis
 
   ;; list commands
   redis-list-append!
@@ -162,6 +164,7 @@
   redis-set-scan
   redis-set-union
   redis-set-union!
+  in-redis-set
 
   ;; sorted set commands
   redis-zset-add!
@@ -179,6 +182,7 @@
   redis-subzset
   redis-subzset/lex
   redis-subzset/score
+  in-redis-zset
 
   ;; stream commands
   redis-stream-ack!

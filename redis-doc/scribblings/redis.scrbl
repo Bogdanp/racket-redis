@@ -118,6 +118,10 @@ Each client represents a single TCP connection to the Redis server.
   The contract for valid Redis keys.
 }
 
+@defthing[redis-key-type/c (or/c 'string 'list 'set 'zset 'hash 'stream)]{
+  The contract for valid Redis key types.
+}
+
 @defthing[redis-string/c (or/c bytes? string?)]{
   The contract for valid Redis byte strings.  Anywhere you see this
   contract, keep in mind that any string value you provide will be
@@ -394,7 +398,7 @@ scripting world and Racket.
   ((HSCAN)
    (hash-scan [key redis-key/c]
               [#:cursor cursor exact-nonnegative-integer? 0]
-              [#:pattern pattern (or/c false/c non-empty-string?) #f]
+              [#:pattern pattern (or/c false/c redis-string/c) #f]
               [#:limit limit (or/c false/c exact-positive-integer?) #f]) (values exact-nonnegative-integer? (listof redis-key/c)))]{
 
   Efficiently iterates through the set of keys in the hash at
@@ -434,6 +438,17 @@ scripting world and Racket.
    (hash-values [key redis-key/c]) (listof bytes?))]{
 
   Returns all the values of the hash at @racket[key].
+}
+
+@defproc[
+  (in-redis-hash [client redis?]
+                 [key redis-key/c]) (sequenceof (cons/c bytes? bytes?))]{
+
+  Returns a sequence that can be used to efficiently iterate through
+  the hash at @racket[key].
+
+  Any keyword arguments that are passed to this function will be
+  forwarded to @racket[redis-hash-scan].
 }
 
 
@@ -582,10 +597,34 @@ scripting world and Racket.
 }
 
 @defcmd[
+  ((SCAN)
+   (scan [#:cursor cursor exact-nonnegative-integer? 0]
+         [#:pattern pattern (or/c false/c redis-string/c) #f]
+         [#:limit limit (or/c false/c exact-positive-integer?) #f]
+         [#:type type (or/c false/c redis-key-type/c) #f]) (values exact-nonnegative-integer? (listof redis-key/c)))]{
+
+  Efficiently iterates through all the keys in the database.
+
+  The @racket[limit] parameter serves as a hint for the
+  implementation, but the server may return more items than
+  @racket[limit] per iteration.
+}
+
+@defcmd[
   ((TYPE)
-   (key-type [key redis-key/c]) (or/c 'none 'string 'list 'set 'zset 'hash 'stream))]{
+   (key-type [key redis-key/c]) (or/c 'none redis-key-type/c))]{
 
   Returns @racket[key]'s type.
+}
+
+@defproc[
+  (in-redis [client redis?]) (sequenceof  bytes?)]{
+
+  Returns a sequence that can be used to efficiently iterate through
+  the Redis database.
+
+  Any keyword arguments that are passed to this function will be
+  forwarded to @racket[redis-scan].
 }
 
 
@@ -1111,7 +1150,7 @@ scripting world and Racket.
   ((SSCAN)
    (set-scan [key redis-key/c]
              [#:cursor cursor exact-nonnegative-integer? 0]
-             [#:pattern pattern (or/c false/c non-empty-string?) #f]
+             [#:pattern pattern (or/c false/c redis-string/c) #f]
              [#:limit limit (or/c false/c exact-positive-integer?) #f]) (values exact-nonnegative-integer? (listof redis-string/c)))]{
 
   Efficiently iterates through the set of values in the set at
@@ -1137,6 +1176,17 @@ scripting world and Racket.
   Computes the set union between the sets at each @racket[key] and
   stores the result in @racket[target], returning the number of
   elements in the result.
+}
+
+@defproc[
+  (in-redis-set [client redis?]
+                [key redis-key/c]) (sequenceof bytes?)]{
+
+  Returns a sequence that can be used to efficiently iterate through
+  the set at @racket[key].
+
+  Any keyword arguments that are passed to this function will be
+  forwarded to @racket[redis-set-scan].
 }
 
 
@@ -1261,7 +1311,7 @@ scripting world and Racket.
   ((ZSCAN)
    (zset-scan [key redis-key/c]
               [#:cursor cursor exact-nonnegative-integer? 0]
-              [#:pattern pattern (or/c false/c non-empty-string?) #f]
+              [#:pattern pattern (or/c false/c redis-string/c) #f]
               [#:limit limit (or/c false/c exact-positive-integer?) #f]) (values exact-nonnegative-integer? (listof (cons/c redis-string/c real?))))]{
 
   Efficiently iterates through the members and their associated scores
@@ -1343,6 +1393,17 @@ scripting world and Racket.
 
   When @racket[scores?] is @racket[#t], the result contains an alist
   mapping members to their scores.
+}
+
+@defproc[
+  (in-redis-zset [client redis?]
+                 [key redis-key/c]) (sequenceof (cons/c bytes? real?))]{
+
+  Returns a sequence that can be used to efficiently iterate through
+  the sorted set at @racket[key].
+
+  Any keyword arguments that are passed to this function will be
+  forwarded to @racket[redis-zset-scan].
 }
 
 

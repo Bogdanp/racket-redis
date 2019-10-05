@@ -20,6 +20,7 @@
 (provide
  redis-string/c
  redis-key/c
+ redis-key-type/c
  redis-value/c)
 
 (define redis-string/c
@@ -27,6 +28,9 @@
 
 (define redis-key/c
   redis-string/c)
+
+(define redis-key-type/c
+  (or/c 'string 'list 'set 'zset 'hash 'stream))
 
 (define redis-value/c
   (make-flat-contract
@@ -534,9 +538,9 @@
                                           #:limit [limit #f])
   (->* (redis? redis-key/c)
        (#:cursor exact-nonnegative-integer?
-        #:pattern (or/c false/c non-empty-string?)
+        #:pattern (or/c false/c redis-string/c)
         #:limit (or/c false/c exact-positive-integer?))
-       (values exact-nonnegative-integer? (listof redis-key/c)))
+       (values exact-nonnegative-integer? (listof (cons/c bytes? bytes?))))
 
 
   (define res
@@ -544,7 +548,47 @@
                                                                    [pattern "MATCH" pattern]
                                                                    [limit "COUNT" (number->string limit)])))
 
-  (values (bytes->number (car res)) (cadr res)))
+  (values (bytes->number (car res))
+          (for/list ([(key value) (in-twos (cadr res))])
+            (cons key value))))
+
+(define (make-scanner-sequence scanner)
+  (make-keyword-procedure
+   (lambda (kws kw-args . args)
+     (make-do-sequence
+      (lambda _
+        (define cursor 0)
+        (define buffer null)
+
+        (define (fresh!)
+          (define-values (cursor* buffer*)
+            (keyword-apply scanner kws kw-args args
+                           #:cursor cursor))
+
+          (set! buffer buffer*)
+          (set! cursor (if (zero? cursor*) #f cursor*)))
+
+        (define (take!)
+          (when (null? buffer)
+            (fresh!))
+
+          (begin0 (car buffer)
+            (set! buffer (cdr buffer))))
+
+        (values
+         (lambda _
+           (cond
+             [(and (null? buffer)
+                   (not cursor)) 'done]
+             [else (take!)]))
+         (lambda _ #f)
+         #f
+         #f
+         (lambda (v) (not (eq? v 'done)))
+         #f))))))
+
+(define in-redis-hash (make-scanner-sequence redis-hash-scan))
+(provide in-redis-hash)
 
 ;; HSET key field value
 ;; HMSET key field value [field value ...]
@@ -630,6 +674,16 @@
 (define-simple-command/1 (expire-at! [key redis-key/c] [ms exact-nonnegative-integer? #:converter number->string])
   #:command ("PEXPIREAT"))
 
+;; PTTL key
+(define-simple-command (key-ttl [key redis-key/c])
+  #:command ("PTTL")
+  #:result-contract (or/c 'missing 'persisted exact-nonnegative-integer?)
+  #:result-name res
+  (case res
+    [(-2) 'missing]
+    [(-1) 'persisted]
+    [else res]))
+
 ;; RANDOMKEY
 (define-simple-command (random-key)
   #:result-contract (or/c false/c bytes?))
@@ -647,15 +701,29 @@
                     src
                     dest)))
 
-;; PTTL key
-(define-simple-command (key-ttl [key redis-key/c])
-  #:command ("PTTL")
-  #:result-contract (or/c 'missing 'persisted exact-nonnegative-integer?)
-  #:result-name res
-  (case res
-    [(-2) 'missing]
-    [(-1) 'persisted]
-    [else res]))
+;; SCAN key cursor [MATCH pattern] [COUNT count] [TYPE type]
+(define/contract/provide (redis-scan client
+                                     #:cursor [cursor 0]
+                                     #:pattern [pattern #f]
+                                     #:limit [limit #f]
+                                     #:type [type #f])
+  (->* (redis?)
+       (#:cursor exact-nonnegative-integer?
+        #:pattern (or/c false/c redis-string/c)
+        #:limit (or/c false/c exact-positive-integer?)
+        #:type (or/c false/c redis-key-type/c))
+       (values exact-nonnegative-integer? (listof redis-key/c)))
+
+  (define res
+    (apply redis-emit! client "SCAN" (number->string cursor) (optionals
+                                                              [pattern "MATCH" pattern]
+                                                              [limit "COUNT" (number->string limit)]
+                                                              [type "TYPE" (symbol->string type)])))
+
+  (values (bytes->number (car res)) (cadr res)))
+
+(define in-redis (make-scanner-sequence redis-scan))
+(provide in-redis)
 
 ;; TOUCH key [key ...]
 (define-variadic-command (touch! [key redis-key/c] . [keys redis-key/c])
@@ -664,7 +732,7 @@
 ;; TYPE key
 (define-simple-command (key-type [key redis-key/c])
   #:command ("TYPE")
-  #:result-contract (or/c 'none 'string 'list 'set 'zset 'hash 'stream)
+  #:result-contract (or/c 'none redis-key-type/c)
   #:result-name res
   (string->symbol res))
 
@@ -1234,7 +1302,7 @@
                                          #:limit [limit #f])
   (->* (redis? redis-key/c)
        (#:cursor exact-nonnegative-integer?
-        #:pattern (or/c false/c non-empty-string?)
+        #:pattern (or/c false/c redis-string/c)
         #:limit (or/c false/c exact-positive-integer?))
        (values exact-nonnegative-integer? (listof redis-string/c)))
 
@@ -1244,6 +1312,9 @@
                                                                    [limit "COUNT" (number->string limit)])))
 
   (values (bytes->number (car res)) (cadr res)))
+
+(define in-redis-set (make-scanner-sequence redis-set-scan))
+(provide in-redis-set)
 
 ;; SUNION key [key ...]
 (define-variadic-command (set-union [key redis-key/c] . [keys redis-key/c])
@@ -1590,18 +1661,22 @@
 (define (in-twos seq)
   (make-do-sequence
    (lambda _
-     (define seq* seq)
+     (define canary (lambda () 'canary))
+     (define buffer seq)
      (define (take!)
-       (begin0 (car seq*)
-         (set! seq* (cdr seq*))))
+       (begin0 (car buffer)
+         (set! buffer (cdr buffer))))
 
      (values
-      (lambda (pos) (values (take!) (take!)))
+      (lambda _
+        (if (< (length buffer) 2)
+            (values canary canary)
+            (values (take!) (take!))))
       (lambda _ #f)
       #f
       #f
-      #f
-      (lambda _ (not (null? seq*)))))))
+      (lambda (v1 v2) (not (eq? v1 canary)))
+      #f))))
 
 ;; ZADD key [NX|XX] [CH] [INCR] score member [score member ...]
 ;; TODO: NX, XX, CH and INCR
@@ -1909,7 +1984,7 @@
                                           #:limit [limit #f])
   (->* (redis? redis-key/c)
        (#:cursor exact-nonnegative-integer?
-        #:pattern (or/c false/c non-empty-string?)
+        #:pattern (or/c false/c redis-string/c)
         #:limit (or/c false/c exact-positive-integer?))
        (values exact-nonnegative-integer? (listof (cons/c redis-string/c real?))))
 
@@ -1921,6 +1996,9 @@
   (values (bytes->number (car res))
           (for/list ([(mem score) (in-twos (cadr res))])
             (cons mem (bytes->number score)))))
+
+(define in-redis-zset (make-scanner-sequence redis-zset-scan))
+(provide in-redis-zset)
 
 ;; ZSCORE key member
 (define-simple-command (zset-score [key redis-key/c] [mem redis-string/c])
@@ -1958,11 +2036,8 @@
 
 ;; common helpers ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-syntax-rule (optional* p arg ...)
-  (if p (list arg ...) null))
-
-(define-syntax-rule (optionals (p arg ...) ...)
-  (flatten (list (optional* p arg ...) ...)))
+(define bytes->number
+  (compose1 string->number bytes->string/utf-8))
 
 (define supplied-arg?
   (compose1 not unsupplied-arg?))
@@ -1973,5 +2048,8 @@
     [(supplied-arg? b) (unsupplied-arg? a)]
     [else #t]))
 
-(define bytes->number
-  (compose1 string->number bytes->string/utf-8))
+(define-syntax-rule (optional* p arg ...)
+  (if p (list arg ...) null))
+
+(define-syntax-rule (optionals (p arg ...) ...)
+  (flatten (list (optional* p arg ...) ...)))

@@ -93,7 +93,6 @@ rolling by creating a PR.
 * [ ] `MIGRATE host port key|"" destination-db timeout [COPY] [REPLACE] [AUTH password] [KEYS key [key ...]]`
 * [ ] `OBJECT subcommand [arguments [arguments ...]]`
 * [ ] `RESTORE key ttl serialized-value [REPLACE] [ABSTTL] [IDLETIME seconds] [FREQ frequency]`
-* [ ] `SCAN cursor [MATCH pattern] [COUNT count] [TYPE type]`
 
 ### Lists
 
