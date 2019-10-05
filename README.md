@@ -6,7 +6,7 @@ Fast, idiomatic redis bindings for Racket.
 
 ## Installation
 
-    $ raco pkg install redis-rkt  # NOT "redis", that's a different, older package!
+    $ raco pkg install redis-rkt  # NOT "redis".  That's a different package!
     $ raco doc redis
 
 ## Usage
@@ -38,8 +38,9 @@ Fast, idiomatic redis bindings for Racket.
 
 ## Missing commands
 
-The commands below are yet to be implemented:
-
+The commands below are yet to be implemented.  If you need any of
+these, or others not listed here, then feel free to get the ball
+rolling by creating a PR.
 
 ### Bytestrings
 
@@ -80,6 +81,7 @@ The commands below are yet to be implemented:
 * [ ]  ZREMRANGEBYRANK
 * [ ]  ZREMRANGEBYSCORE
 * [ ]  ZSCAN
+
 
 ## Acknowledgements
 
