@@ -46,43 +46,93 @@ rolling by creating a PR.
 
 ### Bytestrings
 
-* [ ]  BITFIELD
-* [ ]  BITPOS
-* [ ]  GETBIT
-* [ ]  GETSET
-* [ ]  MSET
-* [ ]  MSETNX
-* [ ]  PSETEX
-* [ ]  SETBIT
-* [ ]  SETEX
-* [ ]  SETNX
-* [ ]  SETRANGE
+* [ ] `BITFIELD key [GET type offset] [SET type offset value] [INCRBY type offset increment] [OVERFLOW WRAP|SAT|FAIL]`
+* [ ] `BITPOS key bit [start] [end]`
+* [ ] `GETBIT key offset`
+* [ ] `GETSET key value`
+* [ ] `MSET key value [key value ...]`
+* [ ] `MSETNX key value [key value ...]`
+* [ ] `SETBIT key offset value`
+* [ ] `SETRANGE key offset value`
+
+### Cluster
+
+* [ ] `CLUSTER ADDSLOTS slot [slot ...]`
+* [ ] `CLUSTER COUNT-FAILURE-REPORTS node-id`
+* [ ] `CLUSTER COUNTKEYSINSLOT slot`
+* [ ] `CLUSTER DELSLOTS slot [slot ...]`
+* [ ] `CLUSTER FAILOVER [FORCE|TAKEOVER]`
+* [ ] `CLUSTER FORGET node-id`
+* [ ] `CLUSTER GETKEYSINSLOT slot count`
+* [ ] `CLUSTER INFO`
+* [ ] `CLUSTER KEYSLOT key`
+* [ ] `CLUSTER MEET ip port`
+* [ ] `CLUSTER NODES`
+* [ ] `CLUSTER REPLICATE node-id`
+* [ ] `CLUSTER RESET [HARD|SOFT]`
+* [ ] `CLUSTER SAVECONFIG`
+* [ ] `CLUSTER SET-CONFIG-EPOCH config-epoch`
+* [ ] `CLUSTER SETSLOT slot IMPORTING|MIGRATING|STABLE|NODE [node-id]`
+* [ ] `CLUSTER SLAVES node-id`
+* [ ] `CLUSTER REPLICAS node-id`
+* [ ] `CLUSTER SLOTS`
+* [ ] `READONLY`
+* [ ] `READWRITE`
 
 ### Geo
 
-* [ ]  GEORADIUS
-* [ ]  GEORADIUSBYMEMBER
+* [ ] `GEORADIUS key longitude latitude radius m|km|ft|mi [WITHCOORD] [WITHDIST] [WITHHASH] [COUNT count] [ASC|DESC] [STORE key] [STOREDIST key]`
+* [ ] `GEORADIUSBYMEMBER key member radius m|km|ft|mi [WITHCOORD] [WITHDIST] [WITHHASH] [COUNT count] [ASC|DESC] [STORE key] [STOREDIST key]`
 
 ### Hashes
 
-* [ ]  HSETNX
+* [ ] `HSETNX key field value`
+
+### Keys
+
+* [ ] `MIGRATE host port key|"" destination-db timeout [COPY] [REPLACE] [AUTH password] [KEYS key [key ...]]`
+* [ ] `OBJECT subcommand [arguments [arguments ...]]`
+* [ ] `RESTORE key ttl serialized-value [REPLACE] [ABSTTL] [IDLETIME seconds] [FREQ frequency]`
+* [ ] `SCAN cursor [MATCH pattern] [COUNT count] [TYPE type]`
 
 ### Lists
 
-* [ ]  LPUSHX
-* [ ]  RPUSHX
-* [ ]  SORT
+* [ ] `LPUSHX key value`
+* [ ] `RPUSHX key value`
+* [ ] `SORT key [BY pattern] [LIMIT offset count] [GET pattern [GET pattern ...]] [ASC|DESC] [ALPHA] [STORE destination]`
 
-### Sets
+### PubSub
 
-* [ ]  SSCAN
+* [ ] `PUBSUB subcommand [argument [argument ...]]`
+
+### Script
+
+* [ ] `SCRIPT DEBUG YES|SYNC|NO`
+
+### Server
+
+* [ ] `CLIENT KILL [ip:port] [ID client-id] [TYPE normal|master|slave|pubsub] [ADDR ip:port] [SKIPME yes/no]`
+* [ ] `CLIENT LIST [TYPE normal|master|replica|pubsub]`
+* [ ] `CLIENT REPLY ON|OFF|SKIP`
+* [ ] `CLIENT UNBLOCK client-id [TIMEOUT|ERROR]`
+* [ ] `COMMAND GETKEYS`
+* [ ] `COMMAND INFO command-name [command-name ...]`
+* [ ] `DEBUG OBJECT key`
+* [ ] `DEBUG SEGFAULT`
+* [ ] `MEMORY DOCTOR`
+* [ ] `MEMORY HELP`
+* [ ] `MEMORY MALLOC-STATS`
+* [ ] `MEMORY PURGE`
+* [ ] `MEMORY STATS`
+* [ ] `MEMORY USAGE key [SAMPLES count]`
+* [ ] `MONITOR`
 
 ### Sorted Sets
 
-* [ ]  ZREMRANGEBYLEX
-* [ ]  ZREMRANGEBYRANK
-* [ ]  ZREMRANGEBYSCORE
-* [ ]  ZSCAN
+* [ ] `ZREMRANGEBYLEX key min max`
+* [ ] `ZREMRANGEBYRANK key start stop`
+* [ ] `ZREMRANGEBYSCORE key min max`
+* [ ] `ZSCAN key cursor [MATCH pattern] [COUNT count]`
 
 
 ## Acknowledgements
