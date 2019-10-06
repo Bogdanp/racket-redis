@@ -255,7 +255,7 @@
 ;; APPEND key value
 (define-simple-command (bytes-append! [key redis-key/c]
                                       [value redis-string/c])
-  #:command ("APPEND")
+  #:command (#"APPEND")
   #:result-contract exact-nonnegative-integer?)
 
 ;; BITCOUNT key [start stop]
@@ -266,27 +266,27 @@
        (#:start exact-integer?
         #:stop exact-integer?)
        exact-nonnegative-integer?)
-  (redis-emit! client "BITCOUNT" key (number->string start) (number->string stop)))
+  (redis-emit! client #"BITCOUNT" key (number->string start) (number->string stop)))
 
 ;; BITOP AND destkey key [key ...]
 (define/contract/provide (redis-bytes-bitwise-and! client dest src0 . srcs)
   (-> redis? redis-key/c redis-key/c redis-key/c ... exact-nonnegative-integer?)
-  (apply redis-emit! client "BITOP" "AND" dest src0 srcs))
+  (apply redis-emit! client #"BITOP" #"AND" dest src0 srcs))
 
 ;; BITOP NOT destkey key
 (define/contract/provide (redis-bytes-bitwise-not! client src [dest src])
   (->* (redis? redis-key/c) (redis-key/c) exact-nonnegative-integer?)
-  (redis-emit! client "BITOP" "NOT" dest src))
+  (redis-emit! client #"BITOP" #"NOT" dest src))
 
 ;; BITOP OR destkey key [key ...]
 (define/contract/provide (redis-bytes-bitwise-or! client dest src0 . srcs)
   (-> redis? redis-key/c redis-key/c redis-key/c ... exact-nonnegative-integer?)
-  (apply redis-emit! client "BITOP" "OR" dest src0 srcs))
+  (apply redis-emit! client #"BITOP" #"OR" dest src0 srcs))
 
 ;; BITOP XOR destkey key [key ...]
 (define/contract/provide (redis-bytes-bitwise-xor! client dest src0 . srcs)
   (-> redis? redis-key/c redis-key/c redis-key/c ... exact-nonnegative-integer?)
-  (apply redis-emit! client "BITOP" "XOR" dest src0 srcs))
+  (apply redis-emit! client #"BITOP" #"XOR" dest src0 srcs))
 
 ;; DECR key
 ;; DECRBY key decrement
@@ -295,8 +295,8 @@
        (exact-integer?)
        exact-integer?)
   (apply redis-emit! client (cond
-                              [(= n 1) (list "DECR" key)]
-                              [else    (list "DECRBY" key (number->string n))])))
+                              [(= n 1) (list #"DECR" key)]
+                              [else    (list #"DECRBY" key (number->string n))])))
 
 ;; DEL key [key ...]
 ;; UNLINK key [key ...]
@@ -307,20 +307,20 @@
        (#:async? boolean?)
        #:rest (listof redis-key/c)
        exact-nonnegative-integer?)
-  (apply redis-emit! client (if async? "UNLINK" "DEL") key keys))
+  (apply redis-emit! client (if async? #"UNLINK" #"DEL") key keys))
 
 ;; GET key
 ;; MGET key [key ...]
 (define/contract/provide (redis-bytes-get client key . keys)
   (-> redis? redis-key/c redis-key/c ... redis-value/c)
   (if (null? keys)
-      (redis-emit! client "GET" key)
-      (apply redis-emit! client "MGET" key keys)))
+      (redis-emit! client #"GET" key)
+      (apply redis-emit! client #"MGET" key keys)))
 
 ;; GETBIT key offset
 (define-simple-command (bytes-ref/bit [key redis-key/c]
                                       [offset exact-nonnegative-integer? #:converter number->string])
-  #:command ("GETBIT")
+  #:command (#"GETBIT")
   #:result-contract (or/c 0 1))
 
 ;; GETRANGE key start end
@@ -331,7 +331,7 @@
        (#:start exact-integer?
         #:stop exact-integer?)
        bytes?)
-  (redis-emit! client "GETRANGE" key (number->string start) (number->string stop)))
+  (redis-emit! client #"GETRANGE" key (number->string start) (number->string stop)))
 
 ;; INCR key
 ;; INCRBY key increment
@@ -340,9 +340,9 @@
   (->* (redis? redis-key/c) (real?) real?)
   (define res
     (apply redis-emit! client (cond
-                                [(= n 1)            (list "INCR"        key)]
-                                [(exact-integer? n) (list "INCRBY"      key (number->string n))]
-                                [else               (list "INCRBYFLOAT" key (number->string n))])))
+                                [(= n 1)            (list #"INCR"        key)]
+                                [(exact-integer? n) (list #"INCRBY"      key (number->string n))]
+                                [else               (list #"INCRBYFLOAT" key (number->string n))])))
 
   (if (bytes? res)
       (bytes->number res)
@@ -365,28 +365,28 @@
        (exclusive-args unless-exists? when-exists?)
 
        [result boolean?])
-  (ok? (apply redis-emit! client "SET" key value (optionals
-                                                  [expires-in "PX" expires-in]
-                                                  [unless-exists? "NX"]
-                                                  [when-exists? "XX"]))))
+  (ok? (apply redis-emit! client #"SET" key value (optionals
+                                                   [expires-in #"PX" expires-in]
+                                                   [unless-exists? #"NX"]
+                                                   [when-exists? #"XX"]))))
 
 ;; SETBIT key offset value
 (define-simple-command (bytes-set/bit! [key redis-key/c]
                                        [offset exact-nonnegative-integer? #:converter number->string]
                                        [value (or/c 0 1) #:converter number->string])
-  #:command ("SETBIT")
+  #:command (#"SETBIT")
   #:result-contract (or/c 0 1))
 
 ;; SETRANGE key offset value
 (define-simple-command (bytes-copy! [key redis-key/c]
                                     [offset exact-nonnegative-integer? #:converter number->string]
                                     [value redis-string/c])
-  #:command ("SETRANGE")
+  #:command (#"SETRANGE")
   #:result-contract exact-nonnegative-integer?)
 
 ;; STRLEN key
 (define-simple-command (bytes-length [key redis-key/c])
-  #:command ("STRLEN")
+  #:command (#"STRLEN")
   #:result-contract exact-nonnegative-integer?)
 
 
@@ -395,10 +395,10 @@
 ;; REPLICAOF NO ONE
 ;; REPLICAOF host port
 (define-simple-command (make-replica-of! [host redis-string/c] [port (integer-in 0 65536) #:converter number->string])
-  #:command ("REPLICAOF"))
+  #:command (#"REPLICAOF"))
 
 (define-simple-command (stop-replication!)
-  #:command ("REPLICAOF" "NO" "ONE"))
+  #:command (#"REPLICAOF" #"NO" #"ONE"))
 
 
 ;; connection commands ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -419,17 +419,17 @@
 ;; QUIT
 (define/contract/provide (redis-quit! client)
   (-> redis? void?)
-  (send-request! client "QUIT")
+  (send-request! client #"QUIT")
   (redis-disconnect! client))
 
 ;; SELECT db
 (define-simple-command/ok (select-db! [db (integer-in 0 16) #:converter number->string])
-  #:command ("SELECT"))
+  #:command (#"SELECT"))
 
 ;; SWAPDB a b
 (define-simple-command/ok (swap-dbs! [a (integer-in 0 16) #:converter number->string]
                                      [b (integer-in 0 16) #:converter number->string])
-  #:command ("SWAPDB"))
+  #:command (#"SWAPDB"))
 
 
 ;; geo commands ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -465,7 +465,7 @@
 ;; GEOADD key long lat member [long lat member ...]
 (define/contract/provide (redis-geo-add! client key geo . geos)
   (-> redis? redis-key/c redis-geo/c redis-geo/c ... exact-nonnegative-integer?)
-  (apply redis-emit! client "GEOADD" key (flatten-geos (cons geo geos))))
+  (apply redis-emit! client #"GEOADD" key (flatten-geos (cons geo geos))))
 
 ;; GEODIST key member1 member2 [unit]
 (define/contract/provide (redis-geo-dist client key member1 member2
@@ -475,21 +475,21 @@
        (or/c false/c real?))
 
   (define res
-    (apply redis-emit! client "GEODIST" key member1 member2 (if unit
-                                                                (list (symbol->string unit))
-                                                                (list))))
+    (apply redis-emit! client #"GEODIST" key member1 member2 (if unit
+                                                                 (list (symbol->string unit))
+                                                                 (list))))
 
   (and res (bytes->number res)))
 
 ;; GEOHASH key member [member ...]
 (define-variadic-command (geo-hash [key redis-key/c] [mem redis-string/c] . [mems redis-string/c])
-  #:command ("GEOHASH")
+  #:command (#"GEOHASH")
   #:result-contract (listof (or/c false/c bytes?)))
 
 ;; GEOPOS key member [member ...]
 (define/contract/provide (redis-geo-pos client key mem . mems)
   (-> redis? redis-key/c redis-string/c redis-string/c ... (listof (or/c false/c (list/c redis-longitude/c redis-latitude/c))))
-  (for/list ([pair (in-list (apply redis-emit! client "GEOPOS" key mem mems))])
+  (for/list ([pair (in-list (apply redis-emit! client #"GEOPOS" key mem mems))])
     (and pair (list (bytes->number (car pair))
                     (bytes->number (cadr pair))))))
 
@@ -498,16 +498,16 @@
 
 ;; HDEL key field [field ...]
 (define-variadic-command (hash-remove! [key redis-key/c] [fld redis-string/c] . [flds redis-string/c])
-  #:command ("HDEL")
+  #:command (#"HDEL")
   #:result-contract exact-nonnegative-integer?)
 
 ;; HEXISTS key field
 (define-simple-command/1 (hash-has-key? [key redis-key/c] [fld redis-string/c])
-  #:command ("HEXISTS"))
+  #:command (#"HEXISTS"))
 
 ;; HGET key field
 (define-simple-command (hash-ref [key redis-key/c] [fld redis-string/c])
-  #:command ("HGET"))
+  #:command (#"HGET"))
 
 ;; HGETALL key
 ;; HMGET key field [field ...]
@@ -517,12 +517,12 @@
    (-> redis? redis-key/c #:rest (listof redis-string/c) hash?))
   (case-lambda
     [(client key)
-     (apply hash (redis-emit! client "HGETALL" key))]
+     (apply hash (redis-emit! client #"HGETALL" key))]
 
     [(client key f . fs)
      (apply hash (for/fold ([items null])
                            ([name (in-list (cons f fs))]
-                            [value (in-list (apply redis-emit! client "HMGET" key f fs))])
+                            [value (in-list (apply redis-emit! client #"HMGET" key f fs))])
                    (cons (if (string? name)
                              (string->bytes/utf-8 name)
                              name)
@@ -534,8 +534,8 @@
   (->* (redis? redis-key/c redis-string/c) (real?) real?)
   (define res
     (apply redis-emit! client (cond
-                                [(exact-integer? n) (list "HINCRBY"      key fld (number->string n))]
-                                [else               (list "HINCRBYFLOAT" key fld (number->string n))])))
+                                [(exact-integer? n) (list #"HINCRBY"      key fld (number->string n))]
+                                [else               (list #"HINCRBYFLOAT" key fld (number->string n))])))
 
   (if (bytes? res)
       (bytes->number res)
@@ -543,12 +543,12 @@
 
 ;; HKEYS key
 (define-simple-command (hash-keys [key redis-key/c])
-  #:command ("HKEYS")
+  #:command (#"HKEYS")
   #:result-contract (listof bytes?))
 
 ;; HLEN key
 (define-simple-command (hash-length [key redis-key/c])
-  #:command ("HLEN")
+  #:command (#"HLEN")
   #:result-contract exact-nonnegative-integer?)
 
 ;; HSCAN key cursor [MATCH pattern] [COUNT count]
@@ -564,9 +564,9 @@
 
 
   (define res
-    (apply redis-emit! client "HSCAN" key (number->string cursor) (optionals
-                                                                   [pattern "MATCH" pattern]
-                                                                   [limit "COUNT" (number->string limit)])))
+    (apply redis-emit! client #"HSCAN" key (number->string cursor) (optionals
+                                                                    [pattern #"MATCH" pattern]
+                                                                    [limit #"COUNT" (number->string limit)])))
 
   (values (bytes->number (car res))
           (for/list ([(key value) (in-twos (cadr res))])
@@ -619,27 +619,27 @@
    (-> redis? redis-key/c dict? boolean?))
   (case-lambda
     [(client key f v)
-     (= 1 (redis-emit! client "HSET" key f v))]
+     (= 1 (redis-emit! client #"HSET" key f v))]
 
     [(client key f v . fvs)
      (unless (even? (length fvs))
        (raise-argument-error 'redis-hash-set! "an even number of fields and values" fvs))
 
-     (ok? (apply redis-emit! client "HMSET" key f v fvs))]
+     (ok? (apply redis-emit! client #"HMSET" key f v fvs))]
 
     [(client key d)
-     (ok? (apply redis-emit! client "HMSET" key (for/fold ([fields null])
-                                                          ([(k v) (in-dict d)])
-                                                  (cons k (cons v fields)))))]))
+     (ok? (apply redis-emit! client #"HMSET" key (for/fold ([fields null])
+                                                           ([(k v) (in-dict d)])
+                                                   (cons k (cons v fields)))))]))
 
 ;; HSTRLEN key field
 (define-simple-command (hash-string-length [key redis-key/c] [fld redis-string/c])
-  #:command ("HSTRLEN")
+  #:command (#"HSTRLEN")
   #:result-contract exact-nonnegative-integer?)
 
 ;; HVALS key
 (define-simple-command (hash-values [key redis-key/c])
-  #:command ("HVALS")
+  #:command (#"HVALS")
   #:result-contract (listof bytes?))
 
 
@@ -647,19 +647,19 @@
 
 ;; PFADD key elt [elt ...]
 (define-variadic-command (hll-add! [key redis-key/c] [elt redis-string/c] . [elts redis-string/c])
-  #:command ("PFADD")
+  #:command (#"PFADD")
   #:result-contract boolean?
   #:result-name res
   (= res 1))
 
 ;; PFCOUNT key [key ...]
 (define-variadic-command (hll-count [key redis-key/c] . [keys redis-key/c])
-  #:command ("PFCOUNT")
+  #:command (#"PFCOUNT")
   #:result-contract exact-nonnegative-integer?)
 
 ;; PFMERGE dest key [key ...]
 (define-variadic-command (hll-merge! [dest redis-key/c] [key redis-key/c] . [keys redis-key/c])
-  #:command ("PFMERGE")
+  #:command (#"PFMERGE")
   #:result-contract boolean?
   #:result-name res
   (ok? res))
@@ -669,10 +669,10 @@
 
 ;; EXISTS key [key ...]
 (define-simple-command/1 (has-key? [key redis-key/c])
-  #:command ("EXISTS"))
+  #:command (#"EXISTS"))
 
 (define-variadic-command (count-keys . [key redis-key/c])
-  #:command ("EXISTS")
+  #:command (#"EXISTS")
   #:result-contract exact-nonnegative-integer?)
 
 ;; KEYS pattern
@@ -681,22 +681,22 @@
 
 ;; MOVE key db
 (define-simple-command/1 (move-key! [key redis-key/c] [db (integer-in 0 16) #:converter number->string])
-  #:command ("MOVE"))
+  #:command (#"MOVE"))
 
 ;; PERSIST key
 (define-simple-command/1 (persist! [key redis-key/c]))
 
 ;; PEXPIRE key milliseconds
 (define-simple-command/1 (expire-in! [key redis-key/c] [ms exact-nonnegative-integer? #:converter number->string])
-  #:command ("PEXPIRE"))
+  #:command (#"PEXPIRE"))
 
 ;; PEXPIREAT key milliseconds-timestamp
 (define-simple-command/1 (expire-at! [key redis-key/c] [ms exact-nonnegative-integer? #:converter number->string])
-  #:command ("PEXPIREAT"))
+  #:command (#"PEXPIREAT"))
 
 ;; PTTL key
 (define-simple-command (key-ttl [key redis-key/c])
-  #:command ("PTTL")
+  #:command (#"PTTL")
   #:result-contract (or/c 'missing 'persisted exact-nonnegative-integer?)
   #:result-name res
   (case res
@@ -716,8 +716,8 @@
        boolean?)
   (ok? (redis-emit! client
                     (if unless-exists?
-                        "RENAMENX"
-                        "RENAME")
+                        #"RENAMENX"
+                        #"RENAME")
                     src
                     dest)))
 
@@ -735,10 +735,10 @@
        (values exact-nonnegative-integer? (listof redis-key/c)))
 
   (define res
-    (apply redis-emit! client "SCAN" (number->string cursor) (optionals
-                                                              [pattern "MATCH" pattern]
-                                                              [limit "COUNT" (number->string limit)]
-                                                              [type "TYPE" (symbol->string type)])))
+    (apply redis-emit! client #"SCAN" (number->string cursor) (optionals
+                                                               [pattern #"MATCH" pattern]
+                                                               [limit #"COUNT" (number->string limit)]
+                                                               [type #"TYPE" (symbol->string type)])))
 
   (values (bytes->number (car res)) (cadr res)))
 
@@ -751,7 +751,7 @@
 
 ;; TYPE key
 (define-simple-command (key-type [key redis-key/c])
-  #:command ("TYPE")
+  #:command (#"TYPE")
   #:result-contract (or/c 'none redis-key-type/c)
   #:result-name res
   (string->symbol res))
@@ -759,7 +759,7 @@
 ;; WAIT numreplicas timeout
 (define-simple-command (wait! [replicas exact-positive-integer? #:converter number->string]
                               [timeout exact-nonnegative-integer? #:converter number->string])
-  #:command ("WAIT")
+  #:command (#"WAIT")
   #:result-contract exact-nonnegative-integer?)
 
 
@@ -768,7 +768,7 @@
 ;; LINDEX key index
 (define-simple-command (list-ref [key redis-key/c]
                                  [index exact-integer? #:converter number->string])
-  #:command ("LINDEX"))
+  #:command (#"LINDEX"))
 
 ;; LINSERT key AFTER pivot value
 ;; LINSERT key BEFORE pivot value
@@ -788,15 +788,15 @@
        [result (or/c false/c exact-nonnegative-integer?)])
   (define args
     (if pivot/after
-        (list "AFTER"  pivot/after  value)
-        (list "BEFORE" pivot/before value)))
+        (list #"AFTER"  pivot/after  value)
+        (list #"BEFORE" pivot/before value)))
 
-  (define res (apply redis-emit! client "LINSERT" key args))
+  (define res (apply redis-emit! client #"LINSERT" key args))
   (and (not (= res -1)) res))
 
 ;; LLEN key
 (define-simple-command (list-length [key redis-key/c])
-  #:command ("LLEN")
+  #:command (#"LLEN")
   #:result-contract exact-nonnegative-integer?)
 
 ;; LPOP key
@@ -821,16 +821,16 @@
 
        [result redis-value/c])
   (if block?
-      (apply redis-emit! client "BLPOP" (append (cons key keys) (list (number->string timeout)))
+      (apply redis-emit! client #"BLPOP" (append (cons key keys) (list (number->string timeout)))
              ;; This command's timeout must take precedence over the
              ;; client's, otherwise we risk timing out before the server
              ;; does and that can leave the connection in a bad state.
              #:timeout (if (> timeout 0) (add1 timeout) #f))
-      (redis-emit! client "LPOP" key)))
+      (redis-emit! client #"LPOP" key)))
 
 ;; LPUSH key value [value ...]
 (define-variadic-command (list-prepend! [key redis-key/c] . [value redis-string/c])
-  #:command ("LPUSH")
+  #:command (#"LPUSH")
   #:result-contract exact-nonnegative-integer?)
 
 ;; LRANGE key value start stop
@@ -841,7 +841,7 @@
        (#:start exact-integer?
         #:stop exact-integer?)
        redis-value/c)
-  (redis-emit! client "LRANGE" key (number->string start) (number->string stop)))
+  (redis-emit! client #"LRANGE" key (number->string start) (number->string stop)))
 
 (define/contract/provide (redis-list-get client key)
   (-> redis? redis-key/c redis-value/c)
@@ -851,12 +851,12 @@
 (define-simple-command (list-remove! [key redis-key/c]
                                      [count exact-integer?]
                                      [value redis-string/c])
-  #:command ("LREM")
+  #:command (#"LREM")
   #:result-contract exact-nonnegative-integer?)
 
 ;; LSET key index value
 (define-simple-command/ok (list-set! [key redis-key/c] [index exact-integer?] [value redis-string/c])
-  #:command ("LSET"))
+  #:command (#"LSET"))
 
 ;; LTRIM key value start stop
 (define/contract/provide (redis-list-trim! client key
@@ -866,7 +866,7 @@
        (#:start exact-integer?
         #:stop exact-integer?)
        boolean?)
-  (ok? (redis-emit! client "LTRIM" key (number->string start) (number->string stop))))
+  (ok? (redis-emit! client #"LTRIM" key (number->string start) (number->string stop))))
 
 ;; RPOP key
 ;; RPOPLPUSH src dest
@@ -906,22 +906,22 @@
   (cond
     [(and dest block?)
      (redis-emit! #:timeout timeout/read
-                  client "BRPOPLPUSH" key dest timeout:str)]
+                  client #"BRPOPLPUSH" key dest timeout:str)]
 
     [dest
-     (redis-emit! client "RPOPLPUSH" key dest)]
+     (redis-emit! client #"RPOPLPUSH" key dest)]
 
     [block?
      (apply redis-emit!
             #:timeout timeout/read
-            client "BRPOP" (append (cons key keys) (list timeout:str)))]
+            client #"BRPOP" (append (cons key keys) (list timeout:str)))]
 
     [else
-     (redis-emit! client "RPOP" key)]))
+     (redis-emit! client #"RPOP" key)]))
 
 ;; RPUSH key value [value ...]
 (define-variadic-command (list-append! [key redis-key/c] . [value redis-string/c])
-  #:command ("RPUSH")
+  #:command (#"RPUSH")
   #:result-contract exact-nonnegative-integer?)
 
 
@@ -966,8 +966,8 @@
   (-> redis-pubsub? void?)
   (call-with-pubsub-events pubsub
     (lambda (events)
-      (send-request! (redis-pubsub-client pubsub) "UNSUBSCRIBE")
-      (send-request! (redis-pubsub-client pubsub) "PUNSUBSCRIBE")
+      (send-request! (redis-pubsub-client pubsub) #"UNSUBSCRIBE")
+      (send-request! (redis-pubsub-client pubsub) #"PUNSUBSCRIBE")
       (wait-until-unsubscribed/all events)
       (wait-until-punsubscribed/all events)))
 
@@ -1048,8 +1048,8 @@
       (let ([channel-or-patterns (cons channel-or-pattern channel-or-patterns)])
         (send-request! (redis-pubsub-client pubsub)
                        (if patterns?
-                           "PSUBSCRIBE"
-                           "SUBSCRIBE")
+                           #"PSUBSCRIBE"
+                           #"SUBSCRIBE")
                        channel-or-patterns)
         (if patterns?
             (wait-until-psubscribed events channel-or-patterns)
@@ -1068,8 +1068,8 @@
     (lambda (events)
       (send-request! (redis-pubsub-client pubsub)
                      (if patterns?
-                         "PUNSUBSCRIBE"
-                         "UNSUBSCRIBE")
+                         #"PUNSUBSCRIBE"
+                         #"UNSUBSCRIBE")
                      channel-or-patterns)
       (if patterns?
           (wait-until-punsubscribed events channel-or-patterns)
@@ -1077,7 +1077,7 @@
 
 ;; PUBLISH channel message
 (define-simple-command (pubsub-publish! [channel redis-string/c] [message redis-string/c])
-  #:command ("PUBLISH")
+  #:command (#"PUBLISH")
   #:result-contract exact-nonnegative-integer?)
 
 
@@ -1091,7 +1091,7 @@
        (#:keys (listof redis-key/c)
         #:args (listof redis-string/c))
        redis-value/c)
-  (apply redis-emit! client "EVAL" script (number->string (length keys)) (append keys args)))
+  (apply redis-emit! client #"EVAL" script (number->string (length keys)) (append keys args)))
 
 ;; EVALSHA sha1 numkeys [key ...] [arg ...]
 (define/contract/provide (redis-script-eval-sha! client script-sha1
@@ -1101,12 +1101,12 @@
        (#:keys (listof redis-key/c)
         #:args (listof redis-string/c))
        redis-value/c)
-  (apply redis-emit! client "EVALSHA" script-sha1 (number->string (length keys)) (append keys args)))
+  (apply redis-emit! client #"EVALSHA" script-sha1 (number->string (length keys)) (append keys args)))
 
 ;; SCRIPT EXISTS sha1 [sha1 ...]
 (define/contract/provide (redis-scripts-exist? client . shas)
   (-> redis? redis-string/c ... (listof boolean?))
-  (for/list ([one-or-zero (in-list (apply redis-emit! client "SCRIPT" "EXISTS" shas))])
+  (for/list ([one-or-zero (in-list (apply redis-emit! client #"SCRIPT" #"EXISTS" shas))])
     (= 1 one-or-zero)))
 
 (define/contract/provide (redis-script-exists? client sha)
@@ -1116,17 +1116,17 @@
 ;; SCRIPT FLUSH
 (define/contract/provide (redis-scripts-flush! client)
   (-> redis? boolean?)
-  (ok? (redis-emit! client "SCRIPT" "FLUSH")))
+  (ok? (redis-emit! client #"SCRIPT" #"FLUSH")))
 
 ;; SCRIPT KILL
 (define/contract/provide (redis-script-kill! client)
   (-> redis? boolean?)
-  (ok? (redis-emit! client "SCRIPT" "KILL")))
+  (ok? (redis-emit! client #"SCRIPT" #"KILL")))
 
 ;; SCRIPT LOAD
 (define/contract/provide (redis-script-load! client script)
   (-> redis? redis-string/c string?)
-  (bytes->string/utf-8 (redis-emit! client "SCRIPT" "LOAD" script)))
+  (bytes->string/utf-8 (redis-emit! client #"SCRIPT" #"LOAD" script)))
 
 
 ;; server commands ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1134,50 +1134,50 @@
 ;; CLIENT ID
 (define/contract/provide (redis-client-id client)
   (-> redis? exact-integer?)
-  (redis-emit! client "CLIENT" "ID"))
+  (redis-emit! client #"CLIENT" #"ID"))
 
 ;; CLIENT GETNAME
 (define/contract/provide (redis-client-name client)
   (-> redis? string?)
-  (bytes->string/utf-8 (redis-emit! client "CLIENT" "GETNAME")))
+  (bytes->string/utf-8 (redis-emit! client #"CLIENT" #"GETNAME")))
 
 ;; CLIENT PAUSE timeout
 (define-simple-command/ok (clients-pause! [timeout exact-nonnegative-integer? #:converter number->string])
-  #:command ("CLIENT" "PAUSE"))
+  #:command (#"CLIENT" #"PAUSE"))
 
 ;; CLIENT SETNAME connection-name
 (define/contract/provide (redis-set-client-name! client name)
   (-> redis? redis-string/c boolean?)
-  (ok? (redis-emit! client "CLIENT" "SETNAME" name)))
+  (ok? (redis-emit! client #"CLIENT" #"SETNAME" name)))
 
 ;; COMMAND
 (define-simple-command (commands)
-  #:command ("COMMAND"))
+  #:command (#"COMMAND"))
 
 ;; COMMAND COUNT
 (define-simple-command (command-count)
-  #:command ("COMMAND" "COUNT")
+  #:command (#"COMMAND" #"COUNT")
   #:result-contract exact-nonnegative-integer?)
 
 ;; CONFIG GET parameter
 (define-simple-command (config-ref [parameter redis-string/c])
-  #:command ("CONFIG" "GET"))
+  #:command (#"CONFIG" #"GET"))
 
 ;; CONFIG RESETSTAT
 (define-simple-command/ok (config-reset-stats!)
-  #:command ("CONFIG" "RESETSTAT"))
+  #:command (#"CONFIG" #"RESETSTAT"))
 
 ;; CONFIG REWRITE
 (define-simple-command/ok (config-rewrite!)
-  #:command ("CONFIG" "REWRITE"))
+  #:command (#"CONFIG" #"REWRITE"))
 
 ;; CONFIG SET parameter value
 (define-simple-command/ok (config-set! [parameter redis-string/c] [value redis-string/c])
-  #:command ("CONFIG" "SET"))
+  #:command (#"CONFIG" #"SET"))
 
 ;; DBSIZE
 (define-simple-command (key-count)
-  #:command ("DBSIZE")
+  #:command (#"DBSIZE")
   #:result-contract exact-integer?)
 
 ;; DUMP key
@@ -1195,16 +1195,16 @@
 
 ;; LASTSAVE
 (define-simple-command (last-save-time)
-  #:command ("LASTSAVE")
+  #:command (#"LASTSAVE")
   #:result-contract exact-nonnegative-integer?)
 
 ;; REWRITEAOF
 ;; BGREWRITEAOF
 (define-simple-command/ok (rewrite-aof!)
-  #:command ("REWRITEAOF"))
+  #:command (#"REWRITEAOF"))
 
 (define-simple-command/ok (rewrite-aof/async!)
-  #:command ("BGREWRITEAOF"))
+  #:command (#"BGREWRITEAOF"))
 
 ;; ROLE
 (define-simple-command (role))
@@ -1212,28 +1212,28 @@
 ;; SAVE
 ;; BGSAVE
 (define-simple-command/ok (save!)
-  #:command ("SAVE"))
+  #:command (#"SAVE"))
 
 (define-simple-command/ok (save/async!)
-  #:command ("BGSAVE"))
+  #:command (#"BGSAVE"))
 
 ;; SHUTDOWN
 (define/contract/provide (redis-shutdown! client [save? #t])
   (->* (redis?) (boolean?) void?)
-  (send-request! client "SHUTDOWN" (list (if save? "SAVE" "NOSAVE"))))
+  (send-request! client #"SHUTDOWN" (list (if save? #"SAVE" #"NOSAVE"))))
 
 ;; SLOWLOG GET count
 (define-simple-command (slowlog-get [count exact-positive-integer? #:converter number->string])
-  #:command ("SLOWLOG" "GET"))
+  #:command (#"SLOWLOG" #"GET"))
 
 ;; SLOWLOG LEN
 (define-simple-command (slowlog-length)
-  #:command ("SLOWLOG" "LEN")
+  #:command (#"SLOWLOG" #"LEN")
   #:result-contract exact-nonnegative-integer?)
 
 ;; SLOWLOG RESET
 (define-simple-command/ok (slowlog-reset!)
-  #:command ("SLOWLOG" "RESET"))
+  #:command (#"SLOWLOG" #"RESET"))
 
 ;; TIME
 (define-simple-command (time)
@@ -1248,46 +1248,46 @@
 
 ;; SADD key val [val ...]
 (define-variadic-command (set-add! [key redis-key/c] [val redis-string/c] . [vals redis-string/c])
-  #:command ("SADD")
+  #:command (#"SADD")
   #:result-contract exact-nonnegative-integer?)
 
 ;; SCARD key
 (define-simple-command (set-count [key redis-key/c])
-  #:command ("SCARD")
+  #:command (#"SCARD")
   #:result-contract exact-nonnegative-integer?)
 
 ;; SDIFF key [key ...]
 (define-variadic-command (set-difference [key redis-key/c] . [keys redis-key/c])
-  #:command ("SDIFF")
+  #:command (#"SDIFF")
   #:result-contract (listof bytes?))
 
 ;; SDIFFSTORE target key [key ...]
 (define-variadic-command (set-difference! [target redis-key/c] [key redis-key/c] . [keys redis-key/c])
-  #:command ("SDIFFSTORE")
+  #:command (#"SDIFFSTORE")
   #:result-contract exact-nonnegative-integer?)
 
 ;; SINTER key [key ...]
 (define-variadic-command (set-intersect [key redis-key/c] . [keys redis-key/c])
-  #:command ("SINTER")
+  #:command (#"SINTER")
   #:result-contract (listof bytes?))
 
 ;; SINTERSTORE target key [key ...]
 (define-variadic-command (set-intersect! [target redis-key/c] [key redis-key/c] . [keys redis-key/c])
-  #:command ("SINTERSTORE")
+  #:command (#"SINTERSTORE")
   #:result-contract exact-nonnegative-integer?)
 
 ;; SISMEMBER key val
 (define-simple-command/1 (set-member? [key redis-key/c] [val redis-string/c])
-  #:command ("SISMEMBER"))
+  #:command (#"SISMEMBER"))
 
 ;; SMEMBERS key
 (define-simple-command (set-members [key redis-key/c])
-  #:command ("SMEMBERS")
+  #:command (#"SMEMBERS")
   #:result-contract (listof bytes?))
 
 ;; SMOVE source destination member
 (define-simple-command/1 (set-move! [source redis-key/c] [destination redis-key/c] [val redis-string/c])
-  #:command ("SMOVE"))
+  #:command (#"SMOVE"))
 
 ;; SPOP key [count]
 (define/contract/provide (redis-set-pop! client key #:count [cnt 1])
@@ -1295,8 +1295,8 @@
        (#:count exact-positive-integer?)
        (listof bytes?))
   (if (> cnt 1)
-      (redis-emit! client "SPOP" key (number->string cnt))
-      (redis-emit! client "SPOP" key)))
+      (redis-emit! client #"SPOP" key (number->string cnt))
+      (redis-emit! client #"SPOP" key)))
 
 ;; SRANDMEMBER key [count]
 (define/contract/provide redis-set-random-ref
@@ -1305,14 +1305,14 @@
    (-> redis? redis-key/c exact-integer? (listof bytes?)))
   (case-lambda
     [(client key)
-     (redis-emit! client "SRANDMEMBER" key)]
+     (redis-emit! client #"SRANDMEMBER" key)]
 
     [(client key cnt)
-     (redis-emit! client "SRANDMEMBER" key (number->string cnt))]))
+     (redis-emit! client #"SRANDMEMBER" key (number->string cnt))]))
 
 ;; SREM key val [val ...]
 (define-variadic-command (set-remove! [key redis-key/c] [val redis-string/c] . [vals redis-string/c])
-  #:command ("SREM")
+  #:command (#"SREM")
   #:result-contract exact-nonnegative-integer?)
 
 ;; SSCAN key cursor [MATCH pattern] [COUNT count]
@@ -1327,9 +1327,9 @@
        (values exact-nonnegative-integer? (listof redis-string/c)))
 
   (define res
-    (apply redis-emit! client "SSCAN" key (number->string cursor) (optionals
-                                                                   [pattern "MATCH" pattern]
-                                                                   [limit "COUNT" (number->string limit)])))
+    (apply redis-emit! client #"SSCAN" key (number->string cursor) (optionals
+                                                                    [pattern #"MATCH" pattern]
+                                                                    [limit #"COUNT" (number->string limit)])))
 
   (values (bytes->number (car res)) (cadr res)))
 
@@ -1338,12 +1338,12 @@
 
 ;; SUNION key [key ...]
 (define-variadic-command (set-union [key redis-key/c] . [keys redis-key/c])
-  #:command ("SUNION")
+  #:command (#"SUNION")
   #:result-contract (listof bytes?))
 
 ;; SUNIONSTORE target key [key ...]
 (define-variadic-command (set-union! [target redis-key/c] [key redis-key/c] . [keys redis-key/c])
-  #:command ("SUNIONSTORE")
+  #:command (#"SUNIONSTORE")
   #:result-contract exact-nonnegative-integer?)
 
 
@@ -1379,14 +1379,14 @@
 
 ;; XACK key group id [id ...]
 (define-variadic-command (stream-ack! [key redis-key/c] [group redis-string/c] [id redis-string/c] . [ids redis-string/c])
-  #:command ("XACK")
+  #:command (#"XACK")
   #:result-contract exact-nonnegative-integer?)
 
 ;; XADD key MAXLEN ~ n id field value [field value ...]
 ;; XADD key MAXLEN n id field value [field value ...]
 ;; XADD key id field value [field value ...]
 (define/contract/provide (redis-stream-add! client key fld val
-                                            #:id [id "*"]
+                                            #:id [id #"*"]
                                             #:max-length [max-length #f]
                                             #:max-length/approximate [max-length/approximate #f]
                                             . flds-and-vals)
@@ -1411,13 +1411,13 @@
 
   (cond
     [max-length/approximate
-     (apply redis-emit! client "XADD" key "MAXLEN" "~" (number->string max-length/approximate) id fld val flds-and-vals)]
+     (apply redis-emit! client #"XADD" key #"MAXLEN" #"~" (number->string max-length/approximate) id fld val flds-and-vals)]
 
     [max-length
-     (apply redis-emit! client "XADD" key "MAXLEN" (number->string max-length) id fld val flds-and-vals)]
+     (apply redis-emit! client #"XADD" key #"MAXLEN" (number->string max-length) id fld val flds-and-vals)]
 
     [else
-     (apply redis-emit! client "XADD" key id fld val flds-and-vals)]))
+     (apply redis-emit! client #"XADD" key id fld val flds-and-vals)]))
 
 ;; XCLAIM key group consumer min-idle-time id [id ...] [IDLE ms] [TIME milliseconds] [RETRYCOUNT count] [FORCE] [JUSTID]
 (define/contract/provide (redis-stream-group-claim! client key
@@ -1443,47 +1443,47 @@
 
   (define args
     (optionals
-     [new-idle-value "IDLE" (number->string new-idle-value)]
-     [new-time-value "TIME" (number->string new-time-value)]
-     [new-retry-count "RETRYCOUNT" (number->string new-retry-count)]
-     [force? "FORCE"]))
+     [new-idle-value #"IDLE" (number->string new-idle-value)]
+     [new-time-value #"TIME" (number->string new-time-value)]
+     [new-retry-count #"RETRYCOUNT" (number->string new-retry-count)]
+     [force? #"FORCE"]))
 
   (define pairs
-    (apply redis-emit! client "XCLAIM" key group consumer min-idle-time (append ids args)))
+    (apply redis-emit! client #"XCLAIM" key group consumer min-idle-time (append ids args)))
 
   (and pairs (map pair->entry pairs)))
 
 ;; XDEL key id [id ...]
 (define-variadic-command (stream-remove! [key redis-key/c] [id redis-string/c] . [ids redis-string/c])
-  #:command ("XDEL")
+  #:command (#"XDEL")
   #:result-contract exact-nonnegative-integer?)
 
 ;; XGROUP CREATE key group id
-(define/contract/provide (redis-stream-group-create! client key group [starting-id "0-0"])
+(define/contract/provide (redis-stream-group-create! client key group [starting-id #"0-0"])
   (->* (redis? redis-key/c redis-string/c)
        (redis-string/c)
        boolean?)
-  (ok? (redis-emit! client "XGROUP" "CREATE" key group starting-id)))
+  (ok? (redis-emit! client #"XGROUP" #"CREATE" key group starting-id)))
 
 ;; XGROUP DESTROY key group
 (define/contract/provide (redis-stream-group-remove! client key group)
   (-> redis? redis-key/c redis-string/c boolean?)
-  (ok? (redis-emit! client "XGROUP" "DESTROY" key group)))
+  (ok? (redis-emit! client #"XGROUP" #"DESTROY" key group)))
 
 ;; XGROUP DELCONSUMER key group consumer
 (define/contract/provide (redis-stream-consumer-remove! client key group consumer)
   (-> redis? redis-key/c redis-string/c redis-string/c boolean?)
-  (ok? (redis-emit! client "XGROUP" "DELCONSUMER" key group consumer)))
+  (ok? (redis-emit! client #"XGROUP" #"DELCONSUMER" key group consumer)))
 
 ;; XGROUP SETID key group id
 (define/contract/provide (redis-stream-group-set-id! client key group id)
   (-> redis? redis-key/c redis-string/c redis-string/c boolean?)
-  (ok? (redis-emit! client "XGROUP" "SETID" key group id)))
+  (ok? (redis-emit! client #"XGROUP" #"SETID" key group id)))
 
 ;; XINFO CONSUMERS key group
 (define/contract/provide (redis-stream-consumers client key group)
   (-> redis? redis-key/c redis-string/c (listof redis-stream-consumer?))
-  (for*/list ([fields (redis-emit! client "XINFO" "CONSUMERS" key)]
+  (for*/list ([fields (redis-emit! client #"XINFO" #"CONSUMERS" key)]
               [info (in-value (apply hash fields))])
     (redis-stream-consumer (hash-ref info #"name")
                            (hash-ref info #"idle")
@@ -1492,7 +1492,7 @@
 ;; XINFO GROUPS key
 (define/contract/provide (redis-stream-groups client key)
   (-> redis? redis-key/c (listof redis-stream-group?))
-  (for*/list ([fields (redis-emit! client "XINFO" "GROUPS" key)]
+  (for*/list ([fields (redis-emit! client #"XINFO" #"GROUPS" key)]
               [info (in-value (apply hash fields))])
     (redis-stream-group (hash-ref info #"name")
                         (hash-ref info #"consumers")
@@ -1502,7 +1502,7 @@
 (define/contract/provide (redis-stream-get client key)
   (-> redis? redis-key/c redis-stream-info?)
   (define info
-    (apply hash (redis-emit! client "XINFO" "STREAM" key)))
+    (apply hash (redis-emit! client #"XINFO" #"STREAM" key)))
 
   (redis-stream-info (hash-ref info #"length")
                      (hash-ref info #"radix-tree-keys")
@@ -1517,7 +1517,7 @@
 
 ;; XLEN key
 (define-simple-command (stream-length [key redis-key/c])
-  #:command ("XLEN")
+  #:command (#"XLEN")
   #:result-contract exact-nonnegative-integer?)
 
 ;; XPENDING key group [start stop count] [consumer]
@@ -1541,7 +1541,7 @@
         #:limit exact-positive-integer?)
        (listof redis-stream-entry/pending?))
   (map list->entry/pending
-       (apply redis-emit! client "XPENDING" key group
+       (apply redis-emit! client #"XPENDING" key group
               (stream-range-position->string start)
               (stream-range-position->string stop)
               (number->string limit)
@@ -1568,7 +1568,7 @@
 
   (map pair->entry
        (apply redis-emit! client
-              (if reverse? "XREVRANGE" "XRANGE")
+              (if reverse? #"XREVRANGE" #"XRANGE")
               key
               (stream-range-position->string (if reverse? stop start))
               (stream-range-position->string (if reverse? start stop))
@@ -1604,12 +1604,17 @@
                ([pair (in-list streams)])
       (values (car pair) (stream-position->string (cdr pair)))))
 
-  (let* ([args (cons "STREAMS" (append keys ids))]
-         [args (if block? (cons "BLOCK" (cons (number->string timeout) args)) args)]
-         [args (if limit (cons "COUNT" (cons (number->string limit) args)) args)]
-         [pairs (apply redis-emit! client "XREAD" args #:timeout timeout/read)])
-    (and pairs (for/list ([pair (in-list pairs)])
-                 (list (car pair) (map pair->entry (cadr pair)))))))
+  (define args
+    (optionals
+     [limit #"COUNT" (number->string limit)]
+     [block? #"BLOCK" (number->string timeout)]
+     [#t #"STREAMS" (append keys ids)]))
+
+  (define pairs
+    (apply redis-emit! client #"XREAD" args #:timeout timeout/read))
+
+  (and pairs (for/list ([pair (in-list pairs)])
+               (list (car pair) (map pair->entry (cadr pair))))))
 
 ;; XREADGROUP GROUP group consumer [COUNT count] [BLOCK milliseconds] [NOACK] STREAMS key [key ...] id [id ...]
 (define stream-group-position/c
@@ -1645,13 +1650,18 @@
                ([pair (in-list streams)])
       (values (car pair) (stream-group-position->string (cdr pair)))))
 
-  (let* ([args (cons "STREAMS" (append keys ids))]
-         [args (if no-ack? (cons "NOACK" args) args)]
-         [args (if block? (cons "BLOCK" (cons (number->string timeout) args)) args)]
-         [args (if limit (cons "COUNT" (cons (number->string limit) args)) args)]
-         [pairs (apply redis-emit! client "XREADGROUP" "GROUP" group consumer args #:timeout timeout/read)])
-    (and pairs (for/list ([pair (in-list pairs)])
-                 (list (car pair) (map pair->entry (cadr pair)))))))
+  (define args
+    (optionals
+     [limit #"COUNT" (number->string limit)]
+     [block? #"BLOCK" (number->string timeout)]
+     [no-ack? #"NOACK"]
+     [#t #"STREAMS" (append keys ids)]))
+
+  (define pairs
+    (apply redis-emit! client #"XREADGROUP" #"GROUP" group consumer args #:timeout timeout/read))
+
+  (and pairs (for/list ([pair (in-list pairs)])
+               (list (car pair) (map pair->entry (cadr pair))))))
 
 ;; XTRIM key MAXLEN [~] count
 (define/contract/provide (redis-stream-trim! client key
@@ -1670,10 +1680,10 @@
 
   (cond
     [max-length/approximate
-     (apply redis-emit! client "XTRIM" key "MAXLEN" "~" (number->string max-length/approximate))]
+     (apply redis-emit! client #"XTRIM" key #"MAXLEN" #"~" (number->string max-length/approximate))]
 
     [max-length
-     (apply redis-emit! client "XTRIM" key "MAXLEN" (number->string max-length))]))
+     (apply redis-emit! client #"XTRIM" key #"MAXLEN" (number->string max-length))]))
 
 
 ;; sorted set commands ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1709,9 +1719,9 @@
        (even? (length member-and-scores))
        [result exact-nonnegative-integer?])
 
-  (apply redis-emit! client "ZADD" key (for/fold ([res null])
-                                                 ([(mem score) (in-twos member-and-scores)])
-                                         (cons (number->string score) (cons mem res)))))
+  (apply redis-emit! client #"ZADD" key (for/fold ([res null])
+                                                  ([(mem score) (in-twos member-and-scores)])
+                                          (cons (number->string score) (cons mem res)))))
 
 ;; ZCARD key
 ;; ZCOUNT key min max
@@ -1732,21 +1742,21 @@
 
   (define (~n n)
     (case n
-      [(-inf.0) "-inf"]
-      [(+inf.0) "+inf"]
+      [(-inf.0) #"-inf"]
+      [(+inf.0) #"+inf"]
       [else (number->string n)]))
 
   (cond
     [(and min max)
-     (redis-emit! client "ZCOUNT" key (~n min) (~n max))]
+     (redis-emit! client #"ZCOUNT" key (~n min) (~n max))]
 
     [else
-     (redis-emit! client "ZCARD" key)]))
+     (redis-emit! client #"ZCARD" key)]))
 
 ;; ZINCRBY key increment member
 (define/contract/provide (redis-zset-incr! client key mem [n 1])
   (->* (redis? redis-key/c redis-string/c) (real?) real?)
-  (bytes->number (redis-emit! client "ZINCRBY" key (number->string n) mem)))
+  (bytes->number (redis-emit! client #"ZINCRBY" key (number->string n) mem)))
 
 ;; ZINTERSTORE destination numkeys key [key ...] [WEIGHTS weight [weight ...]] [AGGREGATE SUM|MIN|MAX]
 (define/contract/provide (redis-zset-intersect! client dest
@@ -1768,11 +1778,11 @@
        [result exact-nonnegative-integer?])
 
   (apply redis-emit!
-         client "ZINTERSTORE" dest
+         client #"ZINTERSTORE" dest
          (number->string (length keys))
          (append keys (optionals
-                       [weights "WEIGHTS" (map number->string weights)]
-                       [aggregate "AGGREGATE" (string-upcase (symbol->string aggregate))]))))
+                       [weights #"WEIGHTS" (map number->string weights)]
+                       [aggregate #"AGGREGATE" (string-upcase (symbol->string aggregate))]))))
 
 ;; ZLEXCOUNT key min max
 (define/contract/provide (redis-zset-count/lex client key
@@ -1783,7 +1793,7 @@
         #:max redis-string/c)
        exact-nonnegative-integer?)
 
-  (redis-emit! client "ZLEXCOUNT" key min max))
+  (redis-emit! client #"ZLEXCOUNT" key min max))
 
 ;; BZPOPMAX key [key ...] timeout
 ;; ZPOPMAX key [count]
@@ -1818,7 +1828,7 @@
   (cond
     [block?
      (define res
-       (apply redis-emit! client "BZPOPMAX" key (append keys (list (number->string timeout)))))
+       (apply redis-emit! client #"BZPOPMAX" key (append keys (list (number->string timeout)))))
 
      (match res
        [#f #f]
@@ -1827,8 +1837,8 @@
 
     [else
      (define res
-       (apply redis-emit! client "ZPOPMAX" key (optionals
-                                                [cnt (number->string cnt)])))
+       (apply redis-emit! client #"ZPOPMAX" key (optionals
+                                                 [cnt (number->string cnt)])))
 
      (for/list ([(mem score) (in-twos res)])
        (cons mem (bytes->number score)))]))
@@ -1866,7 +1876,7 @@
   (cond
     [block?
      (define res
-       (apply redis-emit! client "BZPOPMIN" key (append keys (list (number->string timeout)))))
+       (apply redis-emit! client #"BZPOPMIN" key (append keys (list (number->string timeout)))))
 
      (match res
        [#f #f]
@@ -1875,8 +1885,8 @@
 
     [else
      (define res
-       (apply redis-emit! client "ZPOPMIN" key (optionals
-                                                [cnt (number->string cnt)])))
+       (apply redis-emit! client #"ZPOPMIN" key (optionals
+                                                 [cnt (number->string cnt)])))
 
      (for/list ([(mem score) (in-twos res)])
        (cons mem (bytes->number score)))]))
@@ -1896,8 +1906,8 @@
        (or/c (listof bytes?)
              (listof (cons/c bytes? real?))))
 
-  (define command (if reverse? "ZREVRANGE" "ZRANGE"))
-  (define args (optionals [scores? "WITHSCORES"]))
+  (define command (if reverse? #"ZREVRANGE" #"ZRANGE"))
+  (define args (optionals [scores? #"WITHSCORES"]))
   (define res (apply redis-emit! client command key (number->string start) (number->string stop) args))
 
   (if scores?
@@ -1929,19 +1939,19 @@
 
        [result (listof bytes?)])
 
-  (define command (if reverse? "ZREVRANGEBYLEX" "ZRANGEBYLEX"))
-  (define args (optionals [limit "LIMIT" (number->string offset) (number->string limit)]))
+  (define command (if reverse? #"ZREVRANGEBYLEX" #"ZRANGEBYLEX"))
+  (define args (optionals [limit #"LIMIT" (number->string offset) (number->string limit)]))
   (apply redis-emit! client command key min max args))
 
 ;; ZRANGEBYSCORE key min max [WITHSCORES] [LIMIT offset count]
 ;; ZREVRANGEBYSCORE key min max [WITHSCORES] [LIMIT offset count]
 (define/contract/provide (redis-subzset/score client key
-                                            #:reverse? [reverse? #f]
-                                            #:include-scores? [scores? #f]
-                                            #:start [start (if reverse? +inf.0 -inf.0)]
-                                            #:stop [stop (if reverse? -inf.0 +inf.0)]
-                                            #:limit [limit #f]
-                                            #:offset [offset 0])
+                                              #:reverse? [reverse? #f]
+                                              #:include-scores? [scores? #f]
+                                              #:start [start (if reverse? +inf.0 -inf.0)]
+                                              #:stop [stop (if reverse? -inf.0 +inf.0)]
+                                              #:limit [limit #f]
+                                              #:offset [offset 0])
   (->i ([client redis?]
         [key redis-key/c])
        (#:reverse? [reverse? boolean?]
@@ -1962,17 +1972,17 @@
 
   (define (~n n)
     (case n
-      [(-inf.0) "-inf"]
-      [(+inf.0) "+inf"]
+      [(-inf.0) #"-inf"]
+      [(+inf.0) #"+inf"]
       [else (number->string n)]))
 
   (define command
-    (if reverse? "ZREVRANGEBYSCORE" "ZRANGEBYSCORE"))
+    (if reverse? #"ZREVRANGEBYSCORE" #"ZRANGEBYSCORE"))
 
   (define args
     (optionals
-     [scores? "WITHSCORES"]
-     [limit "LIMIT" (number->string offset) (number->string limit)]))
+     [scores? #"WITHSCORES"]
+     [limit #"LIMIT" (number->string offset) (number->string limit)]))
 
   (define res
     (apply redis-emit! client command key (~n start) (~n stop) args))
@@ -1989,23 +1999,23 @@
        (#:reverse? boolean?)
        (or/c false/c exact-nonnegative-integer?))
   (if reverse?
-      (redis-emit! client "ZREVRANK" key mem)
-      (redis-emit! client "ZRANK"    key mem)))
+      (redis-emit! client #"ZREVRANK" key mem)
+      (redis-emit! client #"ZRANK"    key mem)))
 
 ;; ZREM key member [member ...]
 (define-variadic-command (zset-remove! [key redis-key/c] [mem redis-string/c] . [mems redis-string/c])
-  #:command ("ZREM")
+  #:command (#"ZREM")
   #:result-contract exact-nonnegative-integer?)
 
 ;; ZREMRANGEBYLEX key min max
 (define/contract/provide (redis-zset-remove/lex! client key
-                                                 #:min [min "-"]
-                                                 #:max [max "+"])
+                                                 #:min [min #"-"]
+                                                 #:max [max #"+"])
   (->* (redis? redis-key/c)
        (#:min redis-string/c
         #:max redis-string/c)
        exact-nonnegative-integer?)
-  (redis-emit! client "ZREMRANGEBYLEX" key min max))
+  (redis-emit! client #"ZREMRANGEBYLEX" key min max))
 
 ;; ZREMRANGEBYRANK key min max
 (define/contract/provide (redis-zset-remove/rank! client key
@@ -2015,7 +2025,7 @@
        (#:start exact-integer?
         #:stop exact-integer?)
        exact-nonnegative-integer?)
-  (redis-emit! client "ZREMRANGEBYRANK" key (number->string start) (number->string stop)))
+  (redis-emit! client #"ZREMRANGEBYRANK" key (number->string start) (number->string stop)))
 
 ;; ZREMRANGEBYSCORE key min max
 (define/contract/provide (redis-zset-remove/score! client key
@@ -2028,11 +2038,11 @@
 
   (define (~n n)
     (case n
-      [(-inf.0) "-inf"]
-      [(+inf.0) "+inf"]
+      [(-inf.0) #"-inf"]
+      [(+inf.0) #"+inf"]
       [else (number->string n)]))
 
-  (redis-emit! client "ZREMRANGEBYSCORE" key (~n start) (~n stop)))
+  (redis-emit! client #"ZREMRANGEBYSCORE" key (~n start) (~n stop)))
 
 ;; ZSCAN key cursor [MATCH pattern] [COUNT count]
 (define/contract/provide (redis-zset-scan client key
@@ -2046,9 +2056,9 @@
        (values exact-nonnegative-integer? (listof (cons/c redis-string/c real?))))
 
   (define res
-    (apply redis-emit! client "ZSCAN" key (number->string cursor) (optionals
-                                                                   [pattern "MATCH" pattern]
-                                                                   [limit "COUNT" (number->string limit)])))
+    (apply redis-emit! client #"ZSCAN" key (number->string cursor) (optionals
+                                                                    [pattern #"MATCH" pattern]
+                                                                    [limit #"COUNT" (number->string limit)])))
 
   (values (bytes->number (car res))
           (for/list ([(mem score) (in-twos (cadr res))])
@@ -2059,7 +2069,7 @@
 
 ;; ZSCORE key member
 (define-simple-command (zset-score [key redis-key/c] [mem redis-string/c])
-  #:command ("ZSCORE")
+  #:command (#"ZSCORE")
   #:result-contract (or/c false/c real?)
   #:result-name res
   (and res (bytes->number res)))
@@ -2084,11 +2094,11 @@
        [result exact-nonnegative-integer?])
 
   (apply redis-emit!
-         client "ZUNIONSTORE" dest
+         client #"ZUNIONSTORE" dest
          (number->string (length keys))
          (append keys (optionals
-                       [weights "WEIGHTS" (map number->string weights)]
-                       [aggregate "AGGREGATE" (string-upcase (symbol->string aggregate))]))))
+                       [weights #"WEIGHTS" (map number->string weights)]
+                       [aggregate #"AGGREGATE" (string-upcase (symbol->string aggregate))]))))
 
 
 ;; common helpers ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
