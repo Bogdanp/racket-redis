@@ -248,21 +248,6 @@ scripting world and Racket.
 }
 
 @defcmd[
-  ((SELECT)
-   (select-db! [db (integer-in 0 16)]) boolean?)]{
-
-  Selects the current database.
-}
-
-@defcmd[
-  ((SWAPDB)
-   (swap-dbs! [a (integer-in 0 16)]
-              [b (integer-in 0 16)]) boolean?)]{
-
-  Swaps the given databases.
-}
-
-@defcmd[
   ((ECHO)
    (echo [message string?]) string?)]{
 
@@ -281,6 +266,21 @@ scripting world and Racket.
    (quit!) void?)]{
 
   Gracefully disconnects from the server.
+}
+
+@defcmd[
+  ((SELECT)
+   (select-db! [db (integer-in 0 16)]) boolean?)]{
+
+  Selects the current database.
+}
+
+@defcmd[
+  ((SWAPDB)
+   (swap-dbs! [a (integer-in 0 16)]
+              [b (integer-in 0 16)]) boolean?)]{
+
+  Swaps the given databases.
 }
 
 
@@ -331,6 +331,7 @@ scripting world and Racket.
 
   Returns the longitude and latitude of each @racket[mem].
 }
+
 
 @;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 @section{Hash Commands}
@@ -523,6 +524,26 @@ scripting world and Racket.
 }
 
 @defcmd[
+  ((PTTL)
+   (key-ttl [key redis-key/c]) (or/c 'missing 'persisted exact-nonnegative-integer?))]{
+
+  Returns the number of milliseconds before @racket[key] expires.
+
+  If @racket[key] is not present on the server, then @racket['missing]
+  is returned.
+
+  If @racket[key] exists but isn't marked for expiration, then
+  @racket['persisted] is returned.
+}
+
+@defcmd[
+  ((TYPE)
+   (key-type [key redis-key/c]) (or/c 'none redis-key-type/c))]{
+
+  Returns @racket[key]'s type.
+}
+
+@defcmd[
   ((KEYS)
    (keys [pattern redis-string/c]) (listof bytes?))]{
 
@@ -578,27 +599,6 @@ scripting world and Racket.
 }
 
 @defcmd[
-  ((TOUCH)
-   (touch! [key redis-key/c] ...+) exact-nonnegative-integer?)]{
-
-  Updates the last modification time for each @racket[key] and returns
-  the number of keys that were updated.
-}
-
-@defcmd[
-  ((PTTL)
-   (key-ttl [key redis-key/c]) (or/c 'missing 'persisted exact-nonnegative-integer?))]{
-
-  Returns the number of milliseconds before @racket[key] expires.
-
-  If @racket[key] is not present on the server, then @racket['missing]
-  is returned.
-
-  If @racket[key] exists but isn't marked for expiration, then
-  @racket['persisted] is returned.
-}
-
-@defcmd[
   ((SCAN)
    (scan [#:cursor cursor exact-nonnegative-integer? 0]
          [#:pattern pattern (or/c false/c redis-string/c) #f]
@@ -613,10 +613,11 @@ scripting world and Racket.
 }
 
 @defcmd[
-  ((TYPE)
-   (key-type [key redis-key/c]) (or/c 'none redis-key-type/c))]{
+  ((TOUCH)
+   (touch! [key redis-key/c] ...+) exact-nonnegative-integer?)]{
 
-  Returns @racket[key]'s type.
+  Updates the last modification time for each @racket[key] and returns
+  the number of keys that were updated.
 }
 
 @defproc[
@@ -940,13 +941,6 @@ scripting world and Racket.
 }
 
 @defcmd[
-  ((SCRIPT_FLUSH)
-   (scripts-flush!) boolean?)]{
-
-  Removes all the registered lua scripts from the server.
-}
-
-@defcmd[
   ((SCRIPT_KILL)
    (script-kill!) boolean?)]{
 
@@ -958,6 +952,13 @@ scripting world and Racket.
    (script-load! [script redis-string/c]) string?)]{
 
   Registers the given lua script with the server, returning its sha-1 hash.
+}
+
+@defcmd[
+  ((SCRIPT_FLUSH)
+   (scripts-flush!) boolean?)]{
+
+  Removes all the registered lua scripts from the server.
 }
 
 
@@ -976,6 +977,27 @@ scripting world and Racket.
    (client-name) (or/c false/c string?))]{
 
   Returns the current client name.
+}
+
+@defcmd[
+  ((FLUSHALL)
+   (flush-all!) #t)]{
+
+  Deletes everything in all the databases.
+}
+
+@defcmd[
+  ((FLUSHDB)
+   (flush-db!) #t)]{
+
+  Deletes everything in the current database.
+}
+
+@defcmd[
+  ((DBSIZE)
+   (key-count) exact-nonnegative-integer?)]{
+
+  Returns the number of keys in the database.
 }
 
 @defcmd[
@@ -1011,27 +1033,6 @@ scripting world and Racket.
    (set-client-name! [name redis-string/c]) boolean?)]{
 
   Sets the current client name on the server.
-}
-
-@defcmd[
-  ((DBSIZE)
-   (key-count) exact-nonnegative-integer?)]{
-
-  Returns the number of keys in the database.
-}
-
-@defcmd[
-  ((FLUSHALL)
-   (flush-all!) #t)]{
-
-  Deletes everything in all the databases.
-}
-
-@defcmd[
-  ((FLUSHDB)
-   (flush-db!) #t)]{
-
-  Deletes everything in the current database.
 }
 
 @defcmd[
@@ -1516,15 +1517,6 @@ scripting world and Racket.
 }
 
 @defcmd[
-  ((XINFO_CONSUMERS)
-   (stream-consumers [key redis-key/c]
-                     [group redis-string/c]) (listof redis-stream-consumer?))]{
-
-  Returns all of the consumers belonging to the @racket[group] of the
-  stream at @racket[key].
-}
-
-@defcmd[
   ((XGROUP_DELCONSUMER)
    (stream-consumer-remove! [key redis-key/c]
                             [group redis-string/c]
@@ -1535,10 +1527,19 @@ scripting world and Racket.
 }
 
 @defcmd[
-  ((XINFO_GROUPS)
-   (stream-groups [key redis-key/c]) (listof redis-stream-group?))]{
+  ((XINFO_CONSUMERS)
+   (stream-consumers [key redis-key/c]
+                     [group redis-string/c]) (listof redis-stream-consumer?))]{
 
-  Returns all of the groups belonging to the stream at @racket[key].
+  Returns all of the consumers belonging to the @racket[group] of the
+  stream at @racket[key].
+}
+
+@defcmd[
+  ((XINFO_STREAM)
+   (stream-get [key redis-key/c]) redis-stream-info?)]{
+
+  Returns information about the stream at @racket[key].
 }
 
 @defcmd[
@@ -1592,10 +1593,10 @@ scripting world and Racket.
 }
 
 @defcmd[
-  ((XINFO_STREAM)
-   (stream-get [key redis-key/c]) redis-stream-info?)]{
+  ((XINFO_GROUPS)
+   (stream-groups [key redis-key/c]) (listof redis-stream-group?))]{
 
-  Returns information about the stream at @racket[key].
+  Returns all of the groups belonging to the stream at @racket[key].
 }
 
 @defcmd[

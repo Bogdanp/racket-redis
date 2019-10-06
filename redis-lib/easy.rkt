@@ -58,22 +58,29 @@
  current-redis-client
  current-redis-pool
 
+ ;; connection commands
  (easy-version-out
-  ;; connection commands
   redis-auth!
   redis-echo
   redis-ping
   redis-quit!
   redis-select-db!
-  redis-swap-dbs!
+  redis-swap-dbs!)
 
-  ;; geo commands
+ ;; geo commands
+ redis-latitude/c
+ redis-longitude/c
+ redis-geo/c
+ redis-geo-unit/c
+
+ (easy-version-out
   redis-geo-add!
   redis-geo-dist
   redis-geo-hash
-  redis-geo-pos
+  redis-geo-pos)
 
-  ;; hash commands
+ ;; hash commands
+ (easy-version-out
   redis-hash-get
   redis-hash-has-key?
   redis-hash-incr!
@@ -85,13 +92,16 @@
   redis-hash-set!
   redis-hash-string-length
   redis-hash-values
+  in-redis-hash)
 
-  ;; hyperloglog commands
+ ;; hyperloglog commands
+ (easy-version-out
   redis-hll-add!
   redis-hll-count
-  redis-hll-merge!
+  redis-hll-merge!)
 
-  ;; key commands
+ ;; key commands
+ (easy-version-out
   redis-count-keys
   redis-expire-at!
   redis-expire-in!
@@ -106,9 +116,10 @@
   redis-rename!
   redis-scan
   redis-touch!
-  in-redis
+  in-redis)
 
-  ;; list commands
+ ;; list commands
+ (easy-version-out
   redis-list-append!
   redis-list-get
   redis-list-insert!
@@ -120,22 +131,31 @@
   redis-list-remove!
   redis-list-set!
   redis-list-trim!
-  redis-sublist
+  redis-sublist)
 
-  ;; pubsub commands
+ ;; pubsub commands
+ redis-pubsub?
+ redis-pubsub-kill!
+ redis-pubsub-publish!
+ redis-pubsub-subscribe!
+ redis-pubsub-unsubscribe!
+
+ (easy-version-out
   make-redis-pubsub
-  call-with-redis-pubsub
+  call-with-redis-pubsub)
 
-  ;; script commands
+ ;; script commands
+ (easy-version-out
   make-redis-script
   redis-script-eval!
   redis-script-eval-sha!
   redis-script-exists?
   redis-script-kill!
   redis-script-load!
-  redis-scripts-flush!
+  redis-scripts-flush!)
 
-  ;; server commands
+ ;; server commands
+ (easy-version-out
   redis-client-id
   redis-client-name
   redis-flush-all!
@@ -146,9 +166,10 @@
   redis-save!
   redis-save/async!
   redis-set-client-name!
-  redis-time
+  redis-time)
 
-  ;; set commands
+ ;; set commands
+ (easy-version-out
   redis-set-add!
   redis-set-count
   redis-set-difference
@@ -164,9 +185,10 @@
   redis-set-scan
   redis-set-union
   redis-set-union!
-  in-redis-set
+  in-redis-set)
 
-  ;; sorted set commands
+ ;; sorted set commands
+ (easy-version-out
   redis-zset-add!
   redis-zset-count
   redis-zset-count/lex
@@ -185,9 +207,16 @@
   redis-subzset
   redis-subzset/lex
   redis-subzset/score
-  in-redis-zset
+  in-redis-zset)
 
-  ;; stream commands
+ ;; stream commands
+ (struct-out redis-stream-entry)
+ (struct-out redis-stream-entry/pending)
+ (struct-out redis-stream-info)
+ (struct-out redis-stream-group)
+ (struct-out redis-stream-consumer)
+
+ (easy-version-out
   redis-stream-ack!
   redis-stream-add!
   redis-stream-consumer-remove!
@@ -203,9 +232,10 @@
   redis-stream-remove!
   redis-stream-trim!
   redis-substream
-  redis-substream/group
+  redis-substream/group)
 
-  ;; bytestring commands
+ ;; bytestring commands
+ (easy-version-out
   redis-bytes-append!
   redis-bytes-bitcount
   redis-bytes-bitwise-and!
@@ -220,18 +250,4 @@
   redis-bytes-ref/bit
   redis-bytes-set!
   redis-bytes-set/bit!
-  redis-subbytes)
-
- ;; pubsub functions
- redis-pubsub?
- redis-pubsub-kill!
- redis-pubsub-publish!
- redis-pubsub-subscribe!
- redis-pubsub-unsubscribe!
-
- ;; stream structs
- (struct-out redis-stream-entry)
- (struct-out redis-stream-entry/pending)
- (struct-out redis-stream-info)
- (struct-out redis-stream-group)
- (struct-out redis-stream-consumer))
+  redis-subbytes))
