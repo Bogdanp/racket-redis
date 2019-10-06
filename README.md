@@ -48,12 +48,9 @@ rolling by creating a PR.
 
 * [ ] `BITFIELD key [GET type offset] [SET type offset value] [INCRBY type offset increment] [OVERFLOW WRAP|SAT|FAIL]`
 * [ ] `BITPOS key bit [start] [end]`
-* [ ] `GETBIT key offset`
 * [ ] `GETSET key value`
 * [ ] `MSET key value [key value ...]`
 * [ ] `MSETNX key value [key value ...]`
-* [ ] `SETBIT key offset value`
-* [ ] `SETRANGE key offset value`
 
 ### Cluster
 

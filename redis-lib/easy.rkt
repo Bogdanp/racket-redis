@@ -205,18 +205,21 @@
   redis-substream
   redis-substream/group
 
-  ;; bytes commands
+  ;; bytestring commands
   redis-bytes-append!
   redis-bytes-bitcount
   redis-bytes-bitwise-and!
   redis-bytes-bitwise-not!
   redis-bytes-bitwise-or!
   redis-bytes-bitwise-xor!
+  redis-bytes-copy!
   redis-bytes-decr!
   redis-bytes-get
   redis-bytes-incr!
-  redis-bytes-set!
   redis-bytes-length
+  redis-bytes-ref/bit
+  redis-bytes-set!
+  redis-bytes-set/bit!
   redis-subbytes)
 
  ;; pubsub functions

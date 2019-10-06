@@ -192,6 +192,8 @@ Each client represents a single TCP connection to the Redis server.
   (@defstruct[(exn:fail:redis exn:fail) ()]
    @defstruct[(exn:fail:redis:timeout exn:fail:redis) ()]
    @defstruct[(exn:fail:redis:type exn:fail:redis) ()]
+   @defstruct[(exn:fail:redis:script exn:fail:redis) ()]
+   @defstruct[(exn:fail:redis:script:missing exn:fail:redis) ()]
    @defstruct[(exn:fail:redis:pool exn:fail:redis) ()]
    @defstruct[(exn:fail:redis:pool:timeout exn:fail:redis:pool) ()])]{
 
@@ -429,8 +431,8 @@ scripting world and Racket.
    (hash-string-length [key redis-key/c]
                        [fld redis-string/c]) exact-nonnegative-integer?)]{
 
-  Returns the length of the bytestring value of @racket[fld] belonging
-  to the hash at @racket[key].
+  Returns the length of the byte string value of @racket[fld]
+  belonging to the hash at @racket[key].
 }
 
 @defcmd[
@@ -1746,6 +1748,17 @@ be either @racket[#f] (if it doesn't exist) or @racket[bytes?].
 }
 
 @defcmd[
+  ((SETRANGE)
+   (bytes-copy! [key redis-key/c]
+                [offset exact-nonnegative-integer?]
+                [value redis-string/c]) exact-nonnegative-integer?)]{
+
+  Writes @racket[value] into the byte string at @racket[key] starting
+  at @racket[offset], extending the string if necessary.  Returns the
+  new length of the string.
+}
+
+@defcmd[
   ((DECR DECRBY)
    (bytes-decr! [key redis-key/c]
                 [amt exact-integer? 1]) exact-integer?)]{
@@ -1774,6 +1787,22 @@ be either @racket[#f] (if it doesn't exist) or @racket[bytes?].
 }
 
 @defcmd[
+  ((STRLEN)
+   (bytes-length [key redis-key/c]) exact-nonnegative-integer?)]{
+
+  Returns the number of bytes in the string at @racket[key].
+}
+
+@defcmd[
+  ((GETBIT)
+   (bytes-ref/bit [key redis-key/c]
+                  [offset exact-nonnegative-integer?]) (or/c 0 1))]{
+
+  Retrieves the value of the bit at @racket[offset] within the
+  byte string at @racket[key].
+}
+
+@defcmd[
   ((SET)
    (bytes-set! [key redis-key/c]
                [value redis-string/c]
@@ -1796,10 +1825,14 @@ be either @racket[#f] (if it doesn't exist) or @racket[bytes?].
 }
 
 @defcmd[
-  ((STRLEN)
-   (bytes-length [key redis-key/c]) exact-nonnegative-integer?)]{
+  ((SETBIT)
+   (bytes-set/bit! [key redis-key/c]
+                   [offset exact-nonnegative-integer?]
+                   [value (or/c 0 1)]) (or/c 0 1))]{
 
-  Returns the number of bytes in the string at @racket[key].
+  Sets the bit at @racket[offset] within the byte string at
+  @racket[key] to @racket[value] and returns the previous bit value at
+  that position.
 }
 
 @defcmd[

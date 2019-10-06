@@ -317,6 +317,12 @@
       (redis-emit! client "GET" key)
       (apply redis-emit! client "MGET" key keys)))
 
+;; GETBIT key offset
+(define-simple-command (bytes-ref/bit [key redis-key/c]
+                                      [offset exact-nonnegative-integer? #:converter number->string])
+  #:command ("GETBIT")
+  #:result-contract (or/c 0 1))
+
 ;; GETRANGE key start end
 (define/contract/provide (redis-subbytes client key
                                          #:start [start 0]
@@ -363,6 +369,20 @@
                                                   [expires-in "PX" expires-in]
                                                   [unless-exists? "NX"]
                                                   [when-exists? "XX"]))))
+
+;; SETBIT key offset value
+(define-simple-command (bytes-set/bit! [key redis-key/c]
+                                       [offset exact-nonnegative-integer? #:converter number->string]
+                                       [value (or/c 0 1) #:converter number->string])
+  #:command ("SETBIT")
+  #:result-contract (or/c 0 1))
+
+;; SETRANGE key offset value
+(define-simple-command (bytes-copy! [key redis-key/c]
+                                    [offset exact-nonnegative-integer? #:converter number->string]
+                                    [value redis-string/c])
+  #:command ("SETRANGE")
+  #:result-contract exact-nonnegative-integer?)
 
 ;; STRLEN key
 (define-simple-command (bytes-length [key redis-key/c])
