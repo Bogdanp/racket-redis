@@ -1,6 +1,7 @@
 #lang racket/base
 
-(require rackunit
+(require racket/sequence
+         rackunit
          redis
          "common.rkt")
 
@@ -148,7 +149,60 @@
                              (#"b"  . 2)
                              (#"bb" . 2)
                              (#"c"  . 3)
-                             (#"cc" . 3)))))))
+                             (#"cc" . 3))))
+
+     (check-equal? (sequence->list (in-redis-zset test-client "a"))
+                   '((#"a"  . 1)
+                     (#"aa" . 1)
+                     (#"ab" . 1)
+                     (#"b"  . 2)
+                     (#"bb" . 2)
+                     (#"c"  . 3)
+                     (#"cc" . 3)))
+
+     (check-equal? (redis-zset-remove/lex! test-client
+                                           "a"
+                                           #:min "(a"
+                                           #:max "(b")
+                   2)
+
+     (check-equal? (redis-zset-remove/lex! test-client
+                                           "a"
+                                           #:min "(a"
+                                           #:max "(b")
+                   0)
+
+     (check-equal? (sequence->list (in-redis-zset test-client "a"))
+                   '((#"a"  . 1)
+                     (#"b"  . 2)
+                     (#"bb" . 2)
+                     (#"c"  . 3)
+                     (#"cc" . 3)))
+
+     (check-equal? (redis-zset-remove/score! test-client
+                                             "a"
+                                             #:start 3)
+                   2)
+
+     (check-equal? (redis-zset-remove/score! test-client
+                                             "a"
+                                             #:start 3)
+                   0)
+
+     (check-equal? (sequence->list (in-redis-zset test-client "a"))
+                   '((#"a"  . 1)
+                     (#"b"  . 2)
+                     (#"bb" . 2)))
+
+     (check-equal? (redis-zset-remove/rank! test-client
+                                            "a"
+                                            #:start 1
+                                            #:stop 1)
+                   1)
+
+     (check-equal? (sequence->list (in-redis-zset test-client "a"))
+                   '((#"a"  . 1)
+                     (#"bb" . 2))))))
 
 (module+ test
   (require rackunit/text-ui)

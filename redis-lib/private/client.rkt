@@ -1977,6 +1977,43 @@
   #:command ("ZREM")
   #:result-contract exact-nonnegative-integer?)
 
+;; ZREMRANGEBYLEX key min max
+(define/contract/provide (redis-zset-remove/lex! client key
+                                                 #:min [min "-"]
+                                                 #:max [max "+"])
+  (->* (redis? redis-key/c)
+       (#:min redis-string/c
+        #:max redis-string/c)
+       exact-nonnegative-integer?)
+  (redis-emit! client "ZREMRANGEBYLEX" key min max))
+
+;; ZREMRANGEBYRANK key min max
+(define/contract/provide (redis-zset-remove/rank! client key
+                                                  #:start [start 0]
+                                                  #:stop [stop -1])
+  (->* (redis? redis-key/c)
+       (#:start exact-integer?
+        #:stop exact-integer?)
+       exact-nonnegative-integer?)
+  (redis-emit! client "ZREMRANGEBYRANK" key (number->string start) (number->string stop)))
+
+;; ZREMRANGEBYSCORE key min max
+(define/contract/provide (redis-zset-remove/score! client key
+                                                   #:start [start -inf.0]
+                                                   #:stop [stop +inf.0])
+  (->* (redis? redis-key/c)
+       (#:start real?
+        #:stop real?)
+       exact-nonnegative-integer?)
+
+  (define (~n n)
+    (case n
+      [(-inf.0) "-inf"]
+      [(+inf.0) "+inf"]
+      [else (number->string n)]))
+
+  (redis-emit! client "ZREMRANGEBYSCORE" key (~n start) (~n stop)))
+
 ;; ZSCAN key cursor [MATCH pattern] [COUNT count]
 (define/contract/provide (redis-zset-scan client key
                                           #:cursor [cursor 0]

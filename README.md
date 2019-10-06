@@ -126,12 +126,6 @@ rolling by creating a PR.
 * [ ] `MEMORY USAGE key [SAMPLES count]`
 * [ ] `MONITOR`
 
-### Sorted Sets
-
-* [ ] `ZREMRANGEBYLEX key min max`
-* [ ] `ZREMRANGEBYRANK key start stop`
-* [ ] `ZREMRANGEBYSCORE key min max`
-
 
 ## Acknowledgements
 

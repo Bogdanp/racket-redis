@@ -1308,6 +1308,41 @@ scripting world and Racket.
 }
 
 @defcmd[
+  ((ZREMRANGEBYLEX)
+   (zset-remove/lex! [key redis-key/c]
+                     [#:min min redis-string/c "-"]
+                     [#:max max redis-string/c "+"]) exact-nonnegative-integer?)]{
+
+  Removes all of the lexicographically-sorted members between
+  @racket[min] and @racket[max] from the sorted set at @racket[key]
+  and returns the total number of elements that were removed.
+}
+
+@defcmd[
+  ((ZREMRANGEBYRANK)
+   (zset-remove/rank! [key redis-key/c]
+                      [#:start start exact-integer? 0]
+                      [#:stop stop exact-integer? -1]) exact-nonnegative-integer?)]{
+
+  Removes all of the members whose indices are within the inclusive
+  range between @racket[start] and @racket[stop] from the sorted set
+  at @racket[key] and returns the total number of elements that were
+  removed.
+}
+
+@defcmd[
+  ((ZREMRANGEBYSCORE)
+   (zset-remove/score! [key redis-key/c]
+                       [#:start start real? -inf.0]
+                       [#:stop stop real? +inf.0]) exact-nonnegative-integer?)]{
+
+  Removes all of the members whose scores are within the inclusive
+  range between @racket[start] and @racket[stop] from the sorted set
+  at @racket[key] and returns the total number of elements that were
+  removed.
+}
+
+@defcmd[
   ((ZSCAN)
    (zset-scan [key redis-key/c]
               [#:cursor cursor exact-nonnegative-integer? 0]

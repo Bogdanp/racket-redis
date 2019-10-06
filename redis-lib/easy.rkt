@@ -176,6 +176,9 @@
   redis-zset-pop/min!
   redis-zset-rank
   redis-zset-remove!
+  redis-zset-remove/lex!
+  redis-zset-remove/rank!
+  redis-zset-remove/score!
   redis-zset-scan
   redis-zset-score
   redis-zset-union!
