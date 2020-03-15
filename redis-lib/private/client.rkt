@@ -589,19 +589,20 @@
           (set! cursor (if (zero? cursor*) #f cursor*)))
 
         (define (take!)
-          (when (null? buffer)
+          (when (and (null? buffer) cursor)
             (fresh!))
 
-          (begin0 (car buffer)
-            (set! buffer (cdr buffer))))
+          (cond
+            [(null? buffer)
+             'done]
+
+            [else
+             (begin0 (car buffer)
+               (set! buffer (cdr buffer)))]))
 
         (values
-         (lambda _
-           (cond
-             [(and (null? buffer)
-                   (not cursor)) 'done]
-             [else (take!)]))
-         (lambda _ #f)
+         (lambda (_) (take!))
+         (lambda (_) #f)
          #f
          #f
          (lambda (v) (not (eq? v 'done)))

@@ -1,6 +1,7 @@
 #lang racket/base
 
-(require rackunit
+(require racket/sequence
+         rackunit
          redis
          "common.rkt")
 
@@ -334,7 +335,10 @@
 
    (test-commands "QUIT"
      (check-equal? (redis-quit! test-client) (void))
-     (check-false (redis-connected? test-client)))))
+     (check-false (redis-connected? test-client)))
+
+   (test-commands "SCAN"
+     (check-equal? (sequence->list (in-redis test-client)) null))))
 
 (module+ test
   (require rackunit/text-ui)
