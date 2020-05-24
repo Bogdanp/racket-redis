@@ -207,6 +207,14 @@
      (check-true (redis-list-trim! test-client "a" #:start 1))
      (check-equal? (redis-sublist test-client "a") '(#"2")))
 
+   (test-commands "LREM, LSET"
+     (check-equal? (redis-list-append! test-client "a" "1") 1)
+     (check-true (redis-list-set! test-client "a" 0 "a"))
+     (check-equal? (redis-list-append! test-client "a" "a") 2)
+     (check-equal? (redis-list-append! test-client "a" "b") 3)
+     (check-equal? (redis-list-remove! test-client "a" 0 "a") 2)
+     (check-equal? (redis-list-get test-client "a") '(#"b")))
+
    (test-commands "PERSIST, PEXPIRE and PTTL"
      (check-false (redis-expire-in! test-client "a" 200))
      (check-equal? (redis-key-ttl test-client "a") 'missing)

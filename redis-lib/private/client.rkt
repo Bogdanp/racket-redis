@@ -849,15 +849,14 @@
   (redis-sublist client key))
 
 ;; LREM key count value
-(define-simple-command (list-remove! [key redis-key/c]
-                                     [count exact-integer?]
-                                     [value redis-string/c])
-  #:command (#"LREM")
-  #:result-contract exact-nonnegative-integer?)
+(define/contract/provide (redis-list-remove! client key count value)
+  (-> redis? redis-key/c exact-integer? redis-string/c exact-nonnegative-integer?)
+  (redis-emit! client #"LREM" key (number->string count) value))
 
 ;; LSET key index value
-(define-simple-command/ok (list-set! [key redis-key/c] [index exact-integer?] [value redis-string/c])
-  #:command (#"LSET"))
+(define/contract/provide (redis-list-set! client key index value)
+  (-> redis? redis-key/c exact-integer? redis-string/c boolean?)
+  (ok? (redis-emit! client #"LSET" key (number->string index) value)))
 
 ;; LTRIM key value start stop
 (define/contract/provide (redis-list-trim! client key
