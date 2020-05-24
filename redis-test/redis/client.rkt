@@ -22,7 +22,8 @@
      (check-exn
       (lambda (e)
         (and (exn:fail:redis? e)
-             (check-equal? (exn-message e) "Client sent AUTH, but no password is set")))
+             (or (regexp-match "Client sent AUTH, but no password is set" (exn-message e))
+                 (regexp-match "AUTH <password> called without any password configured for the default user. Are you sure your configuration is correct?" (exn-message e)))))
       (lambda _
         (redis-auth! test-client "hunter2"))))
 
