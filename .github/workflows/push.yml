@@ -3,18 +3,26 @@ name: main
 jobs:
   build:
     runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@master
-    - name: build
-      uses: docker://bogdanp/racket:7.3
-      with:
-        entrypoint: /github/workspace/ci/build.sh
-    - name: test
-      uses: docker://bogdanp/racket:7.3
-      with:
-        entrypoint: /github/workspace/ci/test.sh
     services:
       redis:
         image: redis
         ports:
         - 6379/tcp
+
+    steps:
+    - uses: actions/checkout@master
+    - uses: Bogdanp/setup-racket@v0.8
+      with:
+        architecture: 'x64'  # (x64 or x86), ignored on Linux
+        distribution: 'full' # or 'minimal'
+        variant: 'CS'        # or 'CS' for Racket-on-Chez
+        version: '7.7'       # or 'current' for the latest snapshot
+
+    - name: Install Package & Deps
+      run: raco pkg install --auto --batch redis-lib/ redis-doc/ redis-test/ redis/
+
+    - name: Run Tests
+      run: raco test redis-lib/ redis-test/
+      env:
+        REDIS_HOST: 127.0.0.1
+        REDIS_PORT: ${{ job.services.redis.ports[6379] }}
