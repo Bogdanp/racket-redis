@@ -82,12 +82,21 @@ Each client represents a single TCP connection to the Redis server.
                      [#:port port (integer-in 0 65536) 6379]
                      [#:timeout timeout exact-nonnegative-integer? 5]
                      [#:db db (integer-in 0 16) 0]
+                     [#:username username (or/c false/c non-empty-string?) #f]
                      [#:password password (or/c false/c non-empty-string?) #f]) redis?]{
 
   Creates a Redis client and immediately attempts to connect to the
   database at @racket[host] and @racket[port].  The @racket[timeout]
   parameter controls the maximum amount of time (in milliseconds) the
   client will wait for any individual response from the database.
+
+  If the @racket[username] argument is provided, then Redis 6.0 is
+  assumed and an @tt{AUTH username password} command will be sent to
+  the server after a connection is established.
+
+  If the @racket[password] argument is provided without a
+  @racket[username], then an @tt{AUTH password} command is emitted.
+  This is compatible with all versions of Redis since 1.0.
 
   Each client maps to an individual connection, therefore clients
   @emph{are not} thread safe!  See @secref["pooling"].
@@ -147,6 +156,7 @@ Each client represents a single TCP connection to the Redis server.
                           [#:port port (integer-in 0 65536) 6379]
                           [#:timeout timeout exact-nonnegative-integer? 5000]
                           [#:db db (integer-in 0 15) 0]
+                          [#:username username (or/c false/c non-empty-string?) #f]
                           [#:password password (or/c false/c non-empty-string?) #f]
                           [#:pool-size pool-size exact-positive-integer? 4]
                           [#:idle-ttl idle-ttl exact-nonnegative-integer? 3600]) redis-pool?]{
@@ -238,13 +248,17 @@ scripting world and Racket.
 @;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 @section{Connection Commands}
 
-@defcmd[
+@defcmd*[
   ((AUTH)
-   (auth! [password redis-string/c]) boolean?)]{
+   ([(redis-auth! [password redis-string/c]) boolean?]
+    [(redis-auth! [username redis-string/c] [password redis-string/c]) boolean?]))]{
 
-  @exec{AUTH}s the current connection using @racket[password].  Raises
+  @tt{AUTH}s the current connection using @racket[password].  Raises
   an exception if authentication is not set up or if the password is
   invalid.
+
+  The second variant may be used with Redis version 6.0 and later to
+  emit @tt{AUTH username password} commands.
 }
 
 @defcmd[

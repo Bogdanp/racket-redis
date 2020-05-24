@@ -6,7 +6,6 @@
          racket/async-channel
          racket/contract
          racket/dict
-         racket/function
          racket/list
          racket/match
          racket/set
@@ -58,6 +57,7 @@
                              #:port [port 6379]
                              #:timeout [timeout 5000]
                              #:db [db 0]
+                             #:username [username #f]
                              #:password [password #f])
   (->* ()
        (#:client-name non-empty-string?
@@ -65,13 +65,16 @@
         #:port (integer-in 0 65536)
         #:timeout exact-nonnegative-integer?
         #:db (integer-in 0 16)
+        #:username (or/c false/c non-empty-string?)
         #:password (or/c false/c non-empty-string?))
        redis?)
 
   (define client (redis host port timeout #f #f #f #f #f))
   (begin0 client
     (redis-connect! client)
-    (when password (redis-auth! client password))
+    (cond
+      [username (redis-auth! client username password)]
+      [password (redis-auth! client password)])
     (redis-select-db! client db)
     (redis-set-client-name! client client-name)))
 
@@ -404,7 +407,16 @@
 ;; connection commands ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; AUTH password
-(define-simple-command/ok (auth! [password redis-string/c]))
+;; AUTH username password
+(define/contract/provide redis-auth!
+  (case-> (-> redis? redis-string/c boolean?)
+          (-> redis? redis-string/c redis-string/c boolean?))
+  (case-lambda
+    [(client password)
+     (ok? (redis-emit! client #"AUTH" password))]
+
+    [(client username password)
+     (ok? (redis-emit! client #"AUTH" username password))]))
 
 ;; ECHO message
 (define-simple-command (echo [message string?])

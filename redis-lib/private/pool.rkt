@@ -22,6 +22,7 @@
                                   #:port [port 6379]
                                   #:timeout [timeout 5000]
                                   #:db [db 0]
+                                  #:username [username #f]
                                   #:password [password #f]
                                   #:pool-size [pool-size 4]
                                   #:idle-ttl [idle-ttl 3600])
@@ -31,6 +32,7 @@
         #:port (integer-in 0 65536)
         #:timeout exact-nonnegative-integer?
         #:db (integer-in 0 16)
+        #:username (or/c false/c non-empty-string?)
         #:password (or/c false/c non-empty-string?)
         #:pool-size exact-positive-integer?
         #:idle-ttl exact-positive-integer?)
@@ -42,6 +44,7 @@
                 #:port port
                 #:timeout timeout
                 #:db db
+                #:username username
                 #:password password))
 
   (define custodian (make-custodian))
