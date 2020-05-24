@@ -2,8 +2,7 @@
 
 (require racket/contract
          "client.rkt"
-         "error.rkt"
-         "protocol.rkt")
+         "error.rkt")
 
 (provide
  make-redis-script
