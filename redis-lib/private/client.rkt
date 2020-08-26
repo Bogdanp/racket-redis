@@ -35,7 +35,7 @@
   (make-flat-contract
    #:name 'redis-value/c
    #:first-order (lambda (v)
-                   ((or/c false/c bytes? exact-integer? (listof redis-value/c)) v))))
+                   ((or/c #f bytes? string? exact-integer? (listof redis-value/c)) v))))
 
 
 ;; client ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -65,8 +65,8 @@
         #:port (integer-in 0 65536)
         #:timeout exact-nonnegative-integer?
         #:db (integer-in 0 16)
-        #:username (or/c false/c non-empty-string?)
-        #:password (or/c false/c non-empty-string?))
+        #:username (or/c #f non-empty-string?)
+        #:password (or/c #f non-empty-string?))
        redis?)
 
   (define client (redis host port timeout #f #f #f #f #f))
@@ -163,6 +163,12 @@
                    "timed out while waiting for response from Redis"
                    (current-continuation-marks)))))
         never-evt))))
+
+(provide
+ (contract-out [redis-emit! (->* (redis? redis-string/c)
+                                 (#:timeout exact-nonnegative-integer?)
+                                 #:rest (listof redis-value/c)
+                                 redis-value/c)]))
 
 (define (redis-emit! client command
                      #:timeout [timeout (redis-timeout client)]
@@ -359,7 +365,7 @@
   (->i ([client redis?]
         [key redis-key/c]
         [value redis-string/c])
-       (#:expires-in [expires-in (or/c false/c exact-positive-integer?)]
+       (#:expires-in [expires-in (or/c #f exact-positive-integer?)]
         #:unless-exists? [unless-exists? boolean?]
         #:when-exists? [when-exists? boolean?])
 
@@ -483,8 +489,8 @@
 (define/contract/provide (redis-geo-dist client key member1 member2
                                          #:unit [unit #f])
   (->* (redis? redis-key/c redis-string/c redis-string/c)
-       (#:unit (or/c false/c redis-geo-unit/c))
-       (or/c false/c real?))
+       (#:unit (or/c #f redis-geo-unit/c))
+       (or/c #f real?))
 
   (define res
     (apply redis-emit! client #"GEODIST" key member1 member2 (if unit
@@ -496,11 +502,11 @@
 ;; GEOHASH key member [member ...]
 (define-variadic-command (geo-hash [key redis-key/c] [mem redis-string/c] . [mems redis-string/c])
   #:command (#"GEOHASH")
-  #:result-contract (listof (or/c false/c bytes?)))
+  #:result-contract (listof (or/c #f bytes?)))
 
 ;; GEOPOS key member [member ...]
 (define/contract/provide (redis-geo-pos client key mem . mems)
-  (-> redis? redis-key/c redis-string/c redis-string/c ... (listof (or/c false/c (list/c redis-longitude/c redis-latitude/c))))
+  (-> redis? redis-key/c redis-string/c redis-string/c ... (listof (or/c #f (list/c redis-longitude/c redis-latitude/c))))
   (for/list ([pair (in-list (apply redis-emit! client #"GEOPOS" key mem mems))])
     (and pair (list (bytes->number (car pair))
                     (bytes->number (cadr pair))))))
@@ -570,8 +576,8 @@
                                           #:limit [limit #f])
   (->* (redis? redis-key/c)
        (#:cursor exact-nonnegative-integer?
-        #:pattern (or/c false/c redis-string/c)
-        #:limit (or/c false/c exact-positive-integer?))
+        #:pattern (or/c #f redis-string/c)
+        #:limit (or/c #f exact-positive-integer?))
        (values exact-nonnegative-integer? (listof (cons/c bytes? bytes?))))
 
 
@@ -719,7 +725,7 @@
 
 ;; RANDOMKEY
 (define-simple-command (random-key)
-  #:result-contract (or/c false/c bytes?))
+  #:result-contract (or/c #f bytes?))
 
 ;; RENAME{,NX} key newkey
 (define/contract/provide (redis-rename! client src dest
@@ -742,9 +748,9 @@
                                      #:type [type #f])
   (->* (redis?)
        (#:cursor exact-nonnegative-integer?
-        #:pattern (or/c false/c redis-string/c)
-        #:limit (or/c false/c exact-positive-integer?)
-        #:type (or/c false/c redis-key-type/c))
+        #:pattern (or/c #f redis-string/c)
+        #:limit (or/c #f exact-positive-integer?)
+        #:type (or/c #f redis-key-type/c))
        (values exact-nonnegative-integer? (listof redis-key/c)))
 
   (define res
@@ -798,7 +804,7 @@
        "either after or before, but not both"
        (exclusive-args pivot/after pivot/before)
 
-       [result (or/c false/c exact-nonnegative-integer?)])
+       [result (or/c #f exact-nonnegative-integer?)])
   (define args
     (if pivot/after
         (list #"AFTER"  pivot/after  value)
@@ -1194,7 +1200,7 @@
 
 ;; DUMP key
 (define-simple-command (dump [key redis-key/c])
-  #:result-contract (or/c false/c bytes?))
+  #:result-contract (or/c #f bytes?))
 
 ;; FLUSHALL [ASYNC]
 (define-simple-command/ok (flush-all!))
@@ -1313,7 +1319,7 @@
 ;; SRANDMEMBER key [count]
 (define/contract/provide redis-set-random-ref
   (case->
-   (-> redis? redis-key/c (or/c false/c bytes?))
+   (-> redis? redis-key/c (or/c #f bytes?))
    (-> redis? redis-key/c exact-integer? (listof bytes?)))
   (case-lambda
     [(client key)
@@ -1334,8 +1340,8 @@
                                          #:limit [limit #f])
   (->* (redis? redis-key/c)
        (#:cursor exact-nonnegative-integer?
-        #:pattern (or/c false/c redis-string/c)
-        #:limit (or/c false/c exact-positive-integer?))
+        #:pattern (or/c #f redis-string/c)
+        #:limit (or/c #f exact-positive-integer?))
        (values exact-nonnegative-integer? (listof redis-string/c)))
 
   (define res
@@ -1575,7 +1581,7 @@
        (#:reverse? boolean?
         #:start stream-range-position/c
         #:stop stream-range-position/c
-        #:limit (or/c false/c exact-positive-integer?))
+        #:limit (or/c #f exact-positive-integer?))
        (listof redis-stream-entry?))
 
   (map pair->entry
@@ -1604,10 +1610,10 @@
                                              #:timeout [timeout 0])
   (->* (redis?
         #:streams (non-empty-listof (cons/c redis-key/c stream-position/c)))
-       (#:limit (or/c false/c exact-positive-integer?)
+       (#:limit (or/c #f exact-positive-integer?)
         #:block? boolean?
         #:timeout exact-nonnegative-integer?)
-       (or/c false/c (listof (list/c bytes? (listof redis-stream-entry?)))))
+       (or/c #f (listof (list/c bytes? (listof redis-stream-entry?)))))
 
   (define timeout/read (if (> timeout 0) (add1 timeout) #f))
 
@@ -1649,11 +1655,11 @@
         #:streams (non-empty-listof (cons/c redis-key/c stream-group-position/c))
         #:group redis-string/c
         #:consumer redis-string/c)
-       (#:limit (or/c false/c exact-positive-integer?)
+       (#:limit (or/c #f exact-positive-integer?)
         #:block? boolean?
         #:timeout exact-nonnegative-integer?
         #:no-ack? boolean?)
-       (or/c false/c (listof (list/c bytes? (listof redis-stream-entry?)))))
+       (or/c #f (listof (list/c bytes? (listof redis-stream-entry?)))))
 
   (define timeout/read (if (> timeout 0) (add1 timeout) #f))
 
@@ -1833,7 +1839,7 @@
        "a timeout may only be supplied if block? is #t"
        (or (unsupplied-arg? timeout) (equal? block? #t))
 
-       [result (or/c false/c
+       [result (or/c #f
                      (list/c bytes? bytes? real?)
                      (listof (cons/c bytes? real?)))])
 
@@ -1881,7 +1887,7 @@
        "a timeout may only be supplied if block? is #t"
        (or (unsupplied-arg? timeout) (equal? block? #t))
 
-       [result (or/c false/c
+       [result (or/c #f
                      (list/c bytes? bytes? real?)
                      (listof (cons/c bytes? real?)))])
 
@@ -2009,7 +2015,7 @@
 (define/contract/provide (redis-zset-rank client key mem #:reverse? [reverse? #f])
   (->* (redis? redis-key/c redis-string/c)
        (#:reverse? boolean?)
-       (or/c false/c exact-nonnegative-integer?))
+       (or/c #f exact-nonnegative-integer?))
   (if reverse?
       (redis-emit! client #"ZREVRANK" key mem)
       (redis-emit! client #"ZRANK"    key mem)))
@@ -2063,8 +2069,8 @@
                                           #:limit [limit #f])
   (->* (redis? redis-key/c)
        (#:cursor exact-nonnegative-integer?
-        #:pattern (or/c false/c redis-string/c)
-        #:limit (or/c false/c exact-positive-integer?))
+        #:pattern (or/c #f redis-string/c)
+        #:limit (or/c #f exact-positive-integer?))
        (values exact-nonnegative-integer? (listof (cons/c redis-string/c real?))))
 
   (define res
@@ -2082,7 +2088,7 @@
 ;; ZSCORE key member
 (define-simple-command (zset-score [key redis-key/c] [mem redis-string/c])
   #:command (#"ZSCORE")
-  #:result-contract (or/c false/c real?)
+  #:result-contract (or/c #f real?)
   #:result-name res
   (and res (bytes->number res)))
 

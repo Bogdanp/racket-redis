@@ -138,7 +138,7 @@ Each client represents a single TCP connection to the Redis server.
 }
 
 @defthing[
-  redis-value/c (or/c false/c bytes? exact-integer? (listof redis-value/c))]{
+  redis-value/c (or/c false/c bytes? string? exact-integer? (listof redis-value/c))]{
 
   The contract for Redis response values.
 }
