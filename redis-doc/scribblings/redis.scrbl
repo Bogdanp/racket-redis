@@ -30,10 +30,10 @@ print(timeit.timeit("c.set('a', '1')", number=10000, globals=globals()))
 EOF
 
 $ python test.py
-0.5616942420000001
+0.5442340160000001
 }
 
-and the equivalent benchmark in Racket:
+and the equivalent benchmark in Racket CS:
 
 @verbatim{
 $ cat <<EOF >test.rkt
@@ -49,7 +49,7 @@ $ cat <<EOF >test.rkt
 EOF
 
 $ racket test.rkt
-cpu time: 506 real time: 590 gc time: 0
+cpu time: 367 real time: 565 gc time: 21
 }
 
 Obviously, real world use cases will have different characteristics,
