@@ -65,14 +65,15 @@
     (test-suite
      "redis-write-bulk-string"
 
-     (check-equal? (redis-write/string "")         "$0\r\n\r\n")
-     (check-equal? (redis-write/string "OK")       "$2\r\nOK\r\n")
-     (check-equal? (redis-write/string "foobar")   "$6\r\nfoobar\r\n")
-     (check-equal? (redis-write/string "hello\n")  "$6\r\nhello\n\r\n")
-     (check-equal? (redis-write/string #"")        "$0\r\n\r\n")
-     (check-equal? (redis-write/string #"OK")      "$2\r\nOK\r\n")
-     (check-equal? (redis-write/string #"foobar")  "$6\r\nfoobar\r\n")
-     (check-equal? (redis-write/string #"hello\n") "$6\r\nhello\n\r\n"))
+     (check-equal? (redis-write/string "")               "$0\r\n\r\n")
+     (check-equal? (redis-write/string "OK")             "$2\r\nOK\r\n")
+     (check-equal? (redis-write/string "foobar")         "$6\r\nfoobar\r\n")
+     (check-equal? (redis-write/string "hello\n")        "$6\r\nhello\n\r\n")
+     (check-equal? (redis-write/string "こんにちは皆さん") "$24\r\nこんにちは皆さん\r\n")
+     (check-equal? (redis-write/string #"")              "$0\r\n\r\n")
+     (check-equal? (redis-write/string #"OK")            "$2\r\nOK\r\n")
+     (check-equal? (redis-write/string #"foobar")        "$6\r\nfoobar\r\n")
+     (check-equal? (redis-write/string #"hello\n")       "$6\r\nhello\n\r\n"))
 
     (test-suite
      "redis-write-integer"

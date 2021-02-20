@@ -42,30 +42,29 @@
 (define (redis-write v [out (current-output-port)])
   (cond
     [(string? v)
-     (display str-prefix out)
-     (display (string-length v) out)
-     (display crlf out)
-     (display v out)
-     (display crlf out)]
+     (redis-write (string->bytes/utf-8 v) out)]
 
     [(bytes? v)
-     (display str-prefix out)
-     (display (bytes-length v) out)
-     (display crlf out)
-     (display v out)
-     (display crlf out)]
+     (write-bytes str-prefix out)
+     (write-integer (bytes-length v) out)
+     (write-bytes crlf out)
+     (write-bytes v out)
+     (write-bytes crlf out)]
 
     [(list? v)
-     (display arr-prefix out)
-     (display (length v) out)
-     (display crlf out)
+     (write-bytes arr-prefix out)
+     (write-integer (length v) out)
+     (write-bytes crlf out)
      (for ([item (in-list v)])
        (redis-write item out))]
 
     [(integer? v)
-     (display int-prefix out)
-     (display v out)
-     (display crlf out)]
+     (write-bytes int-prefix out)
+     (write-integer v out)
+     (write-bytes crlf out)]
 
     [else
      (raise-argument-error 'redis-write "(or/c bytes? string? list?)" v)]))
+
+(define (write-integer v out)
+  (write-string (number->string v) out))
