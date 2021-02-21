@@ -6,7 +6,10 @@
                      racket/sequence
                      racket/serialize
                      racket/string
-                     redis)
+                     redis
+                     (only-in redis/easy
+                              current-redis-client
+                              current-redis-pool))
           "redis.rkt")
 
 @title{@exec{redis}: bindings for Redis}
@@ -1859,4 +1862,39 @@ be either @racket[#f] (if it doesn't exist) or @racket[bytes?].
 
   Returns a substring between the indices @racket[start] and
   @racket[stop] of the byte string at @racket[key].
+}
+
+
+@;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+@section[#:tag "easy"]{Simplified API}
+@defmodule[redis/easy]
+
+The @racket[redis/easy] module re-provides all the bindings
+documented in the previous sections except modified to implicitly
+read a client from either @racket[current-redis-client] or
+@racket[current-redis-pool].
+
+For example, instead of
+
+@racketblock[
+(define pool (make-redis-pool))
+(call-with-redis-client pool
+  (lambda (c)
+   (redis-bytes-get c "some-key")))
+]
+
+you can write
+
+@racketblock[
+(current-redis-pool (make-redis-pool))
+(redis-bytes-get "some-key")
+]
+
+@deftogether[(
+  @defparam[current-redis-client client redis? #:value #f]
+  @defparam[current-redis-pool pool redis-pool? #:value #f]
+)]{
+  Parameters implicitly used by the bindings exported from
+  @racket[redis/easy]. The @racket[current-redis-client] parameter takes
+  precedence over the @racket[current-redis-pool] parameter if set.
 }
