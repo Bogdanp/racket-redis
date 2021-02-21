@@ -10,11 +10,11 @@
          "private/script.rkt")
 
 (define/contract current-redis-client
-  (parameter/c (or/c false/c redis?))
+  (parameter/c (or/c #f redis?))
   (make-parameter #f))
 
 (define/contract current-redis-pool
-  (parameter/c (or/c false/c redis-pool?))
+  (parameter/c (or/c #f redis-pool?))
   (make-parameter #f))
 
 (define (compose-with-implicit-pool f)

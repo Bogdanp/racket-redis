@@ -32,8 +32,8 @@
         #:port (integer-in 0 65536)
         #:timeout exact-nonnegative-integer?
         #:db (integer-in 0 16)
-        #:username (or/c false/c non-empty-string?)
-        #:password (or/c false/c non-empty-string?)
+        #:username (or/c #f non-empty-string?)
+        #:password (or/c #f non-empty-string?)
         #:pool-size exact-positive-integer?
         #:idle-ttl exact-positive-integer?)
        redis-pool?)
@@ -80,8 +80,8 @@
 
 (define/contract (redis-pool-take! pool [timeout #f])
   (->* (redis-pool?)
-       ((or/c false/c exact-nonnegative-integer?))
-       (or/c false/c (-> redis?)))
+       ((or/c #f exact-nonnegative-integer?))
+       (or/c #f (-> redis?)))
   (sync/timeout
    (and timeout (/ timeout 1000))
    (redis-pool-clients pool)))
@@ -98,7 +98,7 @@
                    pool proc
                    #:timeout [timeout #f])
   (->* (redis-pool? (-> redis? any))
-       (#:timeout (or/c false/c exact-nonnegative-integer?))
+       (#:timeout (or/c #f exact-nonnegative-integer?))
        any)
 
   (define client-fn #f)

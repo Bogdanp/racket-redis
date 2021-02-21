@@ -3,6 +3,7 @@
 @(require (for-label racket/base
                      racket/contract
                      racket/dict
+                     racket/sequence
                      racket/serialize
                      racket/string
                      redis)
@@ -82,8 +83,8 @@ Each client represents a single TCP connection to the Redis server.
                      [#:port port (integer-in 0 65536) 6379]
                      [#:timeout timeout exact-nonnegative-integer? 5]
                      [#:db db (integer-in 0 16) 0]
-                     [#:username username (or/c false/c non-empty-string?) #f]
-                     [#:password password (or/c false/c non-empty-string?) #f]) redis?]{
+                     [#:username username (or/c #f non-empty-string?) #f]
+                     [#:password password (or/c #f non-empty-string?) #f]) redis?]{
 
   Creates a Redis client and immediately attempts to connect to the
   database at @racket[host] and @racket[port].  The @racket[timeout]
@@ -138,7 +139,7 @@ Each client represents a single TCP connection to the Redis server.
 }
 
 @defthing[
-  redis-value/c (or/c false/c bytes? string? exact-integer? (listof redis-value/c))]{
+  redis-value/c (or/c #f bytes? string? exact-integer? (listof redis-value/c))]{
 
   The contract for Redis response values.
 }
@@ -156,8 +157,8 @@ Each client represents a single TCP connection to the Redis server.
                           [#:port port (integer-in 0 65536) 6379]
                           [#:timeout timeout exact-nonnegative-integer? 5000]
                           [#:db db (integer-in 0 15) 0]
-                          [#:username username (or/c false/c non-empty-string?) #f]
-                          [#:password password (or/c false/c non-empty-string?) #f]
+                          [#:username username (or/c #f non-empty-string?) #f]
+                          [#:password password (or/c #f non-empty-string?) #f]
                           [#:pool-size pool-size exact-positive-integer? 4]
                           [#:idle-ttl idle-ttl exact-nonnegative-integer? 3600]) redis-pool?]{
 
@@ -179,7 +180,7 @@ Each client represents a single TCP connection to the Redis server.
 
 @defproc[(call-with-redis-client [pool redis-pool?]
                                  [proc (-> redis? any)]
-                                 [#:timeout timeout (or/c false/c exact-nonnegative-integer?) #f]) any]{
+                                 [#:timeout timeout (or/c #f exact-nonnegative-integer?) #f]) any]{
 
   Grabs a connection from the @racket[pool] and calls @racket[proc]
   with it, ensuring that the connection is returned to the pool upon
@@ -324,7 +325,7 @@ scripting world and Racket.
    (geo-dist [key redis-key/c]
              [member1 redis-string/c]
              [member2 redis-string/c]
-             [#:unit unit (or/c false/c redis-geo-unit/c) #f]) (or/c false/c real?))]{
+             [#:unit unit (or/c #f redis-geo-unit/c) #f]) (or/c #f real?))]{
 
   Returns the geo distance between @racket[member1] and
   @racket[member2].
@@ -333,7 +334,7 @@ scripting world and Racket.
 @defcmd[
   ((GEOHASH)
    (geo-hash [key redis-key/c]
-             [mem redis-string/c] ...+) (listof (or/c false/c bytes?)))]{
+             [mem redis-string/c] ...+) (listof (or/c #f bytes?)))]{
 
   Returns the geohash of each @racket[mem].
 }
@@ -341,7 +342,7 @@ scripting world and Racket.
 @defcmd[
   ((GEOPOS)
    (geo-pos [key redis-key/c]
-            [mem redis-string/c] ...+) (listof (or/c false/c (list/c redis-longitude/c redis-latitude/c))))]{
+            [mem redis-string/c] ...+) (listof (or/c #f (list/c redis-longitude/c redis-latitude/c))))]{
 
   Returns the longitude and latitude of each @racket[mem].
 }
@@ -415,8 +416,8 @@ scripting world and Racket.
   ((HSCAN)
    (hash-scan [key redis-key/c]
               [#:cursor cursor exact-nonnegative-integer? 0]
-              [#:pattern pattern (or/c false/c redis-string/c) #f]
-              [#:limit limit (or/c false/c exact-positive-integer?) #f]) (values exact-nonnegative-integer? (listof redis-key/c)))]{
+              [#:pattern pattern (or/c #f redis-string/c) #f]
+              [#:limit limit (or/c #f exact-positive-integer?) #f]) (values exact-nonnegative-integer? (listof redis-key/c)))]{
 
   Efficiently iterates through the set of keys in the hash at
   @racket[key].
@@ -459,7 +460,7 @@ scripting world and Racket.
 
 @defproc[
   (in-redis-hash [client redis?]
-                 [key redis-key/c]) (sequenceof (cons/c bytes? bytes?))]{
+                 [key redis-key/c]) (sequence/c (cons/c bytes? bytes?))]{
 
   Returns a sequence that can be used to efficiently iterate through
   the hash at @racket[key].
@@ -582,7 +583,7 @@ scripting world and Racket.
 
 @defcmd[
   ((RANDOMKEY)
-   (random-key) (or/c false/c bytes?))]{
+   (random-key) (or/c #f bytes?))]{
 
   Returns a random key from the database or @racket[#f] if the
   database is empty.
@@ -615,9 +616,9 @@ scripting world and Racket.
 @defcmd[
   ((SCAN)
    (scan [#:cursor cursor exact-nonnegative-integer? 0]
-         [#:pattern pattern (or/c false/c redis-string/c) #f]
-         [#:limit limit (or/c false/c exact-positive-integer?) #f]
-         [#:type type (or/c false/c redis-key-type/c) #f]) (values exact-nonnegative-integer? (listof redis-key/c)))]{
+         [#:pattern pattern (or/c #f redis-string/c) #f]
+         [#:limit limit (or/c #f exact-positive-integer?) #f]
+         [#:type type (or/c #f redis-key-type/c) #f]) (values exact-nonnegative-integer? (listof redis-key/c)))]{
 
   Efficiently iterates through all the keys in the database.
 
@@ -635,7 +636,7 @@ scripting world and Racket.
 }
 
 @defproc[
-  (in-redis [client redis?]) (sequenceof  bytes?)]{
+  (in-redis [client redis?]) (sequence/c  bytes?)]{
 
   Returns a sequence that can be used to efficiently iterate through
   the Redis database.
@@ -651,7 +652,7 @@ scripting world and Racket.
 @defcmd[
   ((RPUSH)
    (list-append! [key redis-key/c]
-                 [value redis-string/c]) (or/c false/c exact-nonnegative-integer?))]{
+                 [value redis-string/c]) (or/c #f exact-nonnegative-integer?))]{
 
   Appends @racket[value] to the list at @racket[key], returning the
   new length of the list.
@@ -670,7 +671,7 @@ scripting world and Racket.
    (list-insert! [key redis-key/c]
                  [value redis-string/c]
                  [#:after pivot/after redis-string/c]
-                 [#:before pivot/before redis-string/c]) (or/c false/c exact-nonnegative-integer?))]{
+                 [#:before pivot/before redis-string/c]) (or/c #f exact-nonnegative-integer?))]{
 
   Inserts @racket[value] into the list at @racket[key]
   @racket[#:before] or @racket[#:after] the first occurrence of
@@ -768,7 +769,7 @@ scripting world and Racket.
 @defcmd[
   ((LPUSH)
    (list-prepend! [key redis-key/c]
-                  [value redis-string/c]) (or/c false/c exact-nonnegative-integer?))]{
+                  [value redis-string/c]) (or/c #f exact-nonnegative-integer?))]{
 
   Prepends @racket[value] to the list at @racket[key], returning the
   new length of the list.
@@ -988,7 +989,7 @@ scripting world and Racket.
 
 @defcmd[
   ((CLIENT_GETNAME)
-   (client-name) (or/c false/c string?))]{
+   (client-name) (or/c #f string?))]{
 
   Returns the current client name.
 }
@@ -1146,7 +1147,7 @@ scripting world and Racket.
 @defcmd[
   ((SRANDMEMBER)
    (set-random-ref [key redis-key/c]
-                   [count exact-integer? 1]) (or/c false/c bytes? (listof bytes?)))]{
+                   [count exact-integer? 1]) (or/c #f bytes? (listof bytes?)))]{
 
   Retrieves one or more random elements from the set at @racket[key].
 
@@ -1167,8 +1168,8 @@ scripting world and Racket.
   ((SSCAN)
    (set-scan [key redis-key/c]
              [#:cursor cursor exact-nonnegative-integer? 0]
-             [#:pattern pattern (or/c false/c redis-string/c) #f]
-             [#:limit limit (or/c false/c exact-positive-integer?) #f]) (values exact-nonnegative-integer? (listof redis-string/c)))]{
+             [#:pattern pattern (or/c #f redis-string/c) #f]
+             [#:limit limit (or/c #f exact-positive-integer?) #f]) (values exact-nonnegative-integer? (listof redis-string/c)))]{
 
   Efficiently iterates through the set of values in the set at
   @racket[key].
@@ -1197,7 +1198,7 @@ scripting world and Racket.
 
 @defproc[
   (in-redis-set [client redis?]
-                [key redis-key/c]) (sequenceof bytes?)]{
+                [key redis-key/c]) (sequence/c bytes?)]{
 
   Returns a sequence that can be used to efficiently iterate through
   the set at @racket[key].
@@ -1266,7 +1267,7 @@ scripting world and Racket.
                   [#:count count exact-positive-integer? 1]
                   [#:block? block? boolean? #f]
                   [#:timeout timeout exact-nonnegative-integer? 0])
-   (or/c false/c
+   (or/c #f
          (list/c bytes? bytes? real?)
          (listof (cons/c bytes? real?))))]{
 
@@ -1287,7 +1288,7 @@ scripting world and Racket.
                   [#:count count exact-positive-integer? 1]
                   [#:block? block? boolean? #f]
                   [#:timeout timeout exact-nonnegative-integer? 0])
-   (or/c false/c
+   (or/c #f
          (list/c bytes? bytes? real?)
          (listof (cons/c bytes? real?))))]{
 
@@ -1306,7 +1307,7 @@ scripting world and Racket.
   ((ZRANK ZREVRANK)
    (zset-rank [key redis-key/c]
               [member redis-string/c]
-              [#:reverse? reverse? boolean? #f]) (or/c false/c exact-nonnegative-integer?))]{
+              [#:reverse? reverse? boolean? #f]) (or/c #f exact-nonnegative-integer?))]{
 
   Returns the rank of @racket[member] within the sorted set at
   @racket[key].  If @racket[member] is not in the set, then
@@ -1363,8 +1364,8 @@ scripting world and Racket.
   ((ZSCAN)
    (zset-scan [key redis-key/c]
               [#:cursor cursor exact-nonnegative-integer? 0]
-              [#:pattern pattern (or/c false/c redis-string/c) #f]
-              [#:limit limit (or/c false/c exact-positive-integer?) #f]) (values exact-nonnegative-integer? (listof (cons/c redis-string/c real?))))]{
+              [#:pattern pattern (or/c #f redis-string/c) #f]
+              [#:limit limit (or/c #f exact-positive-integer?) #f]) (values exact-nonnegative-integer? (listof (cons/c redis-string/c real?))))]{
 
   Efficiently iterates through the members and their associated scores
   in the sorted set at @racket[key].
@@ -1377,7 +1378,7 @@ scripting world and Racket.
 @defcmd[
   ((ZSCORE)
    (zset-score [key redis-key/c]
-               [member redis-string/c]) (or/c false/c real?))]{
+               [member redis-string/c]) (or/c #f real?))]{
 
   Returns the score of @racket[member] from the sorted set at
   @racket[key] or @racket[#f] if @racket[member] isn't in the set.
@@ -1449,7 +1450,7 @@ scripting world and Racket.
 
 @defproc[
   (in-redis-zset [client redis?]
-                 [key redis-key/c]) (sequenceof (cons/c bytes? real?))]{
+                 [key redis-key/c]) (sequence/c (cons/c bytes? real?))]{
 
   Returns a sequence that can be used to efficiently iterate through
   the sorted set at @racket[key].
@@ -1571,10 +1572,10 @@ scripting world and Racket.
    (stream-group-read! [#:streams streams (non-empty-listof (cons/c redis-key/c (or/c 'new-entries redis-string/c)))]
                        [#:group group redis-string/c]
                        [#:consumer consumer redis-string/c]
-                       [#:limit limit (or/c false/c exact-positive-integer?) #f]
+                       [#:limit limit (or/c #f exact-positive-integer?) #f]
                        [#:block? block? boolean? #f]
                        [#:timeout timeout exact-nonnegative-integer? 0]
-                       [#:no-ack? no-ack? boolean? #f]) (or/c false/c (listof (list/c bytes? (listof redis-stream-entry?)))))]{
+                       [#:no-ack? no-ack? boolean? #f]) (or/c #f (listof (list/c bytes? (listof redis-stream-entry?)))))]{
 
   Reads entries from a stream group for every stream and id pair given
   via the @racket[streams] alist and returns a list of lists where the
@@ -1623,9 +1624,9 @@ scripting world and Racket.
 @defcmd[
   ((XREAD)
    (stream-read! [#:streams streams (non-empty-listof (cons/c redis-key/c (or/c 'new-entries redis-string/c)))]
-                 [#:limit limit (or/c false/c exact-positive-integer?) #f]
+                 [#:limit limit (or/c #f exact-positive-integer?) #f]
                  [#:block? block? boolean? #f]
-                 [#:timeout timeout exact-nonnegative-integer? 0]) (or/c false/c (listof (list/c bytes? (listof redis-stream-entry?)))))]{
+                 [#:timeout timeout exact-nonnegative-integer? 0]) (or/c #f (listof (list/c bytes? (listof redis-stream-entry?)))))]{
 
   Reads entries from every stream and id pair given via the
   @racket[streams] alist and returns a list of lists where the
@@ -1665,7 +1666,7 @@ scripting world and Racket.
               [#:reverse? reverse? boolean? #f]
               [#:start start (or/c 'first-entry 'last-entry redis-string/c)]
               [#:stop stop (or/c 'first-entry 'last-entry redis-string/c)]
-              [#:limit limit (or/c false/c exact-positive-integer?)]) (listof redis-stream-entry?))]{
+              [#:limit limit (or/c #f exact-positive-integer?)]) (listof redis-stream-entry?))]{
 
   Returns at most @racket[limit] entries between @racket[start] and
   @racket[stop] from the stream at @racket[key].  If @racket[limit] is
@@ -1787,7 +1788,7 @@ be either @racket[#f] (if it doesn't exist) or @racket[bytes?].
 
 @defcmd[
   ((GET MGET)
-   (bytes-get [key redis-key/c] ...+) (or/c false/c bytes?))]{
+   (bytes-get [key redis-key/c] ...+) (or/c #f bytes?))]{
 
   Retrieves one or more @racket[key]s from the database.
 }
@@ -1821,7 +1822,7 @@ be either @racket[#f] (if it doesn't exist) or @racket[bytes?].
   ((SET)
    (bytes-set! [key redis-key/c]
                [value redis-string/c]
-               [#:expires-in expires-in (or/c false/c exact-nonnegative-integer?) #f]
+               [#:expires-in expires-in (or/c #f exact-nonnegative-integer?) #f]
                [#:unless-exists? unless-exists? boolean? #f]
                [#:when-exists? when-exists? boolean? #f]) boolean?)]{
 
