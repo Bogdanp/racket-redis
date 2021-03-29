@@ -3,6 +3,7 @@
 (require (for-syntax racket/base
                      racket/syntax
                      syntax/parse)
+         net/url
          racket/async-channel
          racket/contract
          racket/dict
@@ -41,6 +42,7 @@
 ;; client ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (provide
+ parse-redis-url
  make-redis
  redis?
  redis-connected?
@@ -51,6 +53,35 @@
 
 (struct redis (host port timeout custodian in out response-ch response-reader)
   #:mutable)
+
+(define/contract (parse-redis-url s)
+  (-> string? (values (or/c #f string?)
+                      (or/c #f string?)
+                      string?
+                      (integer-in 0 65535)
+                      (integer-in 0 16)))
+  (define u (string->url s))
+  (when (string=? (url-host u) "")
+    (raise-arguments-error 'parse-redis-url "Redis URLs must have a host" "s" s))
+  (define db
+    (match (url-path u)
+      [`(,(path/param p _)) (string->number p)]
+      [_ 0]))
+  (unless (and (>= db 0)
+               (<= db 16))
+    (raise-arguments-error 'parse-redis-url "db must be in the range [0, 16]" "s" s))
+  (define-values (username password)
+    (match (url-user u)
+      [(regexp "([^:]+):(.*)" `(,_ ,username ,password))
+       (values username (and (not (string=? password "")) password))]
+      [username
+       (values username #f)]))
+  (values
+   username
+   password
+   (url-host u)
+   (or (url-port u) 6379)
+   db))
 
 (define/contract (make-redis #:client-name [client-name "racket-redis"]
                              #:host [host "127.0.0.1"]

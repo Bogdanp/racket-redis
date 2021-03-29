@@ -10,6 +10,7 @@
                      (only-in redis/easy
                               current-redis-client
                               current-redis-pool))
+          scribble/example
           "redis.rkt")
 
 @title{@exec{redis}: bindings for Redis}
@@ -80,6 +81,32 @@ commands said function relies on.
 @section[#:tag "client"]{Clients}
 
 Each client represents a single TCP connection to the Redis server.
+
+@defproc[(parse-redis-url [s string?]) (values (or/c #f string?)
+                                               (or/c #f string?)
+                                               string?
+                                               (integer-in 0 65535)
+                                               (integer-in 0 16))]{
+
+  Parses a Redis connection URL into 5 values:
+
+  @itemlist[
+    @item{an optional username (defaults to @racket[#f]),}
+    @item{an optional password (defaults to @racket[#f]),}
+    @item{a host name,}
+    @item{an optional port (defaults to @racket[6379]) and}
+    @item{an optional database number (defaults to @racket[0]).}
+  ]
+
+  @examples[
+  (require redis)
+  (parse-redis-url "redis://127.0.0.1")
+  (parse-redis-url "redis://127.0.0.1/1")
+  (parse-redis-url "redis://bogdan@127.0.0.1/1")
+  (parse-redis-url "redis://bogdan:pass@127.0.0.1/1")
+  ]
+}
+
 
 @defproc[(make-redis [#:client-name client-name string? "racket-redis"]
                      [#:host host string? "127.0.0.1"]
