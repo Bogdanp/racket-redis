@@ -197,13 +197,13 @@ Each client represents a single TCP connection to the Redis server.
                           [#:username username (or/c #f non-empty-string?) #f]
                           [#:password password (or/c #f non-empty-string?) #f]
                           [#:pool-size pool-size exact-positive-integer? 4]
-                          [#:idle-ttl idle-ttl exact-nonnegative-integer? 3600]) redis-pool?]{
+                          [#:idle-ttl idle-ttl exact-nonnegative-integer? 3600000]) redis-pool?]{
 
   Creates a lazy pool of Redis connections that will contain at most
   @racket[pool-size] connections.
 
   Connections that have been idle for more than @racket[idle-ttl]
-  seconds are lazily reconnected.
+  milliseconds are lazily reconnected.
 
   All other parameters are passed directly to @racket[make-redis]
   whenever a new connection is initiated.

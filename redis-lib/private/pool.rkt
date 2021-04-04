@@ -28,7 +28,7 @@
                                   #:username [username #f]
                                   #:password [password #f]
                                   #:pool-size [pool-size 4]
-                                  #:idle-ttl [idle-ttl 3600])
+                                  #:idle-ttl [idle-ttl 3600000])
   (->* ()
        (#:client-name non-empty-string?
         #:unix-socket (or/c #f path-string?)
