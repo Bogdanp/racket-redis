@@ -1,8 +1,8 @@
 #lang racket/base
 
-(require racket/async-channel
-         racket/contract
+(require racket/contract
          racket/format
+         racket/match
          racket/string
          "client.rkt"
          "error.rkt")
@@ -15,7 +15,9 @@
  redis-pool-shutdown!
  call-with-redis-client)
 
-(struct redis-pool (custodian clients))
+(define-logger redis-pool)
+
+(struct redis-pool (custodian thd))
 
 (define/contract (make-redis-pool #:client-name [client-name "racket-redis"]
                                   #:unix-socket [socket-path #f]
@@ -51,51 +53,129 @@
                 #:password password))
 
   (define custodian (make-custodian))
-  (define clients
-    (make-async-channel pool-size))
+  (parameterize ([current-custodian custodian])
+    (define thd
+      (thread
+       (lambda ()
+         (define deadlines (make-hasheq))
+         (define (reset-deadline! c)
+           (hash-set! deadlines c (+ (current-inexact-milliseconds) idle-ttl)))
+         (define (remove-deadline! c)
+           (hash-remove! deadlines c))
 
-  (for ([id pool-size])
-    (async-channel-put clients
-                       (let ([client #f]
-                             [deadline #f])
-                         (lambda ()
-                           (parameterize ([current-custodian custodian])
-                             (define the-client
-                               (cond
-                                 [(and deadline (or (not (redis-connected? client))
-                                                    (> (current-inexact-milliseconds) deadline)))
-                                  (begin0 client
-                                    (redis-disconnect! client)
-                                    (redis-connect! client))]
+         (let loop ([total 0]
+                    [busy null]
+                    [idle null]
+                    [waiters null])
+           (with-handlers ([exn:fail?
+                            (lambda (e)
+                              (log-redis-pool-error "unexpected error: ~a" (exn-message e))
+                              (loop total busy idle waiters))])
+             (sync
+              (handle-evt
+               (thread-receive-evt)
+               (lambda (_)
+                 (match (thread-receive)
+                   [`(lease ,ch)
+                    (cond
+                      [(null? idle)
+                       (cond
+                         [(< total pool-size)
+                          (define c (make-client (~a client-name "-" total)))
+                          (channel-put ch c)
+                          (loop (add1 total) (cons c busy) idle waiters)]
 
-                                 [client
-                                  client]
+                         [else
+                          (loop total busy idle (cons ch waiters))])]
 
-                                 [else
-                                  (define client* (make-client (~a client-name "-" id)))
-                                  (begin0 client*
-                                    (set! client client*))]))
+                      [else
+                       (define c (car idle))
+                       (channel-put ch c)
+                       (remove-deadline! c)
+                       (loop total (cons c busy) (cdr idle) waiters)])]
 
-                             (begin0 the-client
-                               (set! deadline (+ (current-inexact-milliseconds) idle-ttl))))))))
+                   [`(release ,c)
+                    (cond
+                      [(memq c busy)
+                       (cond
+                         [(null? waiters)
+                          (reset-deadline! c)
+                          (loop total (remq c busy) (cons c idle) waiters)]
 
-  (redis-pool custodian clients))
+                         [else
+                          (define ch (car waiters))
+                          (channel-put ch c)
+                          (loop total busy idle (cdr waiters))])]
+
+                      [else
+                       (log-redis-pool-warning "ignoring unknown connection ~e" c)
+                       (loop total busy idle waiters)])]
+
+                   [`(shutdown ,ch)
+                    (cond
+                      [(null? busy)
+                       (for-each redis-disconnect! idle)
+                       (channel-put ch 'ok)]
+
+                      [else
+                       (channel-put ch (exn:fail:redis:pool
+                                        (current-continuation-marks)
+                                        "shutdown called before all connections were returned to the pool"))])])))
+
+              (if (hash-empty? deadlines)
+                  never-evt
+                  (handle-evt
+                   (alarm-evt (+ (current-inexact-milliseconds) 30000))
+                   (lambda (_)
+                     (define now (current-inexact-milliseconds))
+                     (for ([(c deadline) (in-hash deadlines)])
+                       (when (< deadline now)
+                         (log-redis-pool-debug "disconnecting idle connection ~e" c)
+                         (redis-disconnect! c)
+                         (hash-remove! deadlines c)))
+                     (loop total busy idle waiters))))))))))
+
+    (redis-pool custodian thd)))
+
+(define-syntax-rule (dispatch p id arg ...)
+  (thread-send (redis-pool-thd p) (list 'id arg ...)))
+
+(define-syntax-rule (dispatch/blocking p id arg ...)
+  (let ([ch (make-channel)])
+    (dispatch p id arg ... ch)
+    (define maybe-exn (sync ch))
+    (when (exn? maybe-exn)
+      (raise maybe-exn))
+    maybe-exn))
 
 (define/contract (redis-pool-take! pool [timeout #f])
   (->* (redis-pool?)
        ((or/c #f exact-nonnegative-integer?))
-       (or/c #f (-> redis?)))
-  (sync/timeout
-   (and timeout (/ timeout 1000))
-   (redis-pool-clients pool)))
+       (or/c #f redis?))
+  (define ch (make-channel))
+  (define (sink!)
+    (begin0 #f
+      (thread
+       (lambda ()
+         (dispatch pool release (channel-get ch))))))
+  (dispatch pool lease ch)
+  (with-handlers ([exn:break? (λ (_) (sink!))])
+    (sync
+     ch
+     (if timeout
+         (handle-evt
+          (alarm-evt (+ (current-inexact-milliseconds) timeout))
+          (lambda (_)
+            (sink!)))
+         never-evt))))
 
-(define/contract (redis-pool-release! pool client-fn)
-  (-> redis-pool? (-> redis?) void?)
-  (async-channel-put (redis-pool-clients pool) client-fn))
+(define/contract (redis-pool-release! pool c)
+  (-> redis-pool? redis? void?)
+  (void (dispatch pool release c)))
 
 (define/contract (redis-pool-shutdown! pool)
   (-> redis-pool? void?)
-  (custodian-shutdown-all (redis-pool-custodian pool)))
+  (void (dispatch/blocking pool shutdown)))
 
 (define/contract (call-with-redis-client
                    pool proc
@@ -104,15 +184,13 @@
        (#:timeout (or/c #f exact-nonnegative-integer?))
        any)
 
-  (define client-fn #f)
+  (define c #f)
   (dynamic-wind
     (lambda _
-      (define the-client-fn (redis-pool-take! pool timeout))
-      (unless the-client-fn
-        (raise (exn:fail:redis:pool:timeout "timed out waiting for a client to become available" (current-continuation-marks))))
-
-      (set! client-fn the-client-fn))
+      (set! c (redis-pool-take! pool timeout))
+      (unless c
+        (raise (exn:fail:redis:pool:timeout "timed out waiting for a client to become available" (current-continuation-marks)))))
     (lambda _
-      (proc (client-fn)))
+      (proc c))
     (lambda _
-      (redis-pool-release! pool client-fn))))
+      (redis-pool-release! pool c))))
