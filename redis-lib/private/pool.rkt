@@ -120,7 +120,8 @@
                       [else
                        (channel-put ch (exn:fail:redis:pool
                                         (current-continuation-marks)
-                                        "shutdown called before all connections were returned to the pool"))])])))
+                                        "shutdown called before all connections were returned to the pool"))
+                       (loop total busy idle waiters)])])))
 
               (if (hash-empty? deadlines)
                   never-evt
