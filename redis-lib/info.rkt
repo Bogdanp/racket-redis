@@ -2,5 +2,6 @@
 
 (define version "0.0.0")
 (define collection "redis")
-(define deps '("base"))
+(define deps '("base"
+               "unix-socket-lib"))
 (define build-deps '())

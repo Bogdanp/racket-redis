@@ -12,6 +12,7 @@
          racket/set
          racket/string
          racket/tcp
+         racket/unix-socket
          "error.rkt"
          "protocol.rkt")
 
@@ -51,7 +52,7 @@
 
 (define-logger redis)
 
-(struct redis (host port timeout custodian in out response-ch response-reader)
+(struct redis (socket-path host port timeout custodian in out response-ch response-reader)
   #:mutable)
 
 (define/contract (parse-redis-url s)
@@ -84,6 +85,7 @@
    db))
 
 (define/contract (make-redis #:client-name [client-name "racket-redis"]
+                             #:unix-socket [socket-path #f]
                              #:host [host "127.0.0.1"]
                              #:port [port 6379]
                              #:timeout [timeout 5000]
@@ -92,6 +94,7 @@
                              #:password [password #f])
   (->* ()
        (#:client-name non-empty-string?
+        #:unix-socket (or/c #f path-string?)
         #:host non-empty-string?
         #:port (integer-in 0 65536)
         #:timeout exact-nonnegative-integer?
@@ -100,7 +103,7 @@
         #:password (or/c #f non-empty-string?))
        redis?)
 
-  (define client (redis host port timeout #f #f #f #f #f))
+  (define client (redis socket-path host port timeout #f #f #f #f #f))
   (begin0 client
     (redis-connect! client)
     (cond
@@ -129,8 +132,13 @@
 
   (parameterize ([current-custodian custodian])
     (define-values (in out)
-      (tcp-connect (redis-host client)
-                   (redis-port client)))
+      (cond
+        [(redis-socket-path client)
+         => unix-socket-connect]
+
+        [else
+         (tcp-connect (redis-host client)
+                      (redis-port client))]))
 
     (set-redis-in! client in)
     (set-redis-out! client out)

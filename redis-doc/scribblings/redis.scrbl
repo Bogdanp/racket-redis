@@ -109,6 +109,7 @@ Each client represents a single TCP connection to the Redis server.
 
 
 @defproc[(make-redis [#:client-name client-name string? "racket-redis"]
+                     [#:unix-socket socket-path (or/c #f path-string?) #f]
                      [#:host host string? "127.0.0.1"]
                      [#:port port (integer-in 0 65536) 6379]
                      [#:timeout timeout exact-nonnegative-integer? 5]
@@ -119,7 +120,10 @@ Each client represents a single TCP connection to the Redis server.
   Creates a Redis client and immediately attempts to connect to the
   database at @racket[host] and @racket[port].  The @racket[timeout]
   parameter controls the maximum amount of time (in milliseconds) the
-  client will wait for any individual response from the database.
+  client will wait for any individual response from the database.  If
+  the @racket[#:unix-socket] argument is provided, the connection is
+  made to the socket at that path and @racket[#:host] and
+  @racket[#:port] are ignored.
 
   If the @racket[username] argument is provided, then Redis 6.0 is
   assumed and an @tt{AUTH username password} command will be sent to
@@ -183,6 +187,7 @@ Each client represents a single TCP connection to the Redis server.
 }
 
 @defproc[(make-redis-pool [#:client-name client-name non-empty-string? "racket-redis"]
+                          [#:unix-socket socket-path (or/c #f path-string?) #f]
                           [#:host host non-empty-string? "127.0.0.1"]
                           [#:port port (integer-in 0 65536) 6379]
                           [#:timeout timeout exact-nonnegative-integer? 5000]

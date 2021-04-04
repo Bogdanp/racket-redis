@@ -18,6 +18,7 @@
 (struct redis-pool (custodian clients))
 
 (define/contract (make-redis-pool #:client-name [client-name "racket-redis"]
+                                  #:unix-socket [socket-path #f]
                                   #:host [host "127.0.0.1"]
                                   #:port [port 6379]
                                   #:timeout [timeout 5000]
@@ -28,6 +29,7 @@
                                   #:idle-ttl [idle-ttl 3600])
   (->* ()
        (#:client-name non-empty-string?
+        #:unix-socket (or/c #f path-string?)
         #:host non-empty-string?
         #:port (integer-in 0 65536)
         #:timeout exact-nonnegative-integer?
@@ -40,6 +42,7 @@
 
   (define (make-client client-name)
     (make-redis #:client-name client-name
+                #:unix-socket socket-path
                 #:host host
                 #:port port
                 #:timeout timeout
