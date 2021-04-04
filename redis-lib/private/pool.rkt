@@ -191,6 +191,8 @@
       (unless c
         (raise (exn:fail:redis:pool:timeout "timed out waiting for a client to become available" (current-continuation-marks)))))
     (lambda _
+      (unless (redis-connected? c)
+        (redis-connect! c))
       (proc c))
     (lambda _
       (redis-pool-release! pool c))))
