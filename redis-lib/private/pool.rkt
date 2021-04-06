@@ -3,7 +3,8 @@
 (require data/pool
          racket/contract
          racket/string
-         "client.rkt")
+         "client.rkt"
+         "error.rkt")
 
 (provide
  make-redis-pool
@@ -75,9 +76,14 @@
   (->* (redis-pool? (-> redis? any))
        (#:timeout (or/c #f exact-nonnegative-integer?))
        any)
-  (call-with-pool-resource p
-    #:timeout timeout
-    (lambda (c)
-      (unless (redis-connected? c)
-        (redis-connect! c))
-      (proc c))))
+  (with-handlers ([exn:fail:pool?
+                   (lambda (e)
+                     (raise (exn:fail:redis:pool:timeout
+                             (exn-message e)
+                             (exn-continuation-marks e))))])
+    (call-with-pool-resource p
+      #:timeout timeout
+      (lambda (c)
+        (unless (redis-connected? c)
+          (redis-connect! c))
+        (proc c)))))
