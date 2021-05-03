@@ -14,6 +14,8 @@
  redis-pool-shutdown!
  call-with-redis-client)
 
+(define-logger redis-pool)
+
 (struct redis-pool (cust impl))
 
 (define/contract (make-redis-pool #:client-name [client-name "racket-redis"]
@@ -88,5 +90,6 @@
       (lambda (c)
         (unless (redis-connected? c)
           (parameterize ([current-custodian (redis-pool-cust p)])
+            (log-redis-pool-debug "reconnecting")
             (redis-connect! c)))
         (proc c)))))
