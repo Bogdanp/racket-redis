@@ -14,10 +14,7 @@
  redis-pool-shutdown!
  call-with-redis-client)
 
-(define-logger redis-pool)
-
-(define (redis-pool? v)
-  (pool? v))
+(struct redis-pool (cust impl))
 
 (define/contract (make-redis-pool #:client-name [client-name "racket-redis"]
                                   #:unix-socket [socket-path #f]
@@ -42,33 +39,38 @@
         #:idle-ttl exact-positive-integer?)
        redis-pool?)
 
-  (make-pool
-   #:max-size pool-size
-   #:idle-ttl idle-ttl
-   (lambda ()
-     (make-redis #:client-name client-name
-                 #:unix-socket socket-path
-                 #:host host
-                 #:port port
-                 #:timeout timeout
-                 #:db db
-                 #:username username
-                 #:password password))
-   redis-disconnect!))
+  (define cust (make-custodian))
+  (define impl
+    (parameterize ([current-custodian cust])
+      (make-pool
+       #:max-size pool-size
+       #:idle-ttl idle-ttl
+       (lambda ()
+         (make-redis #:client-name client-name
+                     #:unix-socket socket-path
+                     #:host host
+                     #:port port
+                     #:timeout timeout
+                     #:db db
+                     #:username username
+                     #:password password))
+       redis-disconnect!)))
+  (redis-pool cust impl))
 
 (define/contract (redis-pool-take! p [timeout #f])
   (->* (redis-pool?)
        ((or/c #f exact-nonnegative-integer?))
        (or/c #f redis?))
-  (pool-take! p timeout))
+  (pool-take! (redis-pool-impl p) timeout))
 
 (define/contract (redis-pool-release! p c)
   (-> redis-pool? redis? void?)
-  (pool-release! p c))
+  (pool-release! (redis-pool-impl p) c))
 
 (define/contract (redis-pool-shutdown! p)
   (-> redis-pool? void?)
-  (pool-close! p))
+  (pool-close! (redis-pool-impl p))
+  (custodian-shutdown-all (redis-pool-cust p)))
 
 (define/contract (call-with-redis-client
                    p proc
@@ -81,9 +83,10 @@
                      (raise (exn:fail:redis:pool:timeout
                              (exn-message e)
                              (exn-continuation-marks e))))])
-    (call-with-pool-resource p
+    (call-with-pool-resource (redis-pool-impl p)
       #:timeout timeout
       (lambda (c)
         (unless (redis-connected? c)
-          (redis-connect! c))
+          (parameterize ([current-custodian (redis-pool-cust p)])
+            (redis-connect! c)))
         (proc c)))))
