@@ -414,7 +414,7 @@
 
        [result boolean?])
   (ok? (apply redis-emit! client #"SET" key value (optionals
-                                                   [expires-in #"PX" expires-in]
+                                                   [expires-in #"PX" (and expires-in (number->string expires-in))]
                                                    [unless-exists? #"NX"]
                                                    [when-exists? #"XX"]))))
 
