@@ -1,5 +1,6 @@
 #lang info
 
+(define license 'MIT)
 (define version "1.1.2")
 (define collection "redis")
 (define deps '("base"

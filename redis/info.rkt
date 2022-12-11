@@ -1,5 +1,6 @@
 #lang info
 
+(define license 'MIT)
 (define collection "redis")
 (define deps '("base"
                "redis-doc"
