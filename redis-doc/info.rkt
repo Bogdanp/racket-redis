@@ -7,4 +7,4 @@
                      "redis-lib"
                      "scribble-lib"))
 (define update-implies '("redis-lib"))
-(define scribblings '(("scribblings/redis.scrbl" (multi-page))))
+(define scribblings '(("scribblings/redis.scrbl" (multi-page) ("Databases"))))
