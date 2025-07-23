@@ -14,7 +14,7 @@
     (with-handlers ([(lambda (e)
                        (and (exn:fail:redis? e)
                             (string=? "no such key" (exn-message e))))
-                     (lambda _
+                     (lambda (_)
                        (displayln "stream does not exist yet. waiting...")
                        (sleep 1)
                        (loop))])
@@ -31,14 +31,14 @@
 (define start-time (current-seconds))
 (define processed 0)
 
-(define (handle entry)
+(define (handle _entry)
   (set! processed (add1 processed))
   #;(displayln (hash-ref (redis-stream-entry-fields entry) #"message"))
   )
 
 (void
  (thread
-  (lambda _
+  (lambda ()
     (let loop ()
       (sleep 1)
       (define delta (- (current-seconds) start-time))

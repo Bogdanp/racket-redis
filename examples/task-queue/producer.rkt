@@ -13,7 +13,7 @@
 
 (void
  (thread
-  (lambda _
+  (lambda ()
     (let loop ()
       (sleep 1)
       (define delta (- (current-seconds) start-time))
