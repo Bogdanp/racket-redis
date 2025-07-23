@@ -108,7 +108,7 @@ Each client represents a single TCP connection to the Redis server.
 }
 
 
-@defproc[(make-redis [#:client-name client-name string? "racket-redis"]
+@defproc[(make-redis [#:client-name client-name (or/c #f string?) "racket-redis"]
                      [#:unix-socket socket-path (or/c #f path-string?) #f]
                      [#:host host string? "127.0.0.1"]
                      [#:port port (integer-in 0 65536) 6379]
@@ -117,13 +117,14 @@ Each client represents a single TCP connection to the Redis server.
                      [#:username username (or/c #f non-empty-string?) #f]
                      [#:password password (or/c #f non-empty-string?) #f]) redis?]{
 
-  Creates a Redis client and immediately attempts to connect
-  to the database at @racket[#:host] and @racket[#:port]. The
-  @racket[#:timeout] parameter controls the maximum amount of time (in
-  milliseconds) the client will wait for any individual response from
-  the database. If the @racket[#:unix-socket] argument is provided, the
-  connection is made to the socket at that path and @racket[#:host] and
-  @racket[#:port] are ignored.
+  Creates a Redis client that lazily connects to to the database
+  at @racket[#:host] and @racket[#:port] or the UNIX socket at
+  @racket[#:unix-socket]. If a UNIX socket is provided, it takes
+  precedence over the @racket[#:host] and @racket[#:port] arguments.
+
+  The @racket[#:timeout] parameter controls the maximum amount of time
+  (in milliseconds) the client waits for a response to a command from
+  the database.
 
   If the @racket[#:username] argument is provided, then Redis 6.0 is
   assumed and an @tt{AUTH username password} command will be sent to the
@@ -137,6 +138,7 @@ Each client represents a single TCP connection to the Redis server.
   @emph{are not} thread safe! See @secref["pooling"].
 
   @history[#:changed "1.0" @elem{Added support for @racket[#:unix-socket] connections.}]
+  @history[#:changed "1.2" @elem{The @racket[#:client-name] argument accepts @racket[#f].}]
 }
 
 @defproc[(redis? [v any/c]) boolean?]{

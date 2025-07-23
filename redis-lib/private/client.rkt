@@ -13,6 +13,7 @@
          racket/string
          racket/tcp
          racket/unix-socket
+         struct-define
          "error.rkt"
          "protocol.rkt")
 
@@ -52,8 +53,20 @@
 
 (define-logger redis)
 
-(struct redis (socket-path host port timeout custodian in out response-ch response-reader)
-  #:mutable)
+(struct redis
+  (client-name-
+   socket-path
+   timeout
+   host
+   port
+   db
+   username
+   password
+   [custodian #:mutable]
+   [in #:mutable]
+   [out #:mutable]
+   [response-ch #:mutable]
+   [response-reader #:mutable]))
 
 (define/contract (parse-redis-url s)
   (-> string? (values (or/c #f string?)
@@ -93,7 +106,7 @@
                              #:username [username #f]
                              #:password [password #f])
   (->* []
-       [#:client-name non-empty-string?
+       [#:client-name (or/c #f non-empty-string?)
         #:unix-socket (or/c #f path-string?)
         #:host non-empty-string?
         #:port (integer-in 0 65536)
@@ -102,15 +115,20 @@
         #:username (or/c #f non-empty-string?)
         #:password (or/c #f non-empty-string?)]
        redis?)
-  (define client (redis socket-path host port timeout #f #f #f #f #f))
-  (begin0 client
-    (redis-connect! client)
-    (cond
-      [username (redis-auth! client username password)]
-      [password (redis-auth! client password)]
-      [else (void)])
-    (redis-select-db! client db)
-    (redis-set-client-name! client client-name)))
+  (redis
+   #;client-name client-name
+   #;socket-path socket-path
+   #;timeout timeout
+   #;host host
+   #;port port
+   #;db db
+   #;username username
+   #;password password
+   #;custodian #f
+   #;in #f
+   #;out #f
+   #;response-ch #f
+   #;response-reader #f))
 
 (define/contract (redis-connected? client)
   (-> redis? boolean?)
@@ -123,42 +141,40 @@
 
 (define/contract (redis-connect! client)
   (-> redis? void?)
+  (struct-define redis client)
   (when (redis-connected? client)
     (log-redis-warning "client already connected; disconnecting...")
     (redis-disconnect! client))
-
-  (define custodian (make-custodian))
-  (set-redis-custodian! client custodian)
-
+  (set! custodian (make-custodian))
   (parameterize ([current-custodian custodian])
-    (define-values (in out)
+    (define-values (ip op)
       (cond
-        [(redis-socket-path client)
-         => unix-socket-connect]
-
-        [else
-         (tcp-connect (redis-host client)
-                      (redis-port client))]))
-
-    (set-redis-in! client in)
-    (set-redis-out! client out)
-
-    (define response-ch (make-channel))
-    (define response-reader
-      (thread
-       (lambda _
-         (with-handlers ([exn:fail?
-                          (lambda (e)
-                            (redis-disconnect! client)
-                            (raise e))])
-           (let loop ()
-             (define response (redis-read in))
-             (log-redis-debug "received ~v" response)
-             (channel-put response-ch response)
-             (loop))))))
-
-    (set-redis-response-ch! client response-ch)
-    (set-redis-response-reader! client response-reader)))
+        [socket-path => unix-socket-connect]
+        [else (tcp-connect host port)]))
+    (set! in ip)
+    (set! out op)
+    (set! response-ch (make-channel))
+    (set! response-reader
+          (thread
+           (lambda ()
+             (with-handlers ([exn:fail?
+                              (lambda (e)
+                                (redis-disconnect! client)
+                                (raise e))])
+               (let loop ()
+                 (define response (redis-read in))
+                 (log-redis-debug "received ~v" response)
+                 (channel-put response-ch response)
+                 (loop)))))))
+  (cond
+    [username (redis-auth! client username password)]
+    [password (redis-auth! client password)]
+    [else (void)])
+  (unless (zero? db)
+    (redis-select-db! client db))
+  (when client-name-
+    (redis-set-client-name! client client-name-))
+  (void))
 
 (define/contract (redis-disconnect! client)
   (-> redis? void?)
@@ -203,7 +219,7 @@
     (if timeout
         (handle-evt
          (alarm-evt (+ (current-inexact-milliseconds) timeout))
-         (lambda _
+         (lambda (_)
            (redis-disconnect! client)
            (raise (exn:fail:redis:timeout
                    "timed out while waiting for response from Redis"
@@ -640,7 +656,7 @@
   (make-keyword-procedure
    (lambda (kws kw-args . args)
      (make-do-sequence
-      (lambda _
+      (lambda ()
         (define cursor 0)
         (define buffer null)
 
@@ -663,11 +679,15 @@
                (set! buffer (cdr buffer)))]))
 
         (values
+         #;pos->element
          (lambda (_) (take!))
+         #;next-pos
          (lambda (_) #f)
-         #f
-         #f
+         #;init-pos #f
+         #;continue-with-pos? #f
+         #;continue-with-val?
          (lambda (v) (not (eq? v 'done)))
+         #;continue-after-pos+val?
          #f))))))
 
 (define in-redis-hash
@@ -1010,7 +1030,7 @@
     (define channel (make-async-channel))
     (define overseer
       (thread
-       (lambda _
+       (lambda ()
          (let loop ()
            (match (take-response! client)
              [(list #"message" channel-name message)
@@ -1041,22 +1061,22 @@
   (-> redis? (-> redis-pubsub? any) any)
   (define pubsub #f)
   (dynamic-wind
-    (lambda _
+    (lambda ()
       (set! pubsub (make-redis-pubsub client)))
-    (lambda _
+    (lambda ()
       (proc pubsub))
-    (lambda _
+    (lambda ()
       (redis-pubsub-kill! pubsub))))
 
 (define (call-with-pubsub-events pubsub proc)
   (define listener #f)
   (dynamic-wind
-    (lambda _
+    (lambda ()
       (set! listener (make-async-channel))
       (set-add! (redis-pubsub-listeners pubsub) listener))
-    (lambda _
+    (lambda ()
       (proc listener))
-    (lambda _
+    (lambda ()
       (set-remove! (redis-pubsub-listeners pubsub) listener))))
 
 (define ((make-pubsub-waiter proc) events remaining)
@@ -1202,8 +1222,9 @@
 
 ;; CLIENT GETNAME
 (define/contract/provide (redis-client-name client)
-  (-> redis? string?)
-  (bytes->string/utf-8 (redis-emit! client #"CLIENT" #"GETNAME")))
+  (-> redis? (or/c #f string?))
+  (define maybe-name (redis-emit! client #"CLIENT" #"GETNAME"))
+  (and maybe-name (bytes->string/utf-8 maybe-name)))
 
 ;; CLIENT PAUSE timeout
 (define-simple-command/ok (clients-pause! [timeout exact-nonnegative-integer? #:converter number->string])
@@ -1758,22 +1779,30 @@
 
 (define (in-twos seq)
   (make-do-sequence
-   (lambda _
+   (lambda ()
      (define canary (lambda () 'canary))
      (define buffer seq)
      (define (take!)
        (begin0 (car buffer)
          (set! buffer (cdr buffer))))
-
      (values
-      (lambda _
+      #;pos->element
+      (lambda (_)
         (if (< (length buffer) 2)
-            (values canary canary)
-            (values (take!) (take!))))
-      (lambda _ #f)
-      #f
-      #f
-      (lambda (v1 v2) (not (eq? v1 canary)))
+            (values
+             canary
+             canary)
+            (values
+             (take!)
+             (take!))))
+      #;next-pos
+      (lambda (_) #f)
+      #;init-pos #f
+      #;continue-with-pos? #f
+      #;continue-with-val?
+      (lambda (v1 _v2)
+        (not (eq? v1 canary)))
+      #;continue-after-pos+val?
       #f))))
 
 ;; ZADD key [NX|XX] [CH] [INCR] score member [score member ...]

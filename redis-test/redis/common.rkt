@@ -5,6 +5,7 @@
 
 (provide
  test-host
+ test-port
  test-client
  test-pool
  test-commands)

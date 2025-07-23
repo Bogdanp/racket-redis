@@ -347,7 +347,16 @@
      (check-false (redis-connected? test-client)))
 
    (test-commands "SCAN"
-     (check-equal? (sequence->list (in-redis test-client)) null))))
+     (check-equal? (sequence->list (in-redis test-client)) null))
+
+   (test-case "reconnects to the right db"
+     (let ([c (make-redis
+               #:host test-host
+               #:port test-port
+               #:db 2)])
+       (redis-bytes-set! c "x" #"ok")
+       (redis-disconnect! c)
+       (check-equal? (redis-bytes-get c "x") #"ok")))))
 
 (module+ test
   (require rackunit/text-ui)
