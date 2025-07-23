@@ -190,7 +190,7 @@ Each client represents a single TCP connection to the Redis server.
   Returns @racket[#t] if @racket[v] is a pool of Redis connections.
 }
 
-@defproc[(make-redis-pool [#:client-name client-name non-empty-string? "racket-redis"]
+@defproc[(make-redis-pool [#:client-name client-name (or/c #f non-empty-string?) "racket-redis"]
                           [#:unix-socket socket-path (or/c #f path-string?) #f]
                           [#:host host non-empty-string? "127.0.0.1"]
                           [#:port port (integer-in 0 65536) 6379]
@@ -202,10 +202,8 @@ Each client represents a single TCP connection to the Redis server.
                           [#:idle-ttl idle-ttl exact-nonnegative-integer? 3600000]) redis-pool?]{
 
   Creates a lazy pool of Redis connections that will contain at most
-  @racket[pool-size] connections.
-
-  Connections that have been idle for more than @racket[idle-ttl]
-  milliseconds are lazily reconnected.
+  @racket[pool-size] connections. Idle connections are closed after
+  @racket[idle-ttl]
 
   All other parameters are passed directly to @racket[make-redis]
   whenever a new connection is initiated.
@@ -897,7 +895,7 @@ scripting world and Racket.
       (make-redis-pool))
 
     (thread
-     (lambda _
+     (lambda ()
        (call-with-redis-client pool
          (lambda (c)
            (sleep 5)

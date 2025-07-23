@@ -10,7 +10,7 @@
  (contract-out
   [make-redis-pool
    (->* []
-        [#:client-name non-empty-string?
+        [#:client-name (or/c #f non-empty-string?)
          #:unix-socket (or/c #f path-string?)
          #:host non-empty-string?
          #:port (integer-in 0 65536)
