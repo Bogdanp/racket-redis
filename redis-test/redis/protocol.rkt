@@ -26,7 +26,7 @@
      (check-equal? (redis-read (open-input-string "+OK\r\n")) "OK")
      (check-exn
       exn:fail:contract?
-      (lambda _
+      (lambda ()
         (redis-read (open-input-string "")))))
 
     (test-suite
