@@ -3,7 +3,8 @@
 (require (for-syntax racket/base
                      racket/provide-transform
                      syntax/stx)
-         racket/contract
+         racket/contract/base
+         racket/contract/region
          "private/client.rkt"
          "private/error.rkt"
          "private/pool.rkt"
@@ -17,32 +18,32 @@
   (parameter/c (or/c #f redis-pool?))
   (make-parameter #f))
 
-(define (compose-with-implicit-pool f)
+(define (compose-with-implicit-pool proc)
   (make-keyword-procedure
    (lambda (kws kw-args . args)
      (cond
        [(current-redis-client)
         => (lambda (client)
-             (keyword-apply f kws kw-args client args))]
+             (keyword-apply proc kws kw-args client args))]
 
        [else
         (define pool (current-redis-pool))
         (unless pool
-          (raise-user-error (object-name f) "no current redis pool or client"))
-
+          (raise-user-error (object-name proc) "no current redis pool or client"))
         (call-with-redis-client pool
           (lambda (client)
             (parameterize ([current-redis-client client])
-              (keyword-apply f kws kw-args client args))))]))))
+              (keyword-apply proc kws kw-args client args))))]))))
 
 (define-syntax easy-version-out
   (make-provide-pre-transformer
    (lambda (stx modes)
      (syntax-case stx ()
        [(_ id ...)
-        (with-syntax ([(wrapped-id ...) (stx-map
-                                         syntax-local-lift-expression
-                                         #'((compose-with-implicit-pool id) ...))])
+        (with-syntax ([(wrapped-id ...)
+                       (stx-map
+                        syntax-local-lift-expression
+                        #'((compose-with-implicit-pool id) ...))])
           (pre-expand-export #'(rename-out [wrapped-id id] ...) modes))]))))
 
 (provide
