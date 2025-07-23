@@ -5,7 +5,7 @@
                      syntax/parse/pre)
          net/url
          racket/async-channel
-         racket/contract
+         racket/contract ;; noqa
          racket/dict
          racket/list
          racket/match
@@ -92,23 +92,23 @@
                              #:db [db 0]
                              #:username [username #f]
                              #:password [password #f])
-  (->* ()
-       (#:client-name non-empty-string?
+  (->* []
+       [#:client-name non-empty-string?
         #:unix-socket (or/c #f path-string?)
         #:host non-empty-string?
         #:port (integer-in 0 65536)
         #:timeout exact-nonnegative-integer?
         #:db (integer-in 0 16)
         #:username (or/c #f non-empty-string?)
-        #:password (or/c #f non-empty-string?))
+        #:password (or/c #f non-empty-string?)]
        redis?)
-
   (define client (redis socket-path host port timeout #f #f #f #f #f))
   (begin0 client
     (redis-connect! client)
     (cond
       [username (redis-auth! client username password)]
-      [password (redis-auth! client password)])
+      [password (redis-auth! client password)]
+      [else (void)])
     (redis-select-db! client db)
     (redis-set-client-name! client client-name)))
 
@@ -180,19 +180,26 @@
        [(cons 'err message)
         (cond
           [(string-prefix? message "ERR")
-           (raise (exn:fail:redis (substring message 4) (current-continuation-marks)))]
-
+           (raise
+            (exn:fail:redis
+             (substring message 4)
+             (current-continuation-marks)))]
           [(string-prefix? message "WRONGTYPE")
-           (raise (exn:fail:redis (substring message 10) (current-continuation-marks)))]
-
+           (raise
+            (exn:fail:redis
+             (substring message 10)
+             (current-continuation-marks)))]
           [(string-prefix? message "NOSCRIPT")
-           (raise (exn:fail:redis:script:missing (substring message 9) (current-continuation-marks)))]
-
+           (raise
+            (exn:fail:redis:script:missing
+             (substring message 9)
+             (current-continuation-marks)))]
           [else
-           (raise (exn:fail:redis message (current-continuation-marks)))])]
-
+           (raise
+            (exn:fail:redis
+             message
+             (current-continuation-marks)))])]
        [response response]))
-
     (if timeout
         (handle-evt
          (alarm-evt (+ (current-inexact-milliseconds) timeout))
@@ -204,10 +211,12 @@
         never-evt))))
 
 (provide
- (contract-out [redis-emit! (->* (redis? redis-string/c)
-                                 (#:timeout exact-nonnegative-integer?)
-                                 #:rest (listof redis-value/c)
-                                 redis-value/c)]))
+ (contract-out
+  [redis-emit!
+   (->* [redis? redis-string/c]
+        [#:timeout exact-nonnegative-integer?]
+        #:rest (listof redis-value/c)
+        redis-value/c)]))
 
 (define (redis-emit! client command
                      #:timeout [timeout (redis-timeout client)]
@@ -215,7 +224,6 @@
   (unless (redis-connected? client)
     (log-redis-warning "client is not connected; reconnecting...")
     (redis-connect! client))
-
   (send-request! client command args)
   (take-response! client timeout))
 
@@ -310,9 +318,9 @@
 (define/contract/provide (redis-bytes-bitcount client key
                                                #:start [start 0]
                                                #:stop [stop -1])
-  (->* (redis? redis-key/c)
-       (#:start exact-integer?
-        #:stop exact-integer?)
+  (->* [redis? redis-key/c]
+       [#:start exact-integer?
+        #:stop exact-integer?]
        exact-nonnegative-integer?)
   (redis-emit! client #"BITCOUNT" key (number->string start) (number->string stop)))
 
@@ -323,7 +331,7 @@
 
 ;; BITOP NOT destkey key
 (define/contract/provide (redis-bytes-bitwise-not! client src [dest src])
-  (->* (redis? redis-key/c) (redis-key/c) exact-nonnegative-integer?)
+  (->* [redis? redis-key/c] [redis-key/c] exact-nonnegative-integer?)
   (redis-emit! client #"BITOP" #"NOT" dest src))
 
 ;; BITOP OR destkey key [key ...]
@@ -339,8 +347,8 @@
 ;; DECR key
 ;; DECRBY key decrement
 (define/contract/provide (redis-bytes-decr! client key [n 1])
-  (->* (redis? redis-key/c)
-       (exact-integer?)
+  (->* [redis? redis-key/c]
+       [exact-integer?]
        exact-integer?)
   (apply redis-emit! client (cond
                               [(= n 1) (list #"DECR" key)]
@@ -351,8 +359,8 @@
 (define/contract/provide (redis-remove! client key
                                         #:async? [async? #f]
                                         . keys)
-  (->* (redis? redis-key/c)
-       (#:async? boolean?)
+  (->* [redis? redis-key/c]
+       [#:async? boolean?]
        #:rest (listof redis-key/c)
        exact-nonnegative-integer?)
   (apply redis-emit! client (if async? #"UNLINK" #"DEL") key keys))
@@ -375,9 +383,9 @@
 (define/contract/provide (redis-subbytes client key
                                          #:start [start 0]
                                          #:stop [stop -1])
-  (->* (redis? redis-key/c)
-       (#:start exact-integer?
-        #:stop exact-integer?)
+  (->* [redis? redis-key/c]
+       [#:start exact-integer?
+        #:stop exact-integer?]
        bytes?)
   (redis-emit! client #"GETRANGE" key (number->string start) (number->string stop)))
 
@@ -385,13 +393,14 @@
 ;; INCRBY key increment
 ;; INCRBYFLOAT key increment
 (define/contract/provide (redis-bytes-incr! client key [n 1])
-  (->* (redis? redis-key/c) (real?) real?)
+  (->* [redis? redis-key/c] [real?] real?)
+  (define args
+    (cond
+      [(= n 1)            (list #"INCR"        key)]
+      [(exact-integer? n) (list #"INCRBY"      key (number->string n))]
+      [else               (list #"INCRBYFLOAT" key (number->string n))]))
   (define res
-    (apply redis-emit! client (cond
-                                [(= n 1)            (list #"INCR"        key)]
-                                [(exact-integer? n) (list #"INCRBY"      key (number->string n))]
-                                [else               (list #"INCRBYFLOAT" key (number->string n))])))
-
+    (apply redis-emit! client args))
   (if (bytes? res)
       (bytes->number res)
       res))
@@ -527,8 +536,8 @@
 ;; GEODIST key member1 member2 [unit]
 (define/contract/provide (redis-geo-dist client key member1 member2
                                          #:unit [unit #f])
-  (->* (redis? redis-key/c redis-string/c redis-string/c)
-       (#:unit (or/c #f redis-geo-unit/c))
+  (->* [redis? redis-key/c redis-string/c redis-string/c]
+       [#:unit (or/c #f redis-geo-unit/c)]
        (or/c #f real?))
 
   (define res
@@ -588,12 +597,13 @@
 ;; HINCRBY key field amount
 ;; HINCRBYFLOAT key field amount
 (define/contract/provide (redis-hash-incr! client key fld [n 1])
-  (->* (redis? redis-key/c redis-string/c) (real?) real?)
+  (->* [redis? redis-key/c redis-string/c] [real?] real?)
+  (define args
+    (cond
+      [(exact-integer? n) (list #"HINCRBY"      key fld (number->string n))]
+      [else               (list #"HINCRBYFLOAT" key fld (number->string n))]))
   (define res
-    (apply redis-emit! client (cond
-                                [(exact-integer? n) (list #"HINCRBY"      key fld (number->string n))]
-                                [else               (list #"HINCRBYFLOAT" key fld (number->string n))])))
-
+    (apply redis-emit! client args))
   (if (bytes? res)
       (bytes->number res)
       res))
@@ -613,18 +623,15 @@
                                           #:cursor [cursor 0]
                                           #:pattern [pattern #f]
                                           #:limit [limit #f])
-  (->* (redis? redis-key/c)
-       (#:cursor exact-nonnegative-integer?
+  (->* [redis? redis-key/c]
+       [#:cursor exact-nonnegative-integer?
         #:pattern (or/c #f redis-string/c)
-        #:limit (or/c #f exact-positive-integer?))
+        #:limit (or/c #f exact-positive-integer?)]
        (values exact-nonnegative-integer? (listof (cons/c bytes? bytes?))))
-
-
   (define res
     (apply redis-emit! client #"HSCAN" key (number->string cursor) (optionals
                                                                     [pattern #"MATCH" pattern]
                                                                     [limit #"COUNT" (number->string limit)])))
-
   (values (bytes->number (car res))
           (for/list ([(key value) (in-twos (cadr res))])
             (cons key value))))
@@ -639,9 +646,7 @@
 
         (define (fresh!)
           (define-values (cursor* buffer*)
-            (keyword-apply scanner kws kw-args args
-                           #:cursor cursor))
-
+            (keyword-apply scanner kws kw-args args #:cursor cursor))
           (set! buffer buffer*)
           (set! cursor (if (zero? cursor*) #f cursor*)))
 
@@ -665,7 +670,9 @@
          (lambda (v) (not (eq? v 'done)))
          #f))))))
 
-(define in-redis-hash (make-scanner-sequence redis-hash-scan))
+(define in-redis-hash
+  (make-scanner-sequence redis-hash-scan))
+
 (provide in-redis-hash)
 
 ;; HSET key field value
@@ -769,8 +776,8 @@
 ;; RENAME{,NX} key newkey
 (define/contract/provide (redis-rename! client src dest
                                         #:unless-exists? [unless-exists? #f])
-  (->* (redis? redis-key/c redis-key/c)
-       (#:unless-exists? boolean?)
+  (->* [redis? redis-key/c redis-key/c]
+       [#:unless-exists? boolean?]
        boolean?)
   (ok? (redis-emit! client
                     (if unless-exists?
@@ -785,11 +792,11 @@
                                      #:pattern [pattern #f]
                                      #:limit [limit #f]
                                      #:type [type #f])
-  (->* (redis?)
-       (#:cursor exact-nonnegative-integer?
+  (->* [redis?]
+       [#:cursor exact-nonnegative-integer?
         #:pattern (or/c #f redis-string/c)
         #:limit (or/c #f exact-positive-integer?)
-        #:type (or/c #f redis-key-type/c))
+        #:type (or/c #f redis-key-type/c)]
        (values exact-nonnegative-integer? (listof redis-key/c)))
 
   (define res
@@ -895,9 +902,9 @@
 (define/contract/provide (redis-sublist client key
                                         #:start [start 0]
                                         #:stop [stop -1])
-  (->* (redis? redis-key/c)
-       (#:start exact-integer?
-        #:stop exact-integer?)
+  (->* [redis? redis-key/c]
+       [#:start exact-integer?
+        #:stop exact-integer?]
        redis-value/c)
   (redis-emit! client #"LRANGE" key (number->string start) (number->string stop)))
 
@@ -919,9 +926,9 @@
 (define/contract/provide (redis-list-trim! client key
                                            #:start [start 0]
                                            #:stop [stop -1])
-  (->* (redis? redis-key/c)
-       (#:start exact-integer?
-        #:stop exact-integer?)
+  (->* [redis? redis-key/c]
+       [#:start exact-integer?
+        #:stop exact-integer?]
        boolean?)
   (ok? (redis-emit! client #"LTRIM" key (number->string start) (number->string stop))))
 
@@ -1096,8 +1103,8 @@
 (define/contract/provide (redis-pubsub-subscribe! pubsub
                                                   #:patterns? [patterns? #f]
                                                   channel-or-pattern . channel-or-patterns)
-  (->* (redis-pubsub? redis-string/c)
-       (#:patterns? boolean?)
+  (->* [redis-pubsub? redis-string/c]
+       [#:patterns? boolean?]
        #:rest (listof redis-string/c)
        void?)
   (call-with-pubsub-events pubsub
@@ -1117,8 +1124,8 @@
 (define/contract/provide (redis-pubsub-unsubscribe! pubsub
                                                     #:patterns? [patterns? #f]
                                                     . channel-or-patterns)
-  (->* (redis-pubsub?)
-       (#:patterns? boolean?)
+  (->* [redis-pubsub?]
+       [#:patterns? boolean?]
        #:rest (listof redis-string/c)
        void?)
   (call-with-pubsub-events pubsub
@@ -1144,9 +1151,9 @@
 (define/contract/provide (redis-script-eval! client script
                                              #:keys [keys null]
                                              #:args [args null])
-  (->* (redis? redis-string/c)
-       (#:keys (listof redis-key/c)
-        #:args (listof redis-string/c))
+  (->* [redis? redis-string/c]
+       [#:keys (listof redis-key/c)
+        #:args (listof redis-string/c)]
        redis-value/c)
   (apply redis-emit! client #"EVAL" script (number->string (length keys)) (append keys args)))
 
@@ -1154,9 +1161,9 @@
 (define/contract/provide (redis-script-eval-sha! client script-sha1
                                                  #:keys [keys null]
                                                  #:args [args null])
-  (->* (redis? redis-string/c)
-       (#:keys (listof redis-key/c)
-        #:args (listof redis-string/c))
+  (->* [redis? redis-string/c]
+       [#:keys (listof redis-key/c)
+        #:args (listof redis-string/c)]
        redis-value/c)
   (apply redis-emit! client #"EVALSHA" script-sha1 (number->string (length keys)) (append keys args)))
 
@@ -1276,7 +1283,7 @@
 
 ;; SHUTDOWN
 (define/contract/provide (redis-shutdown! client [save? #t])
-  (->* (redis?) (boolean?) void?)
+  (->* [redis?] [boolean?] void?)
   (send-request! client #"SHUTDOWN" (list (if save? #"SAVE" #"NOSAVE"))))
 
 ;; SLOWLOG GET count
@@ -1348,8 +1355,8 @@
 
 ;; SPOP key [count]
 (define/contract/provide (redis-set-pop! client key #:count [cnt 1])
-  (->* (redis? redis-key/c)
-       (#:count exact-positive-integer?)
+  (->* [redis? redis-key/c]
+       [#:count exact-positive-integer?]
        (listof bytes?))
   (if (> cnt 1)
       (redis-emit! client #"SPOP" key (number->string cnt))
@@ -1377,10 +1384,10 @@
                                          #:cursor [cursor 0]
                                          #:pattern [pattern #f]
                                          #:limit [limit #f])
-  (->* (redis? redis-key/c)
-       (#:cursor exact-nonnegative-integer?
+  (->* [redis? redis-key/c]
+       [#:cursor exact-nonnegative-integer?
         #:pattern (or/c #f redis-string/c)
-        #:limit (or/c #f exact-positive-integer?))
+        #:limit (or/c #f exact-positive-integer?)]
        (values exact-nonnegative-integer? (listof redis-string/c)))
 
   (define res
@@ -1408,25 +1415,30 @@
 
 (provide
  (contract-out
-  [struct redis-stream-entry ([id bytes?]
-                              [fields (hash/c bytes? bytes?)])]
-  [struct redis-stream-entry/pending ([id bytes?]
-                                      [consumer bytes?]
-                                      [elapsed-time exact-nonnegative-integer?]
-                                      [delivery-count exact-positive-integer?])]
-  [struct redis-stream-info ([length exact-nonnegative-integer?]
-                             [radix-tree-keys exact-nonnegative-integer?]
-                             [radix-tree-nodes exact-nonnegative-integer?]
-                             [groups exact-nonnegative-integer?]
-                             [last-generated-id bytes?]
-                             [first-entry redis-stream-entry?]
-                             [last-entry redis-stream-entry?])]
-  [struct redis-stream-group ([name bytes?]
-                              [consumers exact-nonnegative-integer?]
-                              [pending exact-nonnegative-integer?])]
-  [struct redis-stream-consumer ([name bytes?]
-                                 [idle exact-nonnegative-integer?]
-                                 [pending exact-positive-integer?])]))
+  [struct redis-stream-entry
+    ([id bytes?]
+     [fields (hash/c bytes? bytes?)])]
+  [struct redis-stream-entry/pending
+    ([id bytes?]
+     [consumer bytes?]
+     [elapsed-time exact-nonnegative-integer?]
+     [delivery-count exact-positive-integer?])]
+  [struct redis-stream-info
+    ([length exact-nonnegative-integer?]
+     [radix-tree-keys exact-nonnegative-integer?]
+     [radix-tree-nodes exact-nonnegative-integer?]
+     [groups exact-nonnegative-integer?]
+     [last-generated-id bytes?]
+     [first-entry redis-stream-entry?]
+     [last-entry redis-stream-entry?])]
+  [struct redis-stream-group
+    ([name bytes?]
+     [consumers exact-nonnegative-integer?]
+     [pending exact-nonnegative-integer?])]
+  [struct redis-stream-consumer
+    ([name bytes?]
+     [idle exact-nonnegative-integer?]
+     [pending exact-positive-integer?])]))
 
 (struct redis-stream-entry (id fields) #:transparent)
 (struct redis-stream-entry/pending (id consumer elapsed-time delivery-count) #:transparent)
@@ -1486,15 +1498,15 @@
                                                     #:new-retry-count [new-retry-count #f]
                                                     #:force? [force? #f]
                                                     . ids)
-  (->* (redis?
+  (->* [redis?
         redis-key/c
         #:group redis-string/c
         #:consumer redis-string/c
-        #:min-idle-time exact-nonnegative-integer?)
-       (#:new-idle-value exact-nonnegative-integer?
+        #:min-idle-time exact-nonnegative-integer?]
+       [#:new-idle-value exact-nonnegative-integer?
         #:new-time-value exact-nonnegative-integer?
         #:new-retry-count exact-nonnegative-integer?
-        #:force? boolean?)
+        #:force? boolean?]
        #:rest (non-empty-listof redis-string/c)
        (non-empty-listof redis-stream-entry?))
 
@@ -1517,8 +1529,8 @@
 
 ;; XGROUP CREATE key group id
 (define/contract/provide (redis-stream-group-create! client key group [starting-id #"0-0"])
-  (->* (redis? redis-key/c redis-string/c)
-       (redis-string/c)
+  (->* [redis? redis-key/c redis-string/c]
+       [redis-string/c]
        boolean?)
   (ok? (redis-emit! client #"XGROUP" #"CREATE" key group starting-id)))
 
@@ -1558,9 +1570,7 @@
 ;; XINFO STREAM key
 (define/contract/provide (redis-stream-get client key)
   (-> redis? redis-key/c redis-stream-info?)
-  (define info
-    (apply hash (redis-emit! client #"XINFO" #"STREAM" key)))
-
+  (define info (apply hash (redis-emit! client #"XINFO" #"STREAM" key)))
   (redis-stream-info (hash-ref info #"length")
                      (hash-ref info #"radix-tree-keys")
                      (hash-ref info #"radix-tree-nodes")
@@ -1591,11 +1601,11 @@
                                                 #:start [start 'first-entry]
                                                 #:stop [stop 'last-entry]
                                                 #:limit [limit 10])
-  (->* (redis? redis-key/c redis-string/c)
-       (redis-string/c
+  (->* [redis? redis-key/c redis-string/c]
+       [redis-string/c
         #:start stream-range-position/c
         #:stop stream-range-position/c
-        #:limit exact-positive-integer?)
+        #:limit exact-positive-integer?]
        (listof redis-stream-entry/pending?))
   (map list->entry/pending
        (apply redis-emit! client #"XPENDING" key group
@@ -1616,11 +1626,11 @@
                                           #:start [start 'first-entry]
                                           #:stop [stop 'last-entry]
                                           #:limit [limit #f])
-  (->* (redis? redis-key/c)
-       (#:reverse? boolean?
+  (->* [redis? redis-key/c]
+       [#:reverse? boolean?
         #:start stream-range-position/c
         #:stop stream-range-position/c
-        #:limit (or/c #f exact-positive-integer?))
+        #:limit (or/c #f exact-positive-integer?)]
        (listof redis-stream-entry?))
 
   (map pair->entry
@@ -1647,11 +1657,11 @@
                                              #:limit [limit #f]
                                              #:block? [block? #f]
                                              #:timeout [timeout 0])
-  (->* (redis?
-        #:streams (non-empty-listof (cons/c redis-key/c stream-position/c)))
-       (#:limit (or/c #f exact-positive-integer?)
+  (->* [redis?
+        #:streams (non-empty-listof (cons/c redis-key/c stream-position/c))]
+       [#:limit (or/c #f exact-positive-integer?)
         #:block? boolean?
-        #:timeout exact-nonnegative-integer?)
+        #:timeout exact-nonnegative-integer?]
        (or/c #f (listof (list/c bytes? (listof redis-stream-entry?)))))
 
   (define timeout/read (if (> timeout 0) (add1 timeout) #f))
@@ -1690,14 +1700,14 @@
                                                    #:block? [block? #f]
                                                    #:timeout [timeout 0]
                                                    #:no-ack? [no-ack? #f])
-  (->* (redis?
+  (->* [redis?
         #:streams (non-empty-listof (cons/c redis-key/c stream-group-position/c))
         #:group redis-string/c
-        #:consumer redis-string/c)
-       (#:limit (or/c #f exact-positive-integer?)
+        #:consumer redis-string/c]
+       [#:limit (or/c #f exact-positive-integer?)
         #:block? boolean?
         #:timeout exact-nonnegative-integer?
-        #:no-ack? boolean?)
+        #:no-ack? boolean?]
        (or/c #f (listof (list/c bytes? (listof redis-stream-entry?)))))
 
   (define timeout/read (if (> timeout 0) (add1 timeout) #f))
@@ -1738,9 +1748,10 @@
   (cond
     [max-length/approximate
      (apply redis-emit! client #"XTRIM" key #"MAXLEN" #"~" (number->string max-length/approximate))]
-
     [max-length
-     (apply redis-emit! client #"XTRIM" key #"MAXLEN" (number->string max-length))]))
+     (apply redis-emit! client #"XTRIM" key #"MAXLEN" (number->string max-length))]
+    [else
+     (error 'redis-stream-trim! "unreachable")]))
 
 
 ;; sorted set commands ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1812,7 +1823,7 @@
 
 ;; ZINCRBY key increment member
 (define/contract/provide (redis-zset-incr! client key mem [n 1])
-  (->* (redis? redis-key/c redis-string/c) (real?) real?)
+  (->* [redis? redis-key/c redis-string/c] [real?] real?)
   (bytes->number (redis-emit! client #"ZINCRBY" key (number->string n) mem)))
 
 ;; ZINTERSTORE destination numkeys key [key ...] [WEIGHTS weight [weight ...]] [AGGREGATE SUM|MIN|MAX]
@@ -1845,9 +1856,9 @@
 (define/contract/provide (redis-zset-count/lex client key
                                                #:min [min #"-"]
                                                #:max [max #"+"])
-  (->* (redis? redis-key/c)
-       (#:min redis-string/c
-        #:max redis-string/c)
+  (->* [redis? redis-key/c]
+       [#:min redis-string/c
+        #:max redis-string/c]
        exact-nonnegative-integer?)
 
   (redis-emit! client #"ZLEXCOUNT" key min max))
@@ -1955,11 +1966,11 @@
                                         #:start [start 0]
                                         #:stop [stop -1]
                                         #:include-scores? [scores? #f])
-  (->* (redis? redis-key/c)
-       (#:reverse? boolean?
+  (->* [redis? redis-key/c]
+       [#:reverse? boolean?
         #:start exact-integer?
         #:stop exact-integer?
-        #:include-scores? boolean?)
+        #:include-scores? boolean?]
        (or/c (listof bytes?)
              (listof (cons/c bytes? real?))))
 
@@ -2052,8 +2063,8 @@
 ;; ZRANK key member
 ;; ZREVRANK key member
 (define/contract/provide (redis-zset-rank client key mem #:reverse? [reverse? #f])
-  (->* (redis? redis-key/c redis-string/c)
-       (#:reverse? boolean?)
+  (->* [redis? redis-key/c redis-string/c]
+       [#:reverse? boolean?]
        (or/c #f exact-nonnegative-integer?))
   (if reverse?
       (redis-emit! client #"ZREVRANK" key mem)
@@ -2068,9 +2079,9 @@
 (define/contract/provide (redis-zset-remove/lex! client key
                                                  #:min [min #"-"]
                                                  #:max [max #"+"])
-  (->* (redis? redis-key/c)
-       (#:min redis-string/c
-        #:max redis-string/c)
+  (->* [redis? redis-key/c]
+       [#:min redis-string/c
+        #:max redis-string/c]
        exact-nonnegative-integer?)
   (redis-emit! client #"ZREMRANGEBYLEX" key min max))
 
@@ -2078,9 +2089,9 @@
 (define/contract/provide (redis-zset-remove/rank! client key
                                                   #:start [start 0]
                                                   #:stop [stop -1])
-  (->* (redis? redis-key/c)
-       (#:start exact-integer?
-        #:stop exact-integer?)
+  (->* [redis? redis-key/c]
+       [#:start exact-integer?
+        #:stop exact-integer?]
        exact-nonnegative-integer?)
   (redis-emit! client #"ZREMRANGEBYRANK" key (number->string start) (number->string stop)))
 
@@ -2088,9 +2099,9 @@
 (define/contract/provide (redis-zset-remove/score! client key
                                                    #:start [start -inf.0]
                                                    #:stop [stop +inf.0])
-  (->* (redis? redis-key/c)
-       (#:start real?
-        #:stop real?)
+  (->* [redis? redis-key/c]
+       [#:start real?
+        #:stop real?]
        exact-nonnegative-integer?)
 
   (define (~n n)
@@ -2106,10 +2117,10 @@
                                           #:cursor [cursor 0]
                                           #:pattern [pattern #f]
                                           #:limit [limit #f])
-  (->* (redis? redis-key/c)
-       (#:cursor exact-nonnegative-integer?
+  (->* [redis? redis-key/c]
+       [#:cursor exact-nonnegative-integer?
         #:pattern (or/c #f redis-string/c)
-        #:limit (or/c #f exact-positive-integer?))
+        #:limit (or/c #f exact-positive-integer?)]
        (values exact-nonnegative-integer? (listof (cons/c redis-string/c real?))))
 
   (define res
