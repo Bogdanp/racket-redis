@@ -203,7 +203,7 @@ Each client represents a single TCP connection to the Redis server.
 
   Creates a lazy pool of Redis connections that will contain at most
   @racket[pool-size] connections. Idle connections are closed after
-  @racket[idle-ttl]
+  @racket[idle-ttl].
 
   All other parameters are passed directly to @racket[make-redis]
   whenever a new connection is initiated.
