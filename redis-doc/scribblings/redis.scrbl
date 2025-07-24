@@ -288,10 +288,10 @@ scripting world and Racket.
 
 @defcmd*[
   ((AUTH)
-   ([(redis-auth! [password redis-string/c]) boolean?]
-    [(redis-auth! [username redis-string/c] [password redis-string/c]) boolean?]))]{
+   ([(redis-auth! [client redis?] [password redis-string/c]) boolean?]
+    [(redis-auth! [client redis?] [username redis-string/c] [password redis-string/c]) boolean?]))]{
 
-  @tt{AUTH}s the current connection using @racket[password].  Raises
+  Authenticates the @racket[client] using @racket[password]. Raises
   an exception if authentication is not set up or if the password is
   invalid.
 
@@ -340,10 +340,10 @@ scripting world and Racket.
 @section{Geo Commands}
 
 @deftogether[
-  (@defthing[redis-latitude/c (real-in -90 90)]
-   @defthing[redis-longitude/c (real-in -180 180)]
-   @defthing[redis-geo/c (list/c redis-longitude/c redis-latitude/c redis-string/c)]
-   @defthing[redis-geo-unit/c (or/c 'm 'km 'mi 'ft)])]{
+  (@defthing[#:kind "contract" redis-latitude/c (real-in -90 90)]
+   @defthing[#:kind "contract" redis-longitude/c (real-in -180 180)]
+   @defthing[#:kind "contract" redis-geo/c (list/c redis-longitude/c redis-latitude/c redis-string/c)]
+   @defthing[#:kind "contract" redis-geo-unit/c (or/c 'm 'km 'mi 'ft)])]{
 
   The geo-related contracts.
 }
@@ -497,7 +497,8 @@ scripting world and Racket.
 
 @defproc[
   (in-redis-hash [client redis?]
-                 [key redis-key/c]) (sequence/c (cons/c bytes? bytes?))]{
+                 [key redis-key/c])
+  (sequence/c (cons/c bytes? bytes?))]{
 
   Returns a sequence that can be used to efficiently iterate through
   the hash at @racket[key].
@@ -655,7 +656,8 @@ scripting world and Racket.
    (scan [#:cursor cursor exact-nonnegative-integer? 0]
          [#:pattern pattern (or/c #f redis-string/c) #f]
          [#:limit limit (or/c #f exact-positive-integer?) #f]
-         [#:type type (or/c #f redis-key-type/c) #f]) (values exact-nonnegative-integer? (listof redis-key/c)))]{
+         [#:type type (or/c #f redis-key-type/c) #f])
+   (values exact-nonnegative-integer? (listof redis-key/c)))]{
 
   Efficiently iterates through all the keys in the database.
 
@@ -673,7 +675,7 @@ scripting world and Racket.
 }
 
 @defproc[
-  (in-redis [client redis?]) (sequence/c  bytes?)]{
+  (in-redis [client redis?]) (sequence/c bytes?)]{
 
   Returns a sequence that can be used to efficiently iterate through
   the Redis database.
